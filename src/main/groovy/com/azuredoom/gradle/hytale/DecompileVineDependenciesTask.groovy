@@ -47,9 +47,11 @@ abstract class DecompileVineDependenciesTask extends DefaultTask {
             throw new GradleException('No jars resolved from vineDependencyJars')
         }
 
-        def javaExe = javaToolchainService.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(javaVersion.get()))
-        }.get().executablePath.asFile.absolutePath
+        def launcher = javaToolchainService.launcherFor { spec ->
+            spec.languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(javaVersion.get()))
+        }
+
+        def javaExe = launcher.get().executablePath.asFile.absolutePath
 
         jars.each { jarFile ->
             def safeName = jarFile.name

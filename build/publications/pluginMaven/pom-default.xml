@@ -9,7 +9,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.azuredoom.gradle</groupId>
   <artifactId>hytale-gradle-plugin</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.3</version>
   <name>Hytale Gradle Plugin</name>
   <description>Reusable Gradle plugin for Hytale mod/plugin development workflows.</description>
 </project>

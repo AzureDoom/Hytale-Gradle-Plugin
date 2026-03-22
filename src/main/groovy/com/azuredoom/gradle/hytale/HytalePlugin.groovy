@@ -77,25 +77,32 @@ class HytalePlugin implements Plugin<Project> {
             curseforgeId.set(ext.curseforgeId)
         }
 
+        def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile })
+        def serverJarFile = project.layout.file(project.provider { vineServerJar.singleFile })
+
         project.tasks.register('decompileServerJar', DecompileServerJarTask) {
+            serverJar.set(serverJarFile)
+            vineflowerJar.set(vineflowerJarFile)
+
             group = 'hytale'
             description = 'Decompile only com/hypixel/hytale from the Hytale Server jar into build/vineflower/hytale-server/'
 
-            serverJar.set(project.provider { vineServerJar.singleFile })
+            serverJar.set(project.layout.file(project.provider { vineServerJar.singleFile }))
             decompileClasspath.from(vineDecompileClasspath)
-            vineflowerJar.set(project.provider { vineflowerTool.singleFile })
+            vineflowerJar.set(project.layout.file(project.provider { vineflowerTool.singleFile }))
             outputDirectory.set(project.layout.buildDirectory.dir('vineflower/hytale-server'))
             tempDirectoryRoot.set(project.layout.buildDirectory.dir('tmp/vineflower-server'))
             javaVersion.set(ext.javaVersion)
         }
 
         project.tasks.register('decompileVineDependencies', DecompileVineDependenciesTask) {
+            vineflowerJar.set(vineflowerJarFile)
             group = 'hytale'
             description = 'Decompile selected dependency jars from vineDependencyJars into build/vineflower/dependencies/'
 
             dependencyJars.from(vineDependencyJars)
             decompileClasspath.from(vineDecompileClasspath)
-            vineflowerJar.set(project.provider { vineflowerTool.singleFile })
+            vineflowerJar.set(project.layout.file(project.provider { vineflowerTool.singleFile }))
             outputRootDirectory.set(project.layout.buildDirectory.dir('vineflower/dependencies'))
             javaVersion.set(ext.javaVersion)
         }

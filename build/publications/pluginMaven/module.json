@@ -3,7 +3,7 @@
   "component": {
     "group": "com.azuredoom.gradle",
     "module": "hytale-gradle-plugin",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "attributes": {
       "org.gradle.status": "release"
     }
@@ -25,13 +25,13 @@
       },
       "files": [
         {
-          "name": "hytale-gradle-plugin-1.0.1.jar",
-          "url": "hytale-gradle-plugin-1.0.1.jar",
-          "size": 116291,
-          "sha512": "de681498bf258c3837fcc1077108cb14e182ff394e38ff5cf580ccd7cd4153142c8dbf48d4baa809641ddfd7ebe90be34e4ce2e0bad59442bf4f01dc13a00ce6",
-          "sha256": "eb3aece2e60a4c857aca1a91c8c936a114a19133874eb63f3e5f4b8bb93e29af",
-          "sha1": "49e5e8ea1212460f51bd064b5c143891b23da68b",
-          "md5": "83150a670c367df882ab510a0124db12"
+          "name": "hytale-gradle-plugin-1.0.3.jar",
+          "url": "hytale-gradle-plugin-1.0.3.jar",
+          "size": 119114,
+          "sha512": "de48caf04078b89a82001503880686560dc23ec14c3d36e1ef01415d8a909e9c22fbd42f7deea0a8009bca66321699fde7e15a0da157ab4c15fd7497ff5aa142",
+          "sha256": "588b192a4a8c1bed98678b8d0c7fe117cf9f303140f511b5a4afc93247be61bd",
+          "sha1": "bb94f72cc1d6c45359721585ff954ef41b3a76f8",
+          "md5": "5c1314f367e2a7015d6baa43b8b46a7a"
         }
       ]
     },
@@ -46,13 +46,13 @@
       },
       "files": [
         {
-          "name": "hytale-gradle-plugin-1.0.1.jar",
-          "url": "hytale-gradle-plugin-1.0.1.jar",
-          "size": 116291,
-          "sha512": "de681498bf258c3837fcc1077108cb14e182ff394e38ff5cf580ccd7cd4153142c8dbf48d4baa809641ddfd7ebe90be34e4ce2e0bad59442bf4f01dc13a00ce6",
-          "sha256": "eb3aece2e60a4c857aca1a91c8c936a114a19133874eb63f3e5f4b8bb93e29af",
-          "sha1": "49e5e8ea1212460f51bd064b5c143891b23da68b",
-          "md5": "83150a670c367df882ab510a0124db12"
+          "name": "hytale-gradle-plugin-1.0.3.jar",
+          "url": "hytale-gradle-plugin-1.0.3.jar",
+          "size": 119114,
+          "sha512": "de48caf04078b89a82001503880686560dc23ec14c3d36e1ef01415d8a909e9c22fbd42f7deea0a8009bca66321699fde7e15a0da157ab4c15fd7497ff5aa142",
+          "sha256": "588b192a4a8c1bed98678b8d0c7fe117cf9f303140f511b5a4afc93247be61bd",
+          "sha1": "bb94f72cc1d6c45359721585ff954ef41b3a76f8",
+          "md5": "5c1314f367e2a7015d6baa43b8b46a7a"
         }
       ]
     },
@@ -66,13 +66,13 @@
       },
       "files": [
         {
-          "name": "hytale-gradle-plugin-1.0.1-sources.jar",
-          "url": "hytale-gradle-plugin-1.0.1-sources.jar",
-          "size": 11769,
-          "sha512": "bd057f46540a346e320af469b1cb3ee54870cfde1d96be0dc37dbcf8228e22a3bf7a374e802e9c40e0e5775d3ce810afb92359ea26722416f50912a1aee45ff3",
-          "sha256": "243daac0947fa4de6358f9f84b0c4cd65690d3f4629a29c13e1664f6d433daa9",
-          "sha1": "3bb88d22682739c60d6bdc0fa9f2719dbe81d063",
-          "md5": "64fbd6e068143420455a54338a71b032"
+          "name": "hytale-gradle-plugin-1.0.3-sources.jar",
+          "url": "hytale-gradle-plugin-1.0.3-sources.jar",
+          "size": 11844,
+          "sha512": "8ee8007c05651fd2f55dddd4e220325493742cae095e35a3778dc5f2b4f58eb9b4185e8f789cbce46500aa5b5a4dc1c9885c65b58d701ca66354f04f52d8b703",
+          "sha256": "116cb84afd1589ac23c58959e8cab46486150c0af467f3c855e78df18352e126",
+          "sha1": "0a7e0ad580e047668b23e46006e496c101bace89",
+          "md5": "64fd65a27e8ef6c51b32a114f0a39ffa"
         }
       ]
     },
@@ -86,8 +86,8 @@
       },
       "files": [
         {
-          "name": "hytale-gradle-plugin-1.0.1-javadoc.jar",
-          "url": "hytale-gradle-plugin-1.0.1-javadoc.jar",
+          "name": "hytale-gradle-plugin-1.0.3-javadoc.jar",
+          "url": "hytale-gradle-plugin-1.0.3-javadoc.jar",
           "size": 261,
           "sha512": "1487e5a20c9e4d74f298e07c42e96a61be11b7a768c3fbc199ee138cd68e1fc2267d1cfe3f11f288acc05df755315344d052cc5f6f751f126ab4fe1caa5125ea",
           "sha256": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3",
