@@ -97,7 +97,7 @@ pluginManagement {
 ``` groovy
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.0'
+    id 'com.azuredoom.hytale-tools' version '1.0.3'
 }
 ```
 
