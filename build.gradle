@@ -1,0 +1,60 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group = project.plugin_group
+version = project.plugin_version
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(plugin_java_version)
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+}
+
+gradlePlugin {
+    website = project.plugin_website
+    vcsUrl = project.plugin_vcs_url
+
+    plugins {
+        hytaleTools {
+            id = 'com.azuredoom.hytale-tools'
+            implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
+            displayName = 'Hytale build tools plugin'
+            description = 'Tasks for Hytale manifest updates, decompilation, assets download, and local server runs.'
+        }
+    }
+}
+
+publishing {
+    publications {
+        withType(MavenPublication).configureEach {
+            pom {
+                name = 'Hytale Gradle Plugin'
+                description = 'Reusable Gradle plugin for Hytale mod/plugin development workflows.'
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = project.mod_id
+            url = project.maven_url
+            credentials(PasswordCredentials)
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
+    }
+}
