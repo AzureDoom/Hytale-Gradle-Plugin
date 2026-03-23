@@ -5,16 +5,47 @@ and shared build configuration into a reusable plugin.
 
 This plugin automatically provides:
 
--   Required repositories
--   Custom `vine*` configurations
--   Task registrations for development workflows
+- Required repositories
+- Custom `vine*` configurations
+- Task registrations for development workflows
 
 ## Included tasks
+
+### `createModSkeleton`
+
+Creates a starter mod project structure if it does not already exist.
+
+This includes:
+- `src/main/java` source directory
+- `src/main/resources` directory
+- A generated `manifest.json` (if missing)
+- A basic main class (if missing)
+- Optional asset pack directory if `includesPack = true`
+
+This is intended to bootstrap new Hytale mods quickly.
+
+---
 
 ### `updatePluginManifest`
 
 Updates `src/main/resources/manifest.json` using Gradle properties or
 explicit `hytaleTools {}` configuration.
+
+---
+
+### `validateManifest`
+
+Validates `manifest.json` against required fields and your Gradle configuration.
+
+Checks include:
+- Required fields (Group, Name, Version, ServerVersion, Main)
+- Dependency formatting
+- Matching Gradle configuration values
+- Valid JSON structure
+
+Fails the build early if something is incorrect.
+
+---
 
 ### `decompileServerJar`
 
@@ -23,6 +54,8 @@ resolved Hytale server jar into:
 
     build/vineflower/hytale-server/
 
+---
+
 ### `decompileVineDependencies`
 
 Uses Vineflower to decompile jars resolved from `vineDependencyJars`
@@ -30,15 +63,21 @@ into:
 
     build/vineflower/dependencies/
 
+---
+
 ### `prepareRunServer`
 
 Creates the local `run/` directory and depends on `classes` and
 `processResources`.
 
+---
+
 ### `downloadAssetsZip`
 
 Authenticates with Hytale device auth, downloads the asset wrapper jar,
 extracts `Assets.zip`, and caches the results under Gradle user home.
+
+---
 
 ### `runServer`
 
@@ -62,12 +101,12 @@ You **do not need to declare these manually**.
 
 The plugin automatically creates:
 
--   `vineImplementation`
--   `vineCompileOnly`
--   `vineDecompileTargets`
--   `vineDecompileClasspath`
--   `vineServerJar`
--   `vineDependencyJars`
+- `vineImplementation`
+- `vineCompileOnly`
+- `vineDecompileTargets`
+- `vineDecompileClasspath`
+- `vineServerJar`
+- `vineDependencyJars`
 
 And wires:
 
@@ -80,7 +119,7 @@ And wires:
 
 ### settings.gradle
 
-``` groovy
+```gradle
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -94,7 +133,7 @@ pluginManagement {
 
 ### build.gradle
 
-``` groovy
+```gradle
 plugins {
     id 'java'
     id 'com.azuredoom.hytale-tools' version '1.0.3'
@@ -105,7 +144,7 @@ plugins {
 
 ## Dependencies
 
-``` groovy
+```gradle
 dependencies {
     // Required
     vineServerJar "com.hypixel.hytale:Server:$hytale_version"
@@ -125,7 +164,7 @@ dependencies {
 
 ## Configuration
 
-``` groovy
+```gradle
 hytaleTools {
     javaVersion = project.java_version as Integer
     hytaleVersion = project.hytale_version.toString()

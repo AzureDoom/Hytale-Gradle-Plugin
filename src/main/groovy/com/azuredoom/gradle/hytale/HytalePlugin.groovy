@@ -77,6 +77,44 @@ class HytalePlugin implements Plugin<Project> {
             curseforgeId.set(ext.curseforgeId)
         }
 
+        project.tasks.register('createModSkeleton', CreateModSkeletonTask) {
+            group = 'hytale'
+            description = 'Creates a starter Hytale mod source layout and manifest.json if they do not exist.'
+
+            javaSourceDirectory.set(project.layout.projectDirectory.dir('src/main/java'))
+            resourcesDirectory.set(project.layout.projectDirectory.dir('src/main/resources'))
+            manifestFile.set(ext.manifestFile)
+
+            manifestGroup.set(ext.manifestGroup)
+            modId.set(ext.modId)
+            mainClass.set(ext.mainClass)
+            modDescription.set(ext.modDescription)
+            modUrl.set(ext.modUrl)
+            modCredits.set(ext.modCredits)
+            hytaleVersion.set(ext.hytaleVersion)
+            includesPack.set(ext.includesPack)
+            disabledByDefault.set(ext.disabledByDefault)
+        }
+
+        project.tasks.register('validateManifest', ValidateManifestTask) {
+            group = 'hytale'
+            description = 'Validates src/main/resources/manifest.json against required fields and plugin configuration.'
+
+            manifestFile.set(ext.manifestFile)
+            manifestGroup.set(ext.manifestGroup)
+            modId.set(ext.modId)
+            mainClass.set(ext.mainClass)
+            hytaleVersion.set(ext.hytaleVersion)
+            manifestDependencies.set(ext.manifestDependencies)
+            manifestOptionalDependencies.set(ext.manifestOptionalDependencies)
+            includesPack.set(ext.includesPack)
+        }
+
+        project.tasks.named('updatePluginManifest').configure {
+            finalizedBy('validateManifest')
+        }
+
+
         def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile })
         def serverJarFile = project.layout.file(project.provider { vineServerJar.singleFile })
 
@@ -130,7 +168,7 @@ class HytalePlugin implements Plugin<Project> {
 
         project.pluginManager.withPlugin('java') {
             project.tasks.named('processResources').configure {
-                dependsOn('updatePluginManifest')
+                dependsOn('createModSkeleton', 'updatePluginManifest', 'validateManifest')
             }
 
             project.tasks.register('runServer', RunServerTask) {
