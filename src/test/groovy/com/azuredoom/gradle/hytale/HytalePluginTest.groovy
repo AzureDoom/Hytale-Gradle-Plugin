@@ -41,10 +41,11 @@ class HytalePluginTest extends Specification {
         and: 'expected repositories were added'
         project.repositories.find { it.name == 'Hytale Server Release' } != null
         project.repositories.find { it.name == 'Hytale Server Pre-Release' } != null
-        project.repositories.find { it.name == 'hMReleases' } != null
+        project.repositories.find { it.name == 'Hytale-Mods.info Maven' } != null
         project.repositories.find { it.name == 'PlaceholderAPI' } != null
         project.repositories.find { it.name == 'CurseMaven' } != null
         project.repositories.find { it.name == 'AzureDoom Maven' } != null
+        project.repositories.find { it.name == 'Hytale Modding Maven' } != null
     }
 
     def "java plugin adds runServer and wires task dependencies"() {
