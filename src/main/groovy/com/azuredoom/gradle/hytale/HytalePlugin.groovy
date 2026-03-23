@@ -10,7 +10,6 @@ import org.gradle.api.artifacts.result.ResolvedArtifactResult
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.api.tasks.javadoc.Javadoc
 
 class HytalePlugin implements Plugin<Project> {
     @Override
@@ -141,7 +140,6 @@ class HytalePlugin implements Plugin<Project> {
 
         project.tasks.named('updatePluginManifest').configure {
             dependsOn('createModSkeleton')
-            finalizedBy('validateManifest')
         }
 
         project.tasks.named('validateManifest').configure {
