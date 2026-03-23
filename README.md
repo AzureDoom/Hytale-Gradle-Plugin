@@ -12,19 +12,18 @@ validation, local server runs, and IDE-friendly decompiled source attachment.
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.5'
+    id 'com.azuredoom.hytale-tools' version '1.0.6'
 }
 
 dependencies {
     vineServerJar "com.hypixel.hytale:Server:$hytale_version"
-    vineCompileOnly "com.hypixel.hytale:Server:$hytale_version"
+    compileOnly "com.hypixel.hytale:Server:$hytale_version"
 }
 ```
 
 Then run:
 
 ```bash
-./gradlew createModSkeleton
 ./gradlew runServer
 ```
 
@@ -37,7 +36,7 @@ Then run:
 ## Features
 
 - Automatically adds required repositories
-- Creates Hytale-specific `vine*` configurations
+- Creates Hytale-specific and source `vine*` configurations
 - Generates and validates `manifest.json`
 - Bootstraps new mod projects
 - Downloads authenticated Hytale assets
@@ -45,17 +44,6 @@ Then run:
 - Generates decompiled sources and attaches them in IDEs
 
 ## Included Tasks
-
-### `createModSkeleton`
-
-Creates a starter Hytale mod structure when missing.
-
-This includes:
-- `src/main/java`
-- `src/main/resources`
-- `src/main/resources/manifest.json`
-- A basic main class
-- Optional asset pack structure when `includesPack = true`
 
 ### `updatePluginManifest`
 
@@ -76,23 +64,26 @@ Launches a local Hytale server using:
 - your runtime classpath
 - the resolved Hytale server jar
 
+## `prepareDecompiledSourcesForIde`
+
+Decompiles the server jar and all dependencies declared in `vineDecompileTargets` into `build/generated-sources-m2` and `build/generated-sources-ivy`.
+
+This is useful for IDE source attachment.
+
 ## Development Workflow
 
 A typical workflow looks like this:
 
 ```bash
-./gradlew createModSkeleton
-./gradlew build
+./gradlew prepareDecompiledSourcesForIde
 ./gradlew runServer
 ```
 
 What happens during normal development:
 
-1. `createModSkeleton` initializes missing source and resource files.
-2. `compileJava` automatically depends on `createModSkeleton`.
-3. `updatePluginManifest` writes manifest values from Gradle configuration.
-4. `validateManifest` runs before `processResources`, ensuring the manifest is generated and checked as part of the build.
-5. `runServer` prepares the run directory, downloads assets if needed, and launches the server.
+1. `updatePluginManifest` writes manifest values from Gradle configuration.
+2. `validateManifest` runs before `processResources`, ensuring the manifest is generated and checked as part of the build.
+3. `runServer` prepares the run directory, downloads assets if needed, and launches the server.
 
 Because manifest generation and validation are wired into the build, most projects do not need to invoke those tasks manually.
 
@@ -177,20 +168,11 @@ You do not need to declare them manually.
 
 The plugin automatically creates:
 
-- `vineImplementation`
-- `vineCompileOnly`
 - `vineDecompileTargets`
 - `vineDecompileClasspath`
 - `vineServerJar`
 - `vineDependencyJars`
 - `vineflowerTool`
-
-And wires:
-
-```text
-implementation <- vineImplementation
-compileOnly    <- vineCompileOnly
-```
 
 ## Usage
 
@@ -213,7 +195,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.5'
+    id 'com.azuredoom.hytale-tools' version '1.0.6'
 }
 ```
 
@@ -223,11 +205,7 @@ plugins {
 dependencies {
     // Required
     vineServerJar "com.hypixel.hytale:Server:$hytale_version"
-    vineCompileOnly "com.hypixel.hytale:Server:$hytale_version"
-
-    // Optional runtime / compile additions
-    vineImplementation 'com.buuz135:MultipleHUD:1.0.6'
-    vineCompileOnly 'curse.maven:partyinfo-1429469:7526614'
+    compileOnly "com.hypixel.hytale:Server:$hytale_version"
 
     // Optional decompile targets for IDE source attachment
     vineDecompileTargets 'com.buuz135:MultipleHUD:1.0.6'
@@ -345,6 +323,6 @@ Only dependencies in that configuration are decompiled for IDE attachment.
 ## Notes
 
 - Java 25 is the default
-- `pre-release` is the default patchline
+- `release` is the default patchline
 - The plugin applies the `java` plugin automatically
 - The plugin applies the `idea` plugin to support IDE source attachment
