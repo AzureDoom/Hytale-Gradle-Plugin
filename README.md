@@ -2,7 +2,7 @@
 
 [![Gradle Plugin](https://img.shields.io/badge/Gradle-Plugin-blue)]()
 [![Java](https://img.shields.io/badge/Java-25+-orange)]()
-[![Hytale](https://img.shields.io/badge/Hytale-Pre--release-purple)]()
+[![Hytale](https://img.shields.io/badge/Hytale-Release-green)]()
 
 A Gradle plugin for Hytale mod development that standardizes project setup, manifest generation,
 validation, local server runs, and IDE-friendly decompiled source attachment.
