@@ -20,7 +20,6 @@ repositories {
 }
 
 dependencies {
-    implementation gradleApi()
     implementation localGroovy()
 
     testImplementation gradleTestKit()
@@ -43,38 +42,22 @@ gradlePlugin {
     vcsUrl = project.plugin_vcs_url
 
     plugins {
-        hytaleTools {
+        create('hytaleTools') {
             id = 'com.azuredoom.hytale-tools'
             implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
-            displayName = 'Hytale build tools plugin'
-            description = 'Tasks for Hytale manifest updates, decompilation, assets download, and local server runs.'
-        }
-    }
-}
+            displayName = 'Hytale Gradle Plugin'
+            description = 'Tasks for Hytale manifest generation and updates, decompilation, assets download, and local server runs.'
 
-gradlePlugin {
-    website = project.plugin_website
-    vcsUrl = project.plugin_vcs_url
+            tags.set([
+                    'hytale',
+                    'modding',
+                    'gradle-plugin',
+                    'decompilation'
+            ])
 
-    plugins {
-        hytaleTools {
-            create("greetingsPlugin") {
-                id = 'com.azuredoom.hytale-tools'
-                implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
-                displayName = 'Hytale Gradle Plugin'
-                description = 'Tasks for Hytale manifest generation/updates, decompilation, assets download, and local server runs.'
-
-                tags.set([
-                        'hytale',
-                        'modding',
-                        'gradle-plugin',
-                        'decompilation'
-                ])
-
-                compatibility {
-                    features {
-                        configurationCache = false
-                    }
+            compatibility {
+                features {
+                    configurationCache = false
                 }
             }
         }
@@ -94,7 +77,7 @@ publishing {
     repositories {
         maven {
             name = project.mod_id
-            url = project.maven_url
+            url = uri(project.maven_url)
             credentials(PasswordCredentials)
             authentication {
                 basic(BasicAuthentication)
