@@ -39,7 +39,6 @@ class HytalePluginFunctionalTest extends Specification {
         then:
         result.output.contains('updatePluginManifest')
         result.output.contains('decompileServerJar')
-        result.output.contains('decompileVineDependencies')
         result.output.contains('prepareRunServer')
         result.output.contains('downloadAssetsZip')
         result.output.contains('runServer')

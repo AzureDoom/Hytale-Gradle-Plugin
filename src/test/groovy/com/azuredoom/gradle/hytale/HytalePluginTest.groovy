@@ -33,7 +33,6 @@ class HytalePluginTest extends Specification {
         and: 'base tasks exist'
         UpdatePluginManifestTask.isInstance(project.tasks.named('updatePluginManifest').get())
         DecompileServerJarTask.isInstance(project.tasks.named('decompileServerJar').get())
-        DecompileVineDependenciesTask.isInstance(project.tasks.named('decompileVineDependencies').get())
         PrepareRunServerTask.isInstance(project.tasks.named('prepareRunServer').get())
         DownloadAssetsZipTask.isInstance(project.tasks.named('downloadAssetsZip').get())
         CreateModSkeletonTask.isInstance(project.tasks.named('createModSkeleton').get())
@@ -48,7 +47,7 @@ class HytalePluginTest extends Specification {
         project.repositories.find { it.name == 'AzureDoom Maven' } != null
     }
 
-    def "java plugin adds runServer and wires processResources dependencies"() {
+    def "java plugin adds runServer and wires task dependencies"() {
         when:
         project.pluginManager.apply('java')
         project.pluginManager.apply('com.azuredoom.hytale-tools')
@@ -56,15 +55,33 @@ class HytalePluginTest extends Specification {
         then:
         RunServerTask.isInstance(project.tasks.named('runServer').get())
 
-        and:
+        and: 'processResources depends on validateManifest'
         def processResources = project.tasks.named('processResources').get()
-
-        def dependencyNames = processResources.taskDependencies
+        def processResourcesDeps = processResources.taskDependencies
                 .getDependencies(processResources)*.name
 
-        dependencyNames.contains('createModSkeleton')
-        dependencyNames.contains('updatePluginManifest')
-        dependencyNames.contains('validateManifest')
+        processResourcesDeps.contains('validateManifest')
+
+        and: 'validateManifest depends on updatePluginManifest'
+        def validateManifest = project.tasks.named('validateManifest').get()
+        def validateDeps = validateManifest.taskDependencies
+                .getDependencies(validateManifest)*.name
+
+        validateDeps.contains('updatePluginManifest')
+
+        and: 'updatePluginManifest depends on createModSkeleton'
+        def updatePluginManifest = project.tasks.named('updatePluginManifest').get()
+        def updateDeps = updatePluginManifest.taskDependencies
+                .getDependencies(updatePluginManifest)*.name
+
+        updateDeps.contains('createModSkeleton')
+
+        and: 'compileJava depends on createModSkeleton'
+        def compileJava = project.tasks.named('compileJava').get()
+        def compileDeps = compileJava.taskDependencies
+                .getDependencies(compileJava)*.name
+
+        compileDeps.contains('createModSkeleton')
     }
 
     def "defaults extension values from project when gradle properties are absent"() {
