@@ -2,6 +2,7 @@ plugins {
     id 'groovy'
     id 'java-gradle-plugin'
     id 'maven-publish'
+    id 'com.gradle.plugin-publish' version '2.1.1'
 }
 
 group = project.plugin_group
@@ -51,6 +52,35 @@ gradlePlugin {
     }
 }
 
+gradlePlugin {
+    website = project.plugin_website
+    vcsUrl = project.plugin_vcs_url
+
+    plugins {
+        hytaleTools {
+            create("greetingsPlugin") {
+                id = 'com.azuredoom.hytale-tools'
+                implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
+                displayName = 'Hytale Gradle Plugin'
+                description = 'Tasks for Hytale manifest generation/updates, decompilation, assets download, and local server runs.'
+
+                tags.set([
+                        'hytale',
+                        'modding',
+                        'gradle-plugin',
+                        'decompilation'
+                ])
+
+                compatibility {
+                    features {
+                        configurationCache = false
+                    }
+                }
+            }
+        }
+    }
+}
+
 publishing {
     publications {
         withType(MavenPublication).configureEach {
@@ -71,4 +101,17 @@ publishing {
             }
         }
     }
+}
+
+
+tasks.register('publishPluginRelease') {
+    group = 'publishing'
+    description = 'Validates, tests, and publishes the plugin to the Gradle Plugin Portal.'
+    dependsOn 'clean', 'check', 'validatePlugins', 'publishPlugins'
+}
+
+tasks.register('publishEverywhere') {
+    group = 'publishing'
+    description = 'Publishes to both the configured Maven repository and the Gradle Plugin Portal.'
+    dependsOn 'clean', 'check', 'validatePlugins', 'publish', 'publishPlugins'
 }
