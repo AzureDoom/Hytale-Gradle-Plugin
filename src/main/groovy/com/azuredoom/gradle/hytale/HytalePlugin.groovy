@@ -494,10 +494,11 @@ class HytalePlugin implements Plugin<Project> {
 
         addMavenRepo(project, 'Hytale Server Release', 'https://maven.hytale.com/release')
         addMavenRepo(project, 'Hytale Server Pre-Release', 'https://maven.hytale.com/pre-release')
-        addMavenRepo(project, 'hMReleases', 'https://maven.hytale-mods.dev/releases')
+        addMavenRepo(project, 'Hytale-Mods.info Maven', 'https://maven.hytale-mods.dev/releases')
         addMavenRepo(project, 'PlaceholderAPI', 'https://repo.helpch.at/releases/')
         addMavenRepo(project, 'CurseMaven', 'https://cursemaven.com')
         addMavenRepo(project, 'AzureDoom Maven', 'https://maven.azuredoom.com/mods')
+        addMavenRepo(project, 'Hytale Modding Maven', 'https://maven.hytalemodding.dev/releases')
 
         project.repositories.exclusiveContent { spec ->
             spec.forRepository {
