@@ -105,25 +105,6 @@ class HytalePlugin implements Plugin<Project> {
             curseforgeId.set(ext.curseforgeId)
         }
 
-        project.tasks.register('createModSkeleton', CreateModSkeletonTask) {
-            group = 'hytale'
-            description = 'Creates a starter Hytale mod source layout and manifest.json if they do not exist.'
-
-            javaSourceDirectory.set(project.layout.projectDirectory.dir('src/main/java'))
-            resourcesDirectory.set(project.layout.projectDirectory.dir('src/main/resources'))
-            manifestFile.set(ext.manifestFile)
-
-            manifestGroup.set(ext.manifestGroup)
-            modId.set(ext.modId)
-            mainClass.set(ext.mainClass)
-            modDescription.set(ext.modDescription)
-            modUrl.set(ext.modUrl)
-            modCredits.set(ext.modCredits)
-            hytaleVersion.set(ext.hytaleVersion)
-            includesPack.set(ext.includesPack)
-            disabledByDefault.set(ext.disabledByDefault)
-        }
-
         project.tasks.register('validateManifest', ValidateManifestTask) {
             group = null
             description = 'Validates src/main/resources/manifest.json against required fields and plugin configuration.'
@@ -136,10 +117,6 @@ class HytalePlugin implements Plugin<Project> {
             manifestDependencies.set(ext.manifestDependencies)
             manifestOptionalDependencies.set(ext.manifestOptionalDependencies)
             includesPack.set(ext.includesPack)
-        }
-
-        project.tasks.named('updatePluginManifest').configure {
-            dependsOn('createModSkeleton')
         }
 
         project.tasks.named('validateManifest').configure {
@@ -176,10 +153,6 @@ class HytalePlugin implements Plugin<Project> {
 
         project.pluginManager.withPlugin('java') {
             def decompiledServerDir = project.layout.buildDirectory.dir('vineflower/hytale-server')
-
-            project.tasks.named('compileJava').configure {
-                dependsOn('createModSkeleton')
-            }
 
             project.tasks.named('processResources').configure {
                 dependsOn('validateManifest')
@@ -254,7 +227,6 @@ class HytalePlugin implements Plugin<Project> {
                 doLast {
                     def artifacts = serverArtifactsProvider.get()
                     if (artifacts.isEmpty()) {
-                        logger.lifecycle('Skipping server source installation: no artifact resolved from vineServerJar')
                         return
                     }
                     if (artifacts.size() != 1) {
@@ -265,7 +237,6 @@ class HytalePlugin implements Plugin<Project> {
                     def componentId = artifact.id.componentIdentifier
 
                     if (!(componentId instanceof ModuleComponentIdentifier)) {
-                        logger.lifecycle("Skipping server source installation: unsupported component identifier ${componentId.class.name}")
                         return
                     }
 

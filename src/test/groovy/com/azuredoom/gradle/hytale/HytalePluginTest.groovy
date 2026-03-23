@@ -35,7 +35,6 @@ class HytalePluginTest extends Specification {
         DecompileServerJarTask.isInstance(project.tasks.named('decompileServerJar').get())
         PrepareRunServerTask.isInstance(project.tasks.named('prepareRunServer').get())
         DownloadAssetsZipTask.isInstance(project.tasks.named('downloadAssetsZip').get())
-        CreateModSkeletonTask.isInstance(project.tasks.named('createModSkeleton').get())
         ValidateManifestTask.isInstance(project.tasks.named('validateManifest').get())
 
         and: 'expected repositories were added'
@@ -70,19 +69,6 @@ class HytalePluginTest extends Specification {
 
         validateDeps.contains('updatePluginManifest')
 
-        and: 'updatePluginManifest depends on createModSkeleton'
-        def updatePluginManifest = project.tasks.named('updatePluginManifest').get()
-        def updateDeps = updatePluginManifest.taskDependencies
-                .getDependencies(updatePluginManifest)*.name
-
-        updateDeps.contains('createModSkeleton')
-
-        and: 'compileJava depends on createModSkeleton'
-        def compileJava = project.tasks.named('compileJava').get()
-        def compileDeps = compileJava.taskDependencies
-                .getDependencies(compileJava)*.name
-
-        compileDeps.contains('createModSkeleton')
     }
 
     def "defaults extension values from project when gradle properties are absent"() {
