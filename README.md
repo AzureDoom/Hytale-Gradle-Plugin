@@ -115,12 +115,6 @@ This matters because IDEs can resolve the binary artifact and attach matching ge
 Decompiled sources are prepared automatically when you run:
 
 ```bash
-./gradlew assemble
-```
-
-or:
-
-```bash
 ./gradlew idea
 ```
 
