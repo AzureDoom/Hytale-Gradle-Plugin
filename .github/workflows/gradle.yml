@@ -22,3 +22,5 @@ jobs:
       run: chmod +x gradlew
     - name: Verify build is not broken
       run: ./gradlew build
+    - name: Verify tests are working
+      run: ./gradlew test

@@ -21,6 +21,20 @@ repositories {
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
+
+    testImplementation gradleTestKit()
+    testImplementation 'org.spockframework:spock-core:2.4-groovy-4.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.withType(Test).configureEach {
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+    }
 }
 
 gradlePlugin {
