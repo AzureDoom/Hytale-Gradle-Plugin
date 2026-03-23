@@ -83,7 +83,7 @@ class HytalePluginTest extends Specification {
 
         then:
         ext.javaVersion.get() == 21
-        ext.patchline.get() == 'pre-release'
+        ext.patchline.get() == 'release'
         ext.manifestGroup.get() == 'com.example'
         ext.modId.get() == 'demo-mod'
         !ext.disabledByDefault.get()
