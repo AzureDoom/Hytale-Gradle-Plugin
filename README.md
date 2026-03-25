@@ -279,7 +279,7 @@ Also verify:
 - `hytale_patchline` matches the artifact you expect
 - authentication cache under Gradle user home is valid
 
-### `manifest.json` is missing or out of date
+### `manifest.json` is out of date
 
 Run:
 
@@ -287,7 +287,7 @@ Run:
 ./gradlew updatePluginManifest
 ```
 
-The build also wires manifest generation and validation automatically, so this usually indicates missing configuration values.
+The build also wires manifest validation automatically, so this usually indicates missing configuration values.
 
 ### Manifest validation fails during build
 
