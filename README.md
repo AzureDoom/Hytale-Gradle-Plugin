@@ -47,15 +47,13 @@ Then run:
 
 ### `updatePluginManifest`
 
-Generates or updates `src/main/resources/manifest.json` from Gradle properties
+Updates `src/main/resources/manifest.json` from Gradle properties
 and `hytaleTools {}` values.
-
-This task also ensures the starter project structure exists first.
 
 ### `downloadAssetsZip`
 
 Authenticates with Hytale device auth, downloads the asset wrapper, extracts
-`Assets.zip`, and caches the result under Gradle user home.
+`Assets.zip`, and caches the result under Gradle user home. Has a fall back to use the users local installation and `Assets.zip` if unable to download.
 
 ### `runServer`
 
