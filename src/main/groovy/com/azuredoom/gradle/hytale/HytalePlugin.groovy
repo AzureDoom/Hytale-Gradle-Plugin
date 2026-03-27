@@ -171,6 +171,14 @@ class HytalePlugin implements Plugin<Project> {
                 dependsOn('validateManifest')
             }
 
+            project.tasks.matching { it.name == 'sourcesJar' }.configureEach {
+                dependsOn('validateManifest')
+            }
+
+            project.tasks.matching { it.name == 'javadocJar' }.configureEach {
+                dependsOn('validateManifest')
+            }
+
             project.tasks.register('prepareRunServer', PrepareRunServerTask) {
                 group = null
                 description = 'Prepares the run directory for launching the Hytale server'
