@@ -12,7 +12,7 @@ validation, local server runs, and IDE-friendly decompiled source attachment.
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.7'
+    id 'com.azuredoom.hytale-tools' version '1.0.9'
 }
 
 dependencies {
@@ -201,7 +201,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.7'
+    id 'com.azuredoom.hytale-tools' version '1.0.9'
 }
 ```
 
