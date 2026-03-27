@@ -45,12 +45,12 @@ class HytalePlugin implements Plugin<Project> {
 
         project.repositories.maven { MavenArtifactRepository repo ->
             repo.name = 'Generated Decompiled Sources'
-            repo.url = project.uri(generatedSourcesMavenRepoDir)
+            repo.url = generatedSourcesMavenRepoDir.get().asFile.toURI()
         }
 
         project.repositories.ivy { IvyArtifactRepository repo ->
             repo.name = 'Generated Decompiled Sources Ivy'
-            repo.url = project.uri(generatedSourcesIvyRepoDir)
+            repo.url = generatedSourcesIvyRepoDir.get().asFile.toURI()
             repo.patternLayout { layout ->
                 layout.ivy('[organisation]/[module]/[revision]/ivy-[revision].xml')
                 layout.artifact('[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]')
@@ -87,6 +87,13 @@ class HytalePlugin implements Plugin<Project> {
             new File(authCacheDir, 'tokens.json')
         }
 
+        project.tasks.register('createManifestIfMissing', CreateManifestIfMissingTask) {
+            group = 'hytale'
+            description = 'Creates src/main/resources/manifest.json with a default structure when it is missing.'
+
+            manifestFile.set(ext.manifestFile)
+        }
+
         project.tasks.register('updatePluginManifest', UpdatePluginManifestTask) {
             group = 'hytale'
             description = 'Updates src/main/resources/manifest.json from Gradle properties and plugin extension values.'
@@ -105,6 +112,10 @@ class HytalePlugin implements Plugin<Project> {
             mainClass.set(ext.mainClass)
             includesPack.set(ext.includesPack)
             curseforgeId.set(ext.curseforgeId)
+        }
+
+        project.tasks.named('updatePluginManifest').configure {
+            dependsOn('createManifestIfMissing')
         }
 
         project.tasks.register('validateManifest', ValidateManifestTask) {
@@ -291,9 +302,21 @@ class HytalePlugin implements Plugin<Project> {
             }
 
             project.afterEvaluate {
-                def declaredTargets = project.configurations.getByName('vineDecompileTargets')
-                        .allDependencies
-                        .findAll { it instanceof ExternalModuleDependency } as List<ExternalModuleDependency>
+                def rawTargets = []
+                rawTargets.addAll(project.configurations.getByName('vineDecompileTargets').allDependencies)
+                rawTargets.addAll(project.configurations.getByName('vineCompileOnly').allDependencies)
+                rawTargets.addAll(project.configurations.getByName('vineImplementation').allDependencies)
+
+                rawTargets = rawTargets
+                        .findAll { it instanceof ExternalModuleDependency }
+                        .collect { it as ExternalModuleDependency }
+
+                def invalidTargets = rawTargets.findAll { !it.group || !it.name || !it.version }
+                if (!invalidTargets.isEmpty()) {
+                    throw new GradleException("Dependencies used for decompilation must use full GAV coordinates. Found: ${invalidTargets}")
+                }
+
+                def declaredTargets = rawTargets.unique { "${it.group}:${it.name}:${it.version}" }
 
                 if (!declaredTargets || declaredTargets.isEmpty()) {
                     return
@@ -304,10 +327,6 @@ class HytalePlugin implements Plugin<Project> {
                     def artifactModule = declaredDep.name
                     def artifactVersion = declaredDep.version
 
-                    if (!artifactGroup || !artifactModule || !artifactVersion) {
-                        throw new GradleException("vineDecompileTargets must use full GAV coordinates. Found: ${declaredDep}")
-                    }
-
                     def safeName = "${artifactGroup}__${artifactModule}__${artifactVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
                     def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
 
@@ -317,14 +336,11 @@ class HytalePlugin implements Plugin<Project> {
 
                     def decompileTask = project.tasks.register("decompile_${safeName}", DecompileDependencyJarTask) {
                         group = null
-                        description = "Internal: Decompile declared vineDecompileTarget ${artifactGroup}:${artifactModule}:${artifactVersion}"
+                        description = "Internal: Decompile dependency ${artifactGroup}:${artifactModule}:${artifactVersion}"
 
                         inputJar.set(project.layout.file(resolvedBinaryJar))
                         vineflowerJar.set(vineflowerJarFile)
-
-                        // Classpath can still include all vine decompile deps for symbol resolution.
                         decompileClasspath.from(vineDependencyJars)
-
                         outputDirectory.set(perArtifactDir)
                         tempDirectoryRoot.set(project.layout.buildDirectory.dir("tmp/vineflower-deps/${safeName}"))
                         javaVersion.set(ext.javaVersion)
@@ -619,7 +635,7 @@ class HytalePlugin implements Plugin<Project> {
 
         implementation.extendsFrom(vineImplementation)
         compileOnly.extendsFrom(vineCompileOnly)
-        vineDependencyJars.extendsFrom(vineDecompileTargets)
+        vineDependencyJars.extendsFrom(vineDecompileTargets, vineCompileOnly, vineImplementation)
         vineDecompileClasspath.extendsFrom(vineCompileOnly, vineImplementation, vineServerJar)
     }
 }

@@ -12,18 +12,26 @@ validation, local server runs, and IDE-friendly decompiled source attachment.
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.6'
+    id 'com.azuredoom.hytale-tools' version '1.0.7'
 }
 
 dependencies {
     vineServerJar "com.hypixel.hytale:Server:$hytale_version"
     compileOnly "com.hypixel.hytale:Server:$hytale_version"
 }
+
+hytaleTools {
+    hytaleVersion = '1.0.0'
+    manifestGroup = 'com.example.mods'
+    modId = 'examplemod'
+    mainClass = 'com.example.mods.ExampleMod'
+}
 ```
 
 Then run:
 
 ```bash
+./gradlew updatePluginManifest
 ./gradlew runServer
 ```
 
@@ -45,6 +53,12 @@ Then run:
 
 ## Included Tasks
 
+### `createManifestIfMissing`
+
+Creates `src/main/resources/manifest.json` with a default structure if it does not already exist.
+
+This task is safe to run repeatedly and will not overwrite an existing manifest.
+
 ### `updatePluginManifest`
 
 Updates `src/main/resources/manifest.json` from Gradle properties
@@ -64,7 +78,7 @@ Launches a local Hytale server using:
 
 ## `prepareDecompiledSourcesForIde`
 
-Decompiles the server jar and all dependencies declared in `vineDecompileTargets` into `build/generated-sources-m2` and `build/generated-sources-ivy`.
+Decompiles the server jar and all dependencies declared in `vineImplementation`, `vineCompileOnly`, or `vineDecompileTargets` into `build/generated-sources-m2` and `build/generated-sources-ivy`.
 
 This is useful for IDE source attachment.
 
@@ -79,7 +93,7 @@ A typical workflow looks like this:
 
 What happens during normal development:
 
-1. `updatePluginManifest` writes manifest values from Gradle configuration.
+1. `updatePluginManifest` writes manifest values from Gradle configuration, if missing `createManifestIfMissing` creates a default.
 2. `validateManifest` runs before `processResources`, ensuring the manifest is generated and checked as part of the build.
 3. `runServer` prepares the run directory, downloads assets if needed, and launches the server.
 
@@ -91,7 +105,7 @@ The plugin automatically prepares decompiled sources for IDE use.
 
 It decompiles:
 - the Hytale server jar
-- every dependency declared in `vineDecompileTargets`
+- every dependency declared in `vineImplementation`, `vineCompileOnly`, or `vineDecompileTargets`
 
 ### How it works
 
@@ -187,7 +201,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.6'
+    id 'com.azuredoom.hytale-tools' version '1.0.7'
 }
 ```
 
@@ -199,6 +213,10 @@ dependencies {
     vineServerJar "com.hypixel.hytale:Server:$hytale_version"
     compileOnly "com.hypixel.hytale:Server:$hytale_version"
 
+    // Implementation and compileOnly dependencies are automatically added to vineDependencyJars and will be decompiled
+    vineImplementation 'com.buuz135:MultipleHUD:1.0.6'
+    vineCompileOnly 'curse.maven:partyinfo-1429469:7526614'
+    
     // Optional decompile targets for IDE source attachment
     vineDecompileTargets 'com.buuz135:MultipleHUD:1.0.6'
     vineDecompileTargets 'curse.maven:partyinfo-1429469:7526614'

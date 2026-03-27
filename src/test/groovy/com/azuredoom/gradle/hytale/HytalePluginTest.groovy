@@ -16,7 +16,7 @@ class HytalePluginTest extends Specification {
 
     def "applies extension, repositories, configurations, and base tasks"() {
         when:
-        project.pluginManager.apply('com.azuredoom.hytale-tools')
+        project.pluginManager.apply(HytalePlugin)
 
         then:
         HytaleExtension.isInstance(project.extensions.findByName('hytaleTools'))
@@ -31,11 +31,18 @@ class HytalePluginTest extends Specification {
         project.configurations.findByName('vineflowerTool') != null
 
         and: 'base tasks exist'
+        CreateManifestIfMissingTask.isInstance(project.tasks.named('createManifestIfMissing').get())
         UpdatePluginManifestTask.isInstance(project.tasks.named('updatePluginManifest').get())
         DecompileServerJarTask.isInstance(project.tasks.named('decompileServerJar').get())
         PrepareRunServerTask.isInstance(project.tasks.named('prepareRunServer').get())
         DownloadAssetsZipTask.isInstance(project.tasks.named('downloadAssetsZip').get())
         ValidateManifestTask.isInstance(project.tasks.named('validateManifest').get())
+
+        and: 'updatePluginManifest depends on createManifestIfMissing'
+        def updatePluginManifest = project.tasks.named('updatePluginManifest').get()
+        def updateDeps = updatePluginManifest.taskDependencies
+                .getDependencies(updatePluginManifest)*.name
+        updateDeps.contains('createManifestIfMissing')
 
         and: 'expected repositories were added'
         project.repositories.find { it.name == 'Hytale Server Release' } != null
@@ -49,8 +56,7 @@ class HytalePluginTest extends Specification {
 
     def "java plugin adds runServer and wires task dependencies"() {
         when:
-        project.pluginManager.apply('java')
-        project.pluginManager.apply('com.azuredoom.hytale-tools')
+        project.pluginManager.apply(HytalePlugin)
 
         then:
         RunServerTask.isInstance(project.tasks.named('runServer').get())
@@ -68,7 +74,6 @@ class HytalePluginTest extends Specification {
                 .getDependencies(validateManifest)*.name
 
         validateDeps.contains('updatePluginManifest')
-
     }
 
     def "defaults extension values from project when gradle properties are absent"() {
@@ -78,7 +83,7 @@ class HytalePluginTest extends Specification {
         project.version = '1.2.3'
 
         when:
-        project.pluginManager.apply('com.azuredoom.hytale-tools')
+        project.pluginManager.apply(HytalePlugin)
         def ext = project.extensions.getByType(HytaleExtension)
 
         then:
