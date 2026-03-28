@@ -93,7 +93,7 @@ class HytalePluginTest extends Specification {
         def ext = project.extensions.getByType(HytaleExtension)
 
         then:
-        ext.javaVersion.get() == 21
+        ext.javaVersion.get() == 25
         ext.patchline.get() == 'release'
         ext.manifestGroup.get() == 'com.example'
         ext.modId.get() == 'demo-mod'
