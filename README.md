@@ -7,6 +7,14 @@
 A Gradle plugin for Hytale mod development that standardizes project setup, manifest generation,
 validation, local server runs, and IDE-friendly decompiled source attachment.
 
+## Why use this plugin?
+
+This plugin replaces:
+- manual manifest management
+- manual server setup
+- manual dependency decompilation
+- manual IDE source attachment setup
+
 ## Quickstart
 
 ```gradle
@@ -30,6 +38,24 @@ Then run:
 ./gradlew runServer
 ```
 
+## Dependency Flow
+
+The following diagram shows how plugin configurations feed into compilation and decompilation:
+```
+vineServerJar ─┐
+               ├──> compileOnly ───> compileClasspath
+vineCompileOnly┘
+
+vineImplementation ─────┐
+vineCompileOnly   ──────┼──> vineDependencyJars ───> decompilation
+vineDecompileTargets ───┘
+```
+
+At a high level:
+- `vineServerJar` provides the Hytale server API
+- `vineCompileOnly` and `vineImplementation` define your dependencies
+- `vineDecompileTargets` controls which dependencies get source attachment
+
 ## Version Compatibility
 
 | Plugin Version | Java Version | Hytale Support      |
@@ -40,8 +66,7 @@ Then run:
 
 - Automatically adds required repositories
 - Creates Hytale-specific and source `vine*` configurations
-- Generates and validates `manifest.json`
-- Bootstraps new mod projects
+- Generates, updates, and validates `manifest.json`
 - Downloads authenticated Hytale assets
 - Runs a local Hytale server for development
 - Generates decompiled sources and attaches them in IDEs
@@ -62,7 +87,7 @@ and `hytaleTools {}` values.
 ### `downloadAssetsZip`
 
 Authenticates with Hytale device auth, downloads the asset wrapper, extracts
-`Assets.zip`, and caches the result under Gradle user home. Has a fall back to use the users local installation and `Assets.zip` if unable to download.
+`Assets.zip`, and caches the result under Gradle user home. Falls back to using a local installation and existing `Assets.zip` if downloading fails.
 
 ### `runServer`
 
@@ -175,6 +200,21 @@ The plugin automatically creates:
 - `vineDependencyJars`
 - `vineflowerTool`
 
+### Configuration Overview
+
+| Configuration        | Purpose                                         |
+|----------------------|-------------------------------------------------|
+| vineServerJar        | Hytale server binary (auto-injected)            |
+| vineImplementation   | Runtime dependencies                            |
+| vineCompileOnly      | Compile-time only dependencies                  |
+| vineDecompileTargets | Extra dependencies to decompile for IDE sources |
+
+`compileOnly` automatically includes:
+- `vineCompileOnly`
+- `vineServerJar`
+
+This lets you write mods against the Hytale server API without manually declaring the server dependency.
+
 ## Usage
 
 ### `settings.gradle`
@@ -204,7 +244,8 @@ plugins {
 
 ```gradle
 dependencies {
-    // Implementation and compileOnly dependencies are automatically added to vineDependencyJars and will be decompiled
+    // Dependencies declared in `vineImplementation`, `vineCompileOnly`, and `vineDecompileTargets` 
+    // are included in the decompilation classpath (`vineDependencyJars`).
     vineImplementation 'com.buuz135:MultipleHUD:1.0.6'
     vineCompileOnly 'curse.maven:partyinfo-1429469:7526614'
     
@@ -212,6 +253,35 @@ dependencies {
     vineDecompileTargets 'com.buuz135:MultipleHUD:1.0.6'
 }
 ```
+
+## Hytale Server Dependency
+
+The plugin automatically adds the Hytale server dependency based on:
+
+```groovy
+hytaleTools {
+    hytaleVersion = '1.0.0'
+}
+```
+
+This injects:
+```groovy
+vineServerJar "com.hypixel.hytale:Server:${hytaleVersion}"
+```
+
+and makes it available on `compileOnly`. You **do not need to declare this manually**.
+
+### Overriding the server dependency
+
+If you want to use a different version of the Hytale server:
+
+```groovy
+dependencies {
+    vineServerJar 'com.example:custom-server:1.0.0'
+}
+```
+
+Auto-injection is skipped when a dependency is already declared.
 
 ## Configuration
 
@@ -262,6 +332,19 @@ The plugin also reads these Gradle properties automatically:
 
 ## Troubleshooting
 
+### Missing `hytaleVersion`
+
+If `hytaleVersion` is not set and no `vineServerJar` is declared,
+tasks that require the server jar may fail.
+
+Always configure:
+
+```groovy
+hytaleTools {
+    hytaleVersion = '...'
+}
+```
+
 ### Sources are not attached in the IDE
 
 Run:
@@ -269,6 +352,8 @@ Run:
 ```bash
 ./gradlew prepareDecompiledSourcesForIde
 ```
+
+This allows IDEs (IntelliJ, Eclipse) to show readable source code instead of obfuscated or compiled classes.
 
 Then refresh or reimport the Gradle project in your IDE.
 
