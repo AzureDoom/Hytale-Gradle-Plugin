@@ -20,7 +20,7 @@ class HytalePlugin implements Plugin<Project> {
 
         def ext = project.extensions.create('hytaleTools', HytaleExtension)
 
-        ext.javaVersion.convention(project.providers.gradleProperty('java_version').map { (it ?: '21') as Integer }.orElse(21))
+        ext.javaVersion.convention(project.providers.gradleProperty('java_version').map { (it ?: '25') as Integer }.orElse(25))
         ext.hytaleVersion.convention(project.providers.gradleProperty('hytale_version'))
         ext.patchline.convention(project.providers.gradleProperty('hytale_patchline').orElse('release'))
         ext.oauthBaseUrl.convention(project.providers.gradleProperty('hygradle.hytale.oauth.base').orElse('https://oauth.accounts.hytale.com'))
