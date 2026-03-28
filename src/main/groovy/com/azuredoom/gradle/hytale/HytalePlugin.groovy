@@ -310,6 +310,13 @@ class HytalePlugin implements Plugin<Project> {
             }
 
             project.afterEvaluate {
+                def serverJarConfiguration = project.configurations.getByName('vineServerJar')
+                if (serverJarConfiguration.dependencies.empty && ext.hytaleVersion.isPresent()) {
+                    project.dependencies.add(
+                            'vineServerJar',
+                            "com.hypixel.hytale:Server:${ext.hytaleVersion.get()}"
+                    )
+                }
                 def rawTargets = []
                 rawTargets.addAll(project.configurations.getByName('vineDecompileTargets').allDependencies)
                 rawTargets.addAll(project.configurations.getByName('vineCompileOnly').allDependencies)
@@ -642,7 +649,7 @@ class HytalePlugin implements Plugin<Project> {
         vineDependencyJars.canBeResolved = true
 
         implementation.extendsFrom(vineImplementation)
-        compileOnly.extendsFrom(vineCompileOnly)
+        compileOnly.extendsFrom(vineCompileOnly, vineServerJar)
         vineDependencyJars.extendsFrom(vineDecompileTargets, vineCompileOnly, vineImplementation)
         vineDecompileClasspath.extendsFrom(vineCompileOnly, vineImplementation, vineServerJar)
     }

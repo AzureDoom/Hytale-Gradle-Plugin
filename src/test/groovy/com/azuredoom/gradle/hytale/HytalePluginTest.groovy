@@ -30,6 +30,12 @@ class HytalePluginTest extends Specification {
         project.configurations.findByName('vineDependencyJars') != null
         project.configurations.findByName('vineflowerTool') != null
 
+
+        and: 'compileOnly inherits vineServerJar so one vineServerJar declaration is enough'
+        project.configurations.getByName('compileOnly')
+            .extendsFrom
+            .contains(project.configurations.getByName('vineServerJar'))
+
         and: 'base tasks exist'
         CreateManifestIfMissingTask.isInstance(project.tasks.named('createManifestIfMissing').get())
         UpdatePluginManifestTask.isInstance(project.tasks.named('updatePluginManifest').get())

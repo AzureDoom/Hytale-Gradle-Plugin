@@ -1,8 +1,8 @@
 # Hytale Gradle Plugin
 
 [![Gradle Plugin](https://img.shields.io/badge/Gradle-Plugin-blue)]()
-[![Java](https://img.shields.io/badge/Java-25+-orange)]()
-[![Hytale](https://img.shields.io/badge/Hytale-Release-green)]()
+[![Java](https://img.shields.io/badge/Java-25-orange)]()
+[![Hytale](https://img.shields.io/badge/Hytale-Release/Pre-green)]()
 
 A Gradle plugin for Hytale mod development that standardizes project setup, manifest generation,
 validation, local server runs, and IDE-friendly decompiled source attachment.
@@ -12,12 +12,7 @@ validation, local server runs, and IDE-friendly decompiled source attachment.
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.9'
-}
-
-dependencies {
-    vineServerJar "com.hypixel.hytale:Server:$hytale_version"
-    compileOnly "com.hypixel.hytale:Server:$hytale_version"
+    id 'com.azuredoom.hytale-tools' version '1.0.10'
 }
 
 hytaleTools {
@@ -201,7 +196,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.9'
+    id 'com.azuredoom.hytale-tools' version '1.0.10'
 }
 ```
 
@@ -209,17 +204,12 @@ plugins {
 
 ```gradle
 dependencies {
-    // Required
-    vineServerJar "com.hypixel.hytale:Server:$hytale_version"
-    compileOnly "com.hypixel.hytale:Server:$hytale_version"
-
     // Implementation and compileOnly dependencies are automatically added to vineDependencyJars and will be decompiled
     vineImplementation 'com.buuz135:MultipleHUD:1.0.6'
     vineCompileOnly 'curse.maven:partyinfo-1429469:7526614'
     
     // Optional decompile targets for IDE source attachment
     vineDecompileTargets 'com.buuz135:MultipleHUD:1.0.6'
-    vineDecompileTargets 'curse.maven:partyinfo-1429469:7526614'
 }
 ```
 
