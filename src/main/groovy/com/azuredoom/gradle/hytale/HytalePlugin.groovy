@@ -188,18 +188,11 @@ class HytalePlugin implements Plugin<Project> {
             project.tasks.register('prepareRunServer', PrepareRunServerTask) {
                 group = null
                 description = 'Prepares the run directory for launching the Hytale server'
-                dependsOn('syncAssetPackToRun')
-                runDirectory.set(ext.runDirectory)
-            }
-
-            project.tasks.register('syncAssetPackToRun', SyncAssetPackToRunTask) {
-                group = null
-                description = 'Stages an editable asset pack into the run mods directory for Asset Editor discovery'
 
                 dependsOn('validateManifest')
 
+                runDirectory.set(ext.runDirectory)
                 assetPackSourceDirectory.set(ext.assetPackSourceDirectory)
-                manifestFile.set(ext.manifestFile)
                 assetPackRunDirectory.set(ext.assetPackRunDirectory)
             }
 
