@@ -25,4 +25,6 @@ abstract class HytaleExtension {
 
     abstract RegularFileProperty getManifestFile()
     abstract DirectoryProperty getRunDirectory()
+    abstract DirectoryProperty getAssetPackSourceDirectory()
+    abstract DirectoryProperty getAssetPackRunDirectory()
 }

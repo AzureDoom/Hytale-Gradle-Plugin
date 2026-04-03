@@ -39,6 +39,12 @@ class HytalePlugin implements Plugin<Project> {
         ext.includesPack.convention(project.providers.gradleProperty('includes_pack').map { it.toBoolean() }.orElse(false))
         ext.manifestFile.convention(project.layout.projectDirectory.file('src/main/resources/manifest.json'))
         ext.runDirectory.convention(project.layout.projectDirectory.dir('run'))
+        ext.assetPackSourceDirectory.convention(project.layout.projectDirectory.dir('src/main/resources'))
+        ext.assetPackRunDirectory.convention(
+                project.provider {
+                    ext.runDirectory.get().dir("mods/${ext.manifestGroup.get().replace('.', '_')}_${ext.modId.get()}")
+                }
+        )
 
         def generatedSourcesMavenRepoDir = project.layout.buildDirectory.dir('generated-sources-m2')
         def generatedSourcesIvyRepoDir = project.layout.buildDirectory.dir('generated-sources-ivy')
@@ -182,9 +188,19 @@ class HytalePlugin implements Plugin<Project> {
             project.tasks.register('prepareRunServer', PrepareRunServerTask) {
                 group = null
                 description = 'Prepares the run directory for launching the Hytale server'
-
-                dependsOn('classes', 'processResources')
+                dependsOn('syncAssetPackToRun')
                 runDirectory.set(ext.runDirectory)
+            }
+
+            project.tasks.register('syncAssetPackToRun', SyncAssetPackToRunTask) {
+                group = null
+                description = 'Stages an editable asset pack into the run mods directory for Asset Editor discovery'
+
+                dependsOn('validateManifest')
+
+                assetPackSourceDirectory.set(ext.assetPackSourceDirectory)
+                manifestFile.set(ext.manifestFile)
+                assetPackRunDirectory.set(ext.assetPackRunDirectory)
             }
 
             project.tasks.register('runServer', RunServerTask) {
