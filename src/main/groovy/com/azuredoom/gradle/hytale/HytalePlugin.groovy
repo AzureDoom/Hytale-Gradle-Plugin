@@ -21,6 +21,7 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.work.DisableCachingByDefault
 
 class HytalePlugin implements Plugin<Project> {
     @Override
@@ -708,6 +709,7 @@ class HytalePlugin implements Plugin<Project> {
     }
 }
 
+@DisableCachingByDefault(because = "Diagnostic task that prints current plugin configuration and resolved state")
 abstract class HytaleDoctorTask extends DefaultTask {
     @Input
     abstract Property<String> getHytaleVersion()

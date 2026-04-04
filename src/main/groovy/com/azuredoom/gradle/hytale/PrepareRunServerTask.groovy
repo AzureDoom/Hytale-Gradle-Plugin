@@ -5,16 +5,21 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 
 import java.nio.file.Files
 import java.nio.file.Path
 
+@DisableCachingByDefault(because = "Creates platform-specific symlinks or junctions in the run directory")
 abstract class PrepareRunServerTask extends DefaultTask {
     @OutputDirectory
     abstract DirectoryProperty getRunDirectory()
 
     @InputDirectory
+    @PathSensitive(PathSensitivity.RELATIVE)
     abstract DirectoryProperty getAssetPackSourceDirectory()
 
     @OutputDirectory

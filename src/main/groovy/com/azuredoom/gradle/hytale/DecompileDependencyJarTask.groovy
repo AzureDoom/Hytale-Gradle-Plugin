@@ -6,23 +6,29 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaToolchainService
 
 import javax.inject.Inject
 
+@CacheableTask
 abstract class DecompileDependencyJarTask extends DefaultTask {
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     abstract RegularFileProperty getInputJar()
 
     @Classpath
     abstract ConfigurableFileCollection getDecompileClasspath()
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     abstract RegularFileProperty getVineflowerJar()
 
     @OutputDirectory

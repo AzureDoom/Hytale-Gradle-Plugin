@@ -5,7 +5,9 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 
+@DisableCachingByDefault(because = "Small file-creation task; build cache value is negligible")
 abstract class CreateManifestIfMissingTask extends DefaultTask {
 
     @OutputFile

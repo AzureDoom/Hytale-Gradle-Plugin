@@ -9,6 +9,8 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.*
+import org.gradle.work.DisableCachingByDefault
+
 import javax.inject.Inject
 import java.net.URI
 import java.net.URLEncoder
@@ -21,6 +23,7 @@ import java.time.Duration
 import java.util.Locale
 import java.util.zip.ZipFile
 
+@DisableCachingByDefault(because = "Downloads authenticated remote assets and may fall back to machine-local installs")
 abstract class DownloadAssetsZipTask extends DefaultTask {
     @Input abstract Property<String> getHytaleVersion()
     @Input abstract Property<String> getPatchline()
