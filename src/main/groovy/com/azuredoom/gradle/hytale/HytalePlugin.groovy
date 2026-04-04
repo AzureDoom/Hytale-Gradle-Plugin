@@ -1,5 +1,6 @@
 package com.azuredoom.gradle.hytale
 
+import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -9,8 +10,16 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.bundling.Jar
 
 class HytalePlugin implements Plugin<Project> {
@@ -74,11 +83,20 @@ class HytalePlugin implements Plugin<Project> {
         vineflowerTool.canBeConsumed = false
         vineflowerTool.canBeResolved = true
 
-        def vineDecompileClasspath = project.configurations.maybeCreate('vineDecompileClasspath')
-        def vineServerJar = project.configurations.maybeCreate('vineServerJar')
-        def vineDependencyJars = project.configurations.maybeCreate('vineDependencyJars')
+        def vineDecompileClasspath = project.configurations.getByName('vineDecompileClasspath')
+        def vineServerJar = project.configurations.getByName('vineServerJar')
+        def vineDependencyJars = project.configurations.getByName('vineDependencyJars')
+        def vineImplementation = project.configurations.getByName('vineImplementation')
+        def vineCompileOnly = project.configurations.getByName('vineCompileOnly')
+        def vineDecompileTargets = project.configurations.getByName('vineDecompileTargets')
 
         project.dependencies.add('vineflowerTool', 'org.vineflower:vineflower:1.11.2')
+
+        vineServerJar.defaultDependencies { deps ->
+            if (ext.hytaleVersion.isPresent()) {
+                deps.add(project.dependencies.create("com.hypixel.hytale:Server:${ext.hytaleVersion.get()}"))
+            }
+        }
 
         def assetsCacheDir = new File(project.gradle.gradleUserHomeDir, 'caches/hytale-assets')
         def authCacheDir = new File(project.gradle.gradleUserHomeDir, 'caches/hytale-auth')
@@ -96,7 +114,6 @@ class HytalePlugin implements Plugin<Project> {
         project.tasks.register('createManifestIfMissing', CreateManifestIfMissingTask) {
             group = 'hytale'
             description = 'Creates src/main/resources/manifest.json with a default structure when it is missing.'
-
             manifestFile.set(ext.manifestFile)
         }
 
@@ -165,9 +182,33 @@ class HytalePlugin implements Plugin<Project> {
             patchline.set(ext.patchline)
             oauthBaseUrl.set(ext.oauthBaseUrl)
             accountBaseUrl.set(ext.accountBaseUrl)
+            hytaleHomeOverride.set(project.providers.gradleProperty('hytale_home'))
             resolvedAssetsWrapper.set(project.layout.file(wrapperFileProvider))
             resolvedAssetsZip.set(project.layout.file(assetsZipFileProvider))
             tokenCacheFile.set(project.layout.file(tokenFileProvider))
+        }
+
+        project.tasks.register('hytaleDoctor', HytaleDoctorTask) {
+            group = 'hytale'
+            description = 'Prints a diagnostic summary of Hytale plugin configuration and resolution.'
+
+            hytaleVersion.set(ext.hytaleVersion)
+            patchline.set(ext.patchline)
+            manifestFile.set(ext.manifestFile)
+            runDirectory.set(ext.runDirectory)
+            assetsZip.set(project.layout.file(assetsZipFileProvider))
+            wrapperFile.set(project.layout.file(wrapperFileProvider))
+            tokenCacheFile.set(project.layout.file(tokenFileProvider))
+            vineServerJarFiles.from(vineServerJar)
+            vineImplementationDependencies.set(project.provider {
+                vineImplementation.allDependencies.collect { dependencyNotation(it) }
+            })
+            vineCompileOnlyDependencies.set(project.provider {
+                vineCompileOnly.allDependencies.collect { dependencyNotation(it) }
+            })
+            vineDecompileTargetDependencies.set(project.provider {
+                vineDecompileTargets.allDependencies.collect { dependencyNotation(it) }
+            })
         }
 
         project.pluginManager.withPlugin('java') {
@@ -318,125 +359,31 @@ class HytalePlugin implements Plugin<Project> {
                 }
             }
 
-            project.afterEvaluate {
-                def serverJarConfiguration = project.configurations.getByName('vineServerJar')
-                if (serverJarConfiguration.dependencies.empty && ext.hytaleVersion.isPresent()) {
-                    project.dependencies.add(
-                            'vineServerJar',
-                            "com.hypixel.hytale:Server:${ext.hytaleVersion.get()}"
-                    )
-                }
-                def rawTargets = []
-                rawTargets.addAll(project.configurations.getByName('vineDecompileTargets').allDependencies)
-                rawTargets.addAll(project.configurations.getByName('vineCompileOnly').allDependencies)
-                rawTargets.addAll(project.configurations.getByName('vineImplementation').allDependencies)
+            def seenDependencyTaskKeys = [] as Set<String>
+            def registerDeclaredDependency = { ExternalModuleDependency declaredDep ->
+                validateDecompileDependency(declaredDep)
 
-                rawTargets = rawTargets
-                        .findAll { it instanceof ExternalModuleDependency }
-                        .collect { it as ExternalModuleDependency }
-
-                def invalidTargets = rawTargets.findAll { !it.group || !it.name || !it.version }
-                if (!invalidTargets.isEmpty()) {
-                    throw new GradleException("Dependencies used for decompilation must use full GAV coordinates. Found: ${invalidTargets}")
-                }
-
-                def declaredTargets = rawTargets.unique { "${it.group}:${it.name}:${it.version}" }
-
-                if (!declaredTargets || declaredTargets.isEmpty()) {
+                def taskKey = "${declaredDep.group}:${declaredDep.name}:${declaredDep.version}"
+                if (!seenDependencyTaskKeys.add(taskKey)) {
                     return
                 }
 
-                declaredTargets.each { ExternalModuleDependency declaredDep ->
-                    def artifactGroup = declaredDep.group
-                    def artifactModule = declaredDep.name
-                    def artifactVersion = declaredDep.version
+                registerDependencyInstallTasks(
+                        project,
+                        declaredDep,
+                        vineflowerJarFile,
+                        vineDependencyJars,
+                        generatedSourcesMavenRepoDir,
+                        generatedSourcesIvyRepoDir,
+                        installDependencySourcesToRepo,
+                        ext
+                )
+            }
 
-                    def safeName = "${artifactGroup}__${artifactModule}__${artifactVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
-                    def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
-
-                    Provider<File> resolvedBinaryJar = project.providers.provider {
-                        resolveDeclaredDependencyArtifact(project, declaredDep)
-                    }
-
-                    def decompileTask = project.tasks.register("decompile_${safeName}", DecompileDependencyJarTask) {
-                        group = null
-                        description = "Internal: Decompile dependency ${artifactGroup}:${artifactModule}:${artifactVersion}"
-
-                        inputJar.set(project.layout.file(resolvedBinaryJar))
-                        vineflowerJar.set(vineflowerJarFile)
-                        decompileClasspath.from(vineDependencyJars)
-                        outputDirectory.set(perArtifactDir)
-                        tempDirectoryRoot.set(project.layout.buildDirectory.dir("tmp/vineflower-deps/${safeName}"))
-                        javaVersion.set(ext.javaVersion)
-                    }
-
-                    def sourcesJarTask = project.tasks.register("sourcesJar_${safeName}", Jar) {
-                        group = null
-                        description = "Internal: Package decompiled sources for ${artifactGroup}:${artifactModule}:${artifactVersion}"
-
-                        dependsOn(decompileTask)
-
-                        archiveBaseName.set(artifactModule)
-                        archiveVersion.set(artifactVersion)
-                        archiveClassifier.set('sources')
-
-                        destinationDirectory.set(project.layout.buildDirectory.dir("generated-sources-jars/dependencies/${safeName}"))
-                        from(perArtifactDir)
-                    }
-
-                    def installTask = project.tasks.register("installSources_${safeName}") {
-                        group = null
-                        description = "Internal: Install generated sources for ${artifactGroup}:${artifactModule}:${artifactVersion} into local repos"
-
-                        dependsOn(sourcesJarTask)
-
-                        inputs.file(sourcesJarTask.flatMap { it.archiveFile })
-
-                        outputs.files(project.provider {
-                            def outputFiles = []
-                            outputFiles.addAll(mavenRepoFiles(
-                                    generatedSourcesMavenRepoDir.get().asFile,
-                                    artifactGroup,
-                                    artifactModule,
-                                    artifactVersion
-                            ).values())
-                            outputFiles.addAll(ivyRepoFiles(
-                                    generatedSourcesIvyRepoDir.get().asFile,
-                                    artifactGroup,
-                                    artifactModule,
-                                    artifactVersion
-                            ).values())
-                            outputFiles
-                        })
-
-                        doLast {
-                            def binaryJarFile = resolvedBinaryJar.get()
-                            def sourcesJarFile = sourcesJarTask.get().archiveFile.get().asFile
-
-                            installModuleIntoMavenRepo(
-                                    project,
-                                    generatedSourcesMavenRepoDir.get().asFile,
-                                    artifactGroup,
-                                    artifactModule,
-                                    artifactVersion,
-                                    binaryJarFile,
-                                    sourcesJarFile
-                            )
-
-                            installModuleIntoIvyRepo(
-                                    project,
-                                    generatedSourcesIvyRepoDir.get().asFile,
-                                    artifactGroup,
-                                    artifactModule,
-                                    artifactVersion,
-                                    binaryJarFile,
-                                    sourcesJarFile
-                            )
-                        }
-                    }
-
-                    installDependencySourcesToRepo.configure {
-                        dependsOn(installTask)
+            [vineDecompileTargets, vineCompileOnly, vineImplementation].each { cfg ->
+                cfg.dependencies.all { dep ->
+                    if (dep instanceof ExternalModuleDependency) {
+                        registerDeclaredDependency(dep as ExternalModuleDependency)
                     }
                 }
             }
@@ -452,6 +399,129 @@ class HytalePlugin implements Plugin<Project> {
             project.tasks.matching { it.name == 'idea' }.configureEach {
                 dependsOn(prepareDecompiledSourcesForIde)
             }
+        }
+    }
+
+    private static String dependencyNotation(def dependency) {
+        def group = dependency.hasProperty('group') ? dependency.group : null
+        def name = dependency.hasProperty('name') ? dependency.name : null
+        def version = dependency.hasProperty('version') ? dependency.version : null
+
+        if (group && name && version) {
+            return "${group}:${name}:${version}"
+        }
+        if (group && name) {
+            return "${group}:${name}"
+        }
+        return dependency.toString()
+    }
+
+    private static void validateDecompileDependency(ExternalModuleDependency dependency) {
+        if (!dependency.group || !dependency.name || !dependency.version) {
+            throw new GradleException("Dependencies used for decompilation must use full GAV coordinates. Found: ${dependency}")
+        }
+    }
+
+    private static void registerDependencyInstallTasks(
+            Project project,
+            ExternalModuleDependency declaredDep,
+            Provider<?> vineflowerJarFile,
+            def vineDependencyJars,
+            def generatedSourcesMavenRepoDir,
+            def generatedSourcesIvyRepoDir,
+            def installDependencySourcesToRepo,
+            HytaleExtension ext
+    ) {
+        def artifactGroup = declaredDep.group
+        def artifactModule = declaredDep.name
+        def artifactVersion = declaredDep.version
+
+        def safeName = "${artifactGroup}__${artifactModule}__${artifactVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
+        def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
+
+        Provider<File> resolvedBinaryJar = project.providers.provider {
+            resolveDeclaredDependencyArtifact(project, declaredDep)
+        }
+
+        def decompileTask = project.tasks.register("decompile_${safeName}", DecompileDependencyJarTask) {
+            group = null
+            description = "Internal: Decompile dependency ${artifactGroup}:${artifactModule}:${artifactVersion}"
+
+            inputJar.set(project.layout.file(resolvedBinaryJar))
+            vineflowerJar.set(vineflowerJarFile)
+            decompileClasspath.from(vineDependencyJars)
+            outputDirectory.set(perArtifactDir)
+            tempDirectoryRoot.set(project.layout.buildDirectory.dir("tmp/vineflower-deps/${safeName}"))
+            javaVersion.set(ext.javaVersion)
+        }
+
+        def sourcesJarTask = project.tasks.register("sourcesJar_${safeName}", Jar) {
+            group = null
+            description = "Internal: Package decompiled sources for ${artifactGroup}:${artifactModule}:${artifactVersion}"
+
+            dependsOn(decompileTask)
+
+            archiveBaseName.set(artifactModule)
+            archiveVersion.set(artifactVersion)
+            archiveClassifier.set('sources')
+
+            destinationDirectory.set(project.layout.buildDirectory.dir("generated-sources-jars/dependencies/${safeName}"))
+            from(perArtifactDir)
+        }
+
+        def installTask = project.tasks.register("installSources_${safeName}") {
+            group = null
+            description = "Internal: Install generated sources for ${artifactGroup}:${artifactModule}:${artifactVersion} into local repos"
+
+            dependsOn(sourcesJarTask)
+
+            inputs.file(sourcesJarTask.flatMap { it.archiveFile })
+
+            outputs.files(project.provider {
+                def outputFiles = []
+                outputFiles.addAll(mavenRepoFiles(
+                        generatedSourcesMavenRepoDir.get().asFile,
+                        artifactGroup,
+                        artifactModule,
+                        artifactVersion
+                ).values())
+                outputFiles.addAll(ivyRepoFiles(
+                        generatedSourcesIvyRepoDir.get().asFile,
+                        artifactGroup,
+                        artifactModule,
+                        artifactVersion
+                ).values())
+                outputFiles
+            })
+
+            doLast {
+                def binaryJarFile = resolvedBinaryJar.get()
+                def sourcesJarFile = sourcesJarTask.get().archiveFile.get().asFile
+
+                installModuleIntoMavenRepo(
+                        project,
+                        generatedSourcesMavenRepoDir.get().asFile,
+                        artifactGroup,
+                        artifactModule,
+                        artifactVersion,
+                        binaryJarFile,
+                        sourcesJarFile
+                )
+
+                installModuleIntoIvyRepo(
+                        project,
+                        generatedSourcesIvyRepoDir.get().asFile,
+                        artifactGroup,
+                        artifactModule,
+                        artifactVersion,
+                        binaryJarFile,
+                        sourcesJarFile
+                )
+            }
+        }
+
+        installDependencySourcesToRepo.configure {
+            dependsOn(installTask)
         }
     }
 
@@ -484,12 +554,7 @@ class HytalePlugin implements Plugin<Project> {
         return artifactView.artifacts.artifacts.findAll { it instanceof ResolvedArtifactResult } as Set<ResolvedArtifactResult>
     }
 
-    private static Map<String, File> mavenRepoFiles(
-            File repoRoot,
-            String group,
-            String module,
-            String version
-    ) {
+    private static Map<String, File> mavenRepoFiles(File repoRoot, String group, String module, String version) {
         def groupPath = group.replace('.', '/')
         def moduleDir = new File(repoRoot, "${groupPath}/${module}/${version}")
 
@@ -500,12 +565,7 @@ class HytalePlugin implements Plugin<Project> {
         ]
     }
 
-    private static Map<String, File> ivyRepoFiles(
-            File repoRoot,
-            String group,
-            String module,
-            String version
-    ) {
+    private static Map<String, File> ivyRepoFiles(File repoRoot, String group, String module, String version) {
         def groupPath = group.replace('.', '/')
         def moduleDir = new File(repoRoot, "${groupPath}/${module}/${version}")
 
@@ -516,15 +576,7 @@ class HytalePlugin implements Plugin<Project> {
         ]
     }
 
-    private static void installModuleIntoMavenRepo(
-            Project project,
-            File repoRoot,
-            String group,
-            String module,
-            String version,
-            File binaryJarFile,
-            File sourcesJarFile
-    ) {
+    private static void installModuleIntoMavenRepo(Project project, File repoRoot, String group, String module, String version, File binaryJarFile, File sourcesJarFile) {
         def files = mavenRepoFiles(repoRoot, group, module, version)
         def moduleDir = files.binaryJar.parentFile
         moduleDir.mkdirs()
@@ -553,15 +605,7 @@ class HytalePlugin implements Plugin<Project> {
 """
     }
 
-    private static void installModuleIntoIvyRepo(
-            Project project,
-            File repoRoot,
-            String group,
-            String module,
-            String version,
-            File binaryJarFile,
-            File sourcesJarFile
-    ) {
+    private static void installModuleIntoIvyRepo(Project project, File repoRoot, String group, String module, String version, File binaryJarFile, File sourcesJarFile) {
         def files = ivyRepoFiles(repoRoot, group, module, version)
         def moduleDir = files.binaryJar.parentFile
         moduleDir.mkdirs()
@@ -661,5 +705,55 @@ class HytalePlugin implements Plugin<Project> {
         compileOnly.extendsFrom(vineCompileOnly, vineServerJar)
         vineDependencyJars.extendsFrom(vineDecompileTargets, vineCompileOnly, vineImplementation)
         vineDecompileClasspath.extendsFrom(vineCompileOnly, vineImplementation, vineServerJar)
+    }
+}
+
+abstract class HytaleDoctorTask extends DefaultTask {
+    @Input
+    abstract Property<String> getHytaleVersion()
+
+    @Input
+    abstract Property<String> getPatchline()
+
+    @Internal
+    abstract RegularFileProperty getManifestFile()
+
+    @Internal
+    abstract DirectoryProperty getRunDirectory()
+
+    @Internal
+    abstract RegularFileProperty getAssetsZip()
+
+    @Internal
+    abstract RegularFileProperty getWrapperFile()
+
+    @Internal
+    abstract RegularFileProperty getTokenCacheFile()
+
+    @Internal
+    abstract ConfigurableFileCollection getVineServerJarFiles()
+
+    @Input
+    abstract ListProperty<String> getVineImplementationDependencies()
+
+    @Input
+    abstract ListProperty<String> getVineCompileOnlyDependencies()
+
+    @Input
+    abstract ListProperty<String> getVineDecompileTargetDependencies()
+
+    @TaskAction
+    void runDoctor() {
+        println "HYTALE_VERSION=${hytaleVersion.orNull ?: ''}"
+        println "PATCHLINE=${patchline.orNull ?: ''}"
+        println "MANIFEST=${manifestFile.isPresent() ? manifestFile.get().asFile.absolutePath : ''}"
+        println "RUN_DIR=${runDirectory.isPresent() ? runDirectory.get().asFile.absolutePath : ''}"
+        println "ASSETS_ZIP=${assetsZip.isPresent() ? assetsZip.get().asFile.absolutePath : ''}"
+        println "WRAPPER=${wrapperFile.isPresent() ? wrapperFile.get().asFile.absolutePath : ''}"
+        println "TOKEN_CACHE=${tokenCacheFile.isPresent() ? tokenCacheFile.get().asFile.absolutePath : ''}"
+        println "VINE_SERVER_FILES=" + vineServerJarFiles.files.collect { it.name }.sort().join(',')
+        println "VINE_IMPLEMENTATION=" + new ArrayList<>(vineImplementationDependencies.get()).sort().join(',')
+        println "VINE_COMPILE_ONLY=" + new ArrayList<>(vineCompileOnlyDependencies.get()).sort().join(',')
+        println "VINE_DECOMPILE_TARGETS=" + new ArrayList<>(vineDecompileTargetDependencies.get()).sort().join(',')
     }
 }

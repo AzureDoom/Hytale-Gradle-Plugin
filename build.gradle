@@ -54,12 +54,6 @@ gradlePlugin {
                     'gradle-plugin',
                     'decompilation'
             ])
-
-            compatibility {
-                features {
-                    configurationCache = false
-                }
-            }
         }
     }
 }
