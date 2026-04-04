@@ -20,7 +20,7 @@ This plugin replaces:
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.12'
+    id 'com.azuredoom.hytale-tools' version '1.0.13'
 }
 
 hytaleTools {
@@ -282,7 +282,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.12'
+    id 'com.azuredoom.hytale-tools' version '1.0.13'
 }
 ```
 
