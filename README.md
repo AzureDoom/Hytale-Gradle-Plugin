@@ -62,6 +62,43 @@ At a high level:
 |----------------|-------------:|---------------------|
 | 1.0.x          |          25+ | Release/Pre-Release |
 
+## Gradle Compatibility
+
+This plugin is designed to work with modern Gradle features:
+
+- ✅ Configuration cache compatible
+- ✅ Passes Gradle 9.x plugin validation
+- ⚠️ Selective build cache support
+
+### Build Cache Behavior
+
+Tasks are categorized as follows:
+
+**Cacheable:**
+- `DecompileDependencyJarTask`
+- `DecompileServerJarTask`
+
+**Not cacheable (by design):**
+- `downloadAssetsZip` (network + auth dependent)
+- `runServer` (executes an external process)
+- `prepareRunServer` (filesystem links/junctions)
+- manifest tasks (low-cost file operations)
+
+This ensures correctness while still benefiting from caching where it matters.
+
+## CI Usage
+
+The plugin is compatible with:
+
+- Gradle configuration cache
+- Gradle plugin validation (Gradle 9+)
+
+Recommended CI flags:
+
+```bash
+./gradlew build --configuration-cache
+```
+
 ## Features
 
 - Automatically adds required repositories
@@ -81,13 +118,22 @@ This task is safe to run repeatedly and will not overwrite an existing manifest.
 
 ### `updatePluginManifest`
 
-Updates `src/main/resources/manifest.json` from Gradle properties
-and `hytaleTools {}` values.
+Updates (or rewrites) `src/main/resources/manifest.json` from Gradle configuration.
 
 ### `downloadAssetsZip`
 
-Authenticates with Hytale device auth, downloads the asset wrapper, extracts
-`Assets.zip`, and caches the result under Gradle user home. Falls back to using a local installation and existing `Assets.zip` if downloading fails.
+Authenticates with Hytale device auth, downloads the asset wrapper, extracts `Assets.zip`, and caches the result.
+
+**Fallback behavior:**
+If remote download fails, the task will attempt to locate a local Hytale installation
+and reuse an existing `Assets.zip`.
+
+You can override this location via:
+```gradle
+hytaleTools {
+    hytaleHomeOverride = "/path/to/Hytale"
+}
+```
 
 ### `runServer`
 
@@ -407,7 +453,7 @@ Only dependencies in that configuration are decompiled for IDE attachment.
 
 ## Notes
 
-- Java 25 is the default
+- Requires Java 25+
 - `release` is the default patchline
 - The plugin applies the `java` plugin automatically
 - The plugin applies the `idea` plugin to support IDE source attachment
