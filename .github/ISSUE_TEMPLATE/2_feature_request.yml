@@ -10,8 +10,8 @@ body:
   - type: input
     id: mod_version
     attributes:
-      label: Mod Version
-      description: What version of the mod are you using?
+      label: Plugin Version
+      description: What version of the Hytale Gradle Plugin are you using?
       placeholder: ex. 0.1.0
     validations:
       required: true
@@ -23,6 +23,14 @@ body:
       placeholder: ex. 1.0.0
     validations:
       required: true
+  - type: textarea
+    id: stacktrace
+    attributes:
+      label: Stacktrace
+      description: Please run with --stacktrace and paste the output
+      placeholder: Paste stacktrace here
+    validations:
+      required: false
   - type: textarea
     id: feature_summary
     attributes:
