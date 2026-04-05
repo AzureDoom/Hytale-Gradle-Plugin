@@ -125,17 +125,24 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
         def verificationUri = codeResponse.verification_uri?.toString()
         def userCode = codeResponse.user_code?.toString()
         def deviceCode = codeResponse.device_code?.toString()
+        def verificationUriComplete = codeResponse.verification_uri_complete?.toString()
         long intervalMillis = ((codeResponse.interval ?: 5) as Number).longValue() * 1000L
 
         if (!verificationUri || !userCode || !deviceCode) {
             throw new GradleException('Device auth response was missing required fields')
         }
 
+        def completeUrl = verificationUriComplete ?: "${verificationUri}?user_code=${URLEncoder.encode(userCode, 'UTF-8')}"
+
         logger.lifecycle("""\
 Starting OAuth device code flow...
 ===================================================================
-Open this URL in your browser: ${verificationUri}
-Then enter this code: ${userCode}
+Click to authenticate:
+${completeUrl}
+
+Or manually:
+${verificationUri}
+Code: ${userCode}
 ===================================================================
 """.stripIndent().trim())
 

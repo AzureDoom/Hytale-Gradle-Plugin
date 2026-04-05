@@ -75,8 +75,13 @@ abstract class DecompileServerJarTask extends DefaultTask {
         }
 
         def externals = decompileClasspath.files
-            .findAll { it.name.endsWith('.jar') && it != server }
-            .collect { "-e=${it.absolutePath}" }
+                .findAll {
+                    it.name.endsWith('.jar') &&
+                            it != server &&
+                            !it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-m2${File.separator}") &&
+                            !it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-ivy${File.separator}")
+                }
+                .collect { "-e=${it.absolutePath}" }
 
         def cmd = [
             javaExe,

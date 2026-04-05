@@ -261,29 +261,30 @@ class HytalePluginFunctionalTest extends Specification {
         new File(testProjectDir, 'build/libs').listFiles()?.any { it.name.endsWith('-javadoc.jar') }
     }
 
-    def "idea depends on prepareDecompiledSourcesForIde"() {
+    def "idea depends on prepareDecompiledSourcesForIde when idea plugin is applied"() {
         given:
         new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
         new File(testProjectDir, 'build.gradle') << '''
-            plugins {
-                id 'java'
-                id 'com.azuredoom.hytale-tools'
-            }
+        plugins {
+            id 'java'
+            id 'idea'
+            id 'com.azuredoom.hytale-tools'
+        }
 
-            group = 'com.example'
-            version = '1.0.0'
+        group = 'com.example'
+        version = '1.0.0'
 
-            hytaleTools {
-                hytaleVersion = '1.0.0'
-            }
+        hytaleTools {
+            hytaleVersion = '1.0.0'
+        }
 
-            tasks.register('printIdeaDeps') {
-                doLast {
-                    def ideaTask = tasks.named('idea').get()
-                    println 'IDEA_DEPS=' + ideaTask.taskDependencies.getDependencies(ideaTask)*.name.sort().join(',')
-                }
+        tasks.register('printIdeaDeps') {
+            doLast {
+                def ideaTask = tasks.named('idea').get()
+                println 'IDEA_DEPS=' + ideaTask.taskDependencies.getDependencies(ideaTask)*.name.sort().join(',')
             }
-        '''
+        }
+    '''
 
         when:
         def result = GradleRunner.create()
@@ -294,6 +295,33 @@ class HytalePluginFunctionalTest extends Specification {
 
         then:
         result.output.contains('prepareDecompiledSourcesForIde')
+    }
+
+    def "plugin does not auto apply idea plugin"() {
+        given:
+        new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
+        new File(testProjectDir, 'build.gradle') << '''
+        plugins {
+            id 'java'
+            id 'com.azuredoom.hytale-tools'
+        }
+
+        tasks.register('checkIdeaTask') {
+            doLast {
+                println 'HAS_IDEA=' + tasks.names.contains('idea')
+            }
+        }
+    '''
+
+        when:
+        def result = GradleRunner.create()
+                .withProjectDir(testProjectDir)
+                .withPluginClasspath()
+                .withArguments('checkIdeaTask', '-q', '--stacktrace')
+                .build()
+
+        then:
+        result.output.contains('HAS_IDEA=false')
     }
 
     def "vineImplementation without version fails decompile target validation"() {
