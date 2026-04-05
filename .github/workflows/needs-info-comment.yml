@@ -1,0 +1,31 @@
+name: Needs Info Comment
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  comment-on-needs-info:
+    if: github.event.label.name == 'needs-info'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add needs-info comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: |
+          gh issue comment "$ISSUE_URL" --body "
+          Thanks for the report. We need a bit more information before we can investigate this.
+
+          Please reply with:
+          - Plugin version
+          - Gradle version
+          - Hytale version
+          - Full stacktrace (\`--stacktrace\`)
+          - Relevant build.gradle / settings.gradle details
+
+          Once updated, a maintainer can remove the \`needs-info\` label and continue triage.
+          "

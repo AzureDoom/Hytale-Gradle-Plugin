@@ -1,0 +1,33 @@
+name: Close Stale Issues
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          stale-issue-label: "stale"
+          days-before-issue-stale: 30
+          days-before-issue-close: 7
+          stale-issue-message: >
+            This issue has been marked as stale due to 30 days of inactivity.
+            If there is still more to do here, reply and the stale label will be removed.
+          close-issue-message: >
+            This issue was closed after 7 additional days without activity.
+            If this is still relevant, feel free to reopen it with updated details.
+          stale-pr-message: >
+            This pull request has been marked as stale due to inactivity.
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          remove-issue-stale-when-updated: true
+          remove-stale-when-updated: true
+          exempt-issue-labels: "pinned,security"
