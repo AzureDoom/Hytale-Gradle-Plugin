@@ -1,6 +1,6 @@
 # Hytale Gradle Plugin
 
-[![Gradle Plugin](https://img.shields.io/badge/Gradle-Plugin-blue)]()
+[![Gradle Plugin](https://img.shields.io/badge/Gradle-Plugin-blue)](https://plugins.gradle.org/plugin/com.azuredoom.hytale-tools)
 [![Java](https://img.shields.io/badge/Java-25-orange)]()
 [![Hytale](https://img.shields.io/badge/Hytale-Release/Pre-green)]()
 
@@ -34,9 +34,21 @@ hytaleTools {
 Then run:
 
 ```bash
-./gradlew updatePluginManifest
+./gradlew setupHytaleDev
 ./gradlew runServer
 ```
+
+Having issues? See [Support & Issues](#support--issues).
+
+### VS Code Usage
+
+If you are using VS Code, run:
+
+```bash
+./gradlew prepareDecompiledSourcesForIde
+```
+
+Then reload the workspace to enable source attachment.
 
 ## Dependency Flow
 
@@ -150,6 +162,12 @@ This is useful for IDE source attachment.
 
 ## Development Workflow
 
+For first-time setup, you can run:
+
+```bash
+./gradlew setupHytaleDev
+```
+
 A typical workflow looks like this:
 
 ```bash
@@ -165,9 +183,49 @@ What happens during normal development:
 
 Because manifest generation and validation are wired into the build, most projects do not need to invoke those tasks manually.
 
+## Extension Reference
+
+| Property                       | Type          |                            Default | Required | Purpose                                     |
+|--------------------------------|---------------|-----------------------------------:|----------|---------------------------------------------|
+| `javaVersion`                  | `Integer`     |                               `25` | No       | Java version used for decompilation/tooling |
+| `hytaleVersion`                | `String`      |                               none | Usually  | Hytale server version to resolve            |
+| `patchline`                    | `String`      |                          `release` | No       | Asset/server patchline                      |
+| `oauthBaseUrl`                 | `String`      |                   Hytale OAuth URL | No       | Override auth endpoint                      |
+| `accountBaseUrl`               | `String`      |            Hytale account-data URL | No       | Override account endpoint                   |
+| `manifestGroup`                | `String`      |                    `project.group` | Yes      | Manifest group / namespace                  |
+| `modId`                        | `String`      |                     `project.name` | Yes      | Manifest mod id                             |
+| `modDescription`               | `String`      |                              empty | No       | Manifest description                        |
+| `modUrl`                       | `String`      |                              empty | No       | Manifest project URL                        |
+| `mainClass`                    | `String`      |                              empty | Usually  | Plugin entrypoint                           |
+| `modCredits`                   | `String`      |                              empty | No       | Manifest credits                            |
+| `manifestDependencies`         | `String`      |                              empty | No       | Required manifest deps                      |
+| `manifestOptionalDependencies` | `String`      |                              empty | No       | Optional manifest deps                      |
+| `curseforgeId`                 | `String`      |                              empty | No       | CurseForge project id                       |
+| `disabledByDefault`            | `Boolean`     |                            `false` | No       | Manifest flag                               |
+| `includesPack`                 | `Boolean`     |                            `false` | No       | Manifest flag                               |
+| `manifestFile`                 | `RegularFile` | `src/main/resources/manifest.json` | No       | Manifest location                           |
+| `runDirectory`                 | `Directory`   |                             `run/` | No       | Local server run dir                        |
+| `assetPackSourceDirectory`     | `Directory`   |               `src/main/resources` | No       | Source assets dir                           |
+| `assetPackRunDirectory`        | `Directory`   |      computed under `run/mods/...` | No       | Assets target dir                           |
+
+## Task Reference
+
+| Task                             | Group    | Purpose                                                    | Typical Use                        |
+|----------------------------------|----------|------------------------------------------------------------|------------------------------------|
+| `createManifestIfMissing`        | `hytale` | Creates a starter manifest if missing                      | First setup                        |
+| `updatePluginManifest`           | `hytale` | Rewrites manifest from Gradle config                       | Normal dev/build                   |
+| `downloadAssetsZip`              | `hytale` | Authenticates and fetches assets                           | Before first run / troubleshooting |
+| `hytaleDoctor`                   | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics | Troubleshooting                    |
+| `runServer`                      | `hytale` | Launches local Hytale server                               | Main dev loop                      |
+| `prepareDecompiledSourcesForIde` | `hytale` | Generates source jars for IDE attachment                   | IDE setup                          |
+| `validateManifest`               | internal | Verifies generated manifest values                         | Runs automatically                 |
+| `prepareRunServer`               | internal | Sets up run directory and mod assets                       | Runs automatically                 |
+| `decompileServerJar`             | internal | Decompiles Hytale server sources                           | Internal source pipeline           |
+| `setupHytaleDev`                 | `hytale` | Prepares IDE sources and downloads assets                  | First-time setup                   |
+
 ## IDE Source Attachment
 
-The plugin automatically prepares decompiled sources for IDE use.
+The plugin can prepare decompiled sources for IDE use.
 
 It decompiles:
 - the Hytale server jar
@@ -177,20 +235,26 @@ It decompiles:
 
 Generated decompiled sources are packaged as `-sources.jar` files and installed into local generated repositories under:
 
-```text
+```bash
 build/generated-sources-m2/
 build/generated-sources-ivy/
 ```
 
-The plugin now installs both:
+The plugin installs both:
 - the original binary jar
 - the generated sources jar
 
-This matters because IDEs can resolve the binary artifact and attach matching generated sources from the same local repository layout, which makes source attachment more reliable.
+IDEs use these for source attachment after generation.
+
+> Note:
+> These generated repositories are not used for normal dependency resolution during the build.
+> They exist only to support IDE source attachment after sources have been generated.
+>
+> This avoids Gradle task dependency conflicts and ensures consistent builds.
 
 ### When it runs
 
-Decompiled sources are prepared automatically when you run:
+If the `idea` plugin is applied, decompiled sources are prepared automatically when you run:
 
 ```bash
 ./gradlew idea
@@ -376,7 +440,44 @@ The plugin also reads these Gradle properties automatically:
 - `disabled_by_default`
 - `includes_pack`
 
+## Support & Issues
+
+If you encounter a bug, unexpected behavior, or have a feature request:
+
+- 🐛 Open an issue: https://github.com/AzureDoom/Hytale-Gradle-Plugin/issues
+- 💬 Join the Discord: https://discord.gg/YOUR_LINK
+
+Issue templates are provided for bug reports and feature requests.
+
+Please include:
+- Gradle version
+- Plugin version
+- Full stacktrace (`--stacktrace`)
+- Relevant build configuration
+
+For general questions or help getting started, Discord is usually the fastest way to get support.
+
 ## Troubleshooting
+
+Start here first:
+
+```bash
+./gradlew hytaleDoctor
+```
+
+hytaleDoctor prints a summary of:
+- configured `hytaleVersion` and `patchline`
+- manifest path and run directory
+- resolved asset wrapper / `Assets.zip` cache paths
+- auth token cache path
+- resolved `vineServerJar` files
+- declared `vineImplementation`, `vineCompileOnly`, and `vineDecompileTargets` dependencies
+
+Use it when:
+- runServer fails
+- assets are missing
+- manifest values look wrong
+- expected dependency sources are not showing up
 
 ### Missing `hytaleVersion`
 
@@ -399,7 +500,7 @@ Run:
 ./gradlew prepareDecompiledSourcesForIde
 ```
 
-This allows IDEs (IntelliJ, Eclipse) to show readable source code instead of obfuscated or compiled classes.
+This allows IDEs to attach readable generated source code instead of showing only compiled classes.
 
 Then refresh or reimport the Gradle project in your IDE.
 
@@ -456,4 +557,6 @@ Only dependencies in that configuration are decompiled for IDE attachment.
 - Requires Java 25+
 - `release` is the default patchline
 - The plugin applies the `java` plugin automatically
-- The plugin applies the `idea` plugin to support IDE source attachment
+- The plugin does not apply the `idea` plugin automatically
+- If the `idea` plugin is present, IDEA integration is wired automatically
+- You can always run `prepareDecompiledSourcesForIde` directly for source generation
