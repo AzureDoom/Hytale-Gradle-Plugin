@@ -7,13 +7,17 @@
 A Gradle plugin for Hytale mod development that standardizes project setup, manifest generation,
 validation, local server runs, and IDE-friendly decompiled source attachment.
 
+---
+
 ## Why use this plugin?
 
-This plugin replaces:
+This plugin replaces manual setup tasks such as:
 - manual manifest management
 - manual server setup
 - manual dependency decompilation
 - manual IDE source attachment setup
+
+---
 
 ## Quickstart
 
@@ -39,6 +43,146 @@ Then run:
 ```
 
 Having issues? See [Support & Issues](#support--issues).
+
+---
+
+## Multi-Project Setup
+
+This plugin supports a standard Gradle multi-project layout for shared code and multiple mods.
+
+### Quick Start
+
+```text
+root/
+├── settings.gradle
+├── build.gradle
+├── common/
+├── modA/
+└── modB/
+```
+
+```gradle
+// settings.gradle
+rootProject.name = "my-hytale-workspace"
+include("common", "modA", "modB")
+```
+
+```gradle
+// root build.gradle
+plugins {
+    id 'com.azuredoom.hytale-tools' version '1.0.14'
+}
+
+subprojects {
+    plugins.withId('com.azuredoom.hytale-tools') {
+        group = 'com.example.mods'
+    }
+}
+```
+
+```gradle
+// common/build.gradle
+plugins {
+    id 'java-library'
+}
+```
+
+```gradle
+// modA/build.gradle
+plugins {
+    id 'com.azuredoom.hytale-tools'
+}
+
+dependencies {
+    implementation project(':common')
+}
+
+hytaleTools {
+    hytaleVersion = '1.0.0'
+    manifestGroup = 'com.example.mods'
+    modId = 'moda'
+    mainClass = 'com.example.mods.moda.ModA'
+}
+```
+
+Repeat for additional mod subprojects (e.g. `modB`).
+
+---
+
+### How it works
+
+* `common` is a standard shared library and does not apply the plugin
+* each mod (`modA`, `modB`, etc.) applies the plugin independently
+* shared code is included via normal Gradle `project()` dependencies
+* when the plugin is applied to the root project, it also exposes workspace tasks for multi-project builds
+* workspace tasks (`runAllMods`, etc.) are only available when the plugin is applied to the root project
+* `stageAllModAssets` stages each mod's asset pack into the root `run/mods` directory for the combined dev server
+    * uses `assetPackSourceDirectory` (defaults to `src/main/resources`)
+    * copies raw resource files and does not depend on compiled outputs
+* workspace tasks operate across all subprojects that apply the plugin, ignoring non-Hytale projects (e.g. `common`)
+
+---
+
+### Running
+
+Run a single module:
+
+```bash
+./gradlew :modA:runServer
+./gradlew :modB:runServer
+```
+
+Or run a combined dev server for all Hytale mod projects:
+
+```bash
+./gradlew runAllMods
+```
+
+---
+
+### Root tasks
+
+When the plugin is applied to the root project, it also exposes these workspace tasks:
+
+* `updateAllPluginManifests`
+* `validateAllManifests`
+* `stageAllModAssets`
+* `runAllMods`
+
+Example:
+
+```bash
+./gradlew updateAllPluginManifests
+./gradlew validateAllManifests
+./gradlew runAllMods
+```
+
+`runAllMods` launches a single dev server with all Hytale mod subprojects on the combined runtime classpath.
+
+---
+
+### Notes
+
+* each mod must define its own `modId`, `mainClass`, and manifest
+* `common` should not apply the plugin unless it is a real mod
+* ordering is deterministic based on Gradle project path (e.g. `:modA`, `:modB`)
+* all Hytale subprojects must use the same `hytaleVersion` and `patchline` for `runAllMods`
+* `runAllMods` will fail early if any Hytale subproject has mismatched `hytaleVersion` or `patchline`
+* asset packs are linked when possible and copied as a fallback on platforms where symlinks are unavailable
+
+---
+
+### Official support
+
+This multi-project layout is the recommended approach for:
+
+* shared code in `common`
+* multiple mods in separate subprojects
+* one combined dev runtime from the root project
+
+The plugin is designed to work per-project, while the root project provides workspace-style orchestration for multi-project builds.
+
+---
 
 ### VS Code Usage
 
@@ -168,10 +312,9 @@ For first-time setup, you can run:
 ./gradlew setupHytaleDev
 ```
 
-A typical workflow looks like this:
+During development:
 
 ```bash
-./gradlew prepareDecompiledSourcesForIde
 ./gradlew runServer
 ```
 
@@ -185,43 +328,47 @@ Because manifest generation and validation are wired into the build, most projec
 
 ## Extension Reference
 
-| Property                       | Type          |                            Default | Required | Purpose                                     |
-|--------------------------------|---------------|-----------------------------------:|----------|---------------------------------------------|
-| `javaVersion`                  | `Integer`     |                               `25` | No       | Java version used for decompilation/tooling |
-| `hytaleVersion`                | `String`      |                               none | Usually  | Hytale server version to resolve            |
-| `patchline`                    | `String`      |                          `release` | No       | Asset/server patchline                      |
-| `oauthBaseUrl`                 | `String`      |                   Hytale OAuth URL | No       | Override auth endpoint                      |
-| `accountBaseUrl`               | `String`      |            Hytale account-data URL | No       | Override account endpoint                   |
-| `manifestGroup`                | `String`      |                    `project.group` | Yes      | Manifest group / namespace                  |
-| `modId`                        | `String`      |                     `project.name` | Yes      | Manifest mod id                             |
-| `modDescription`               | `String`      |                              empty | No       | Manifest description                        |
-| `modUrl`                       | `String`      |                              empty | No       | Manifest project URL                        |
-| `mainClass`                    | `String`      |                              empty | Usually  | Plugin entrypoint                           |
-| `modCredits`                   | `String`      |                              empty | No       | Manifest credits                            |
-| `manifestDependencies`         | `String`      |                              empty | No       | Required manifest deps                      |
-| `manifestOptionalDependencies` | `String`      |                              empty | No       | Optional manifest deps                      |
-| `curseforgeId`                 | `String`      |                              empty | No       | CurseForge project id                       |
-| `disabledByDefault`            | `Boolean`     |                            `false` | No       | Manifest flag                               |
-| `includesPack`                 | `Boolean`     |                            `false` | No       | Manifest flag                               |
-| `manifestFile`                 | `RegularFile` | `src/main/resources/manifest.json` | No       | Manifest location                           |
-| `runDirectory`                 | `Directory`   |                             `run/` | No       | Local server run dir                        |
-| `assetPackSourceDirectory`     | `Directory`   |               `src/main/resources` | No       | Source assets dir                           |
-| `assetPackRunDirectory`        | `Directory`   |      computed under `run/mods/...` | No       | Assets target dir                           |
+| Property                       | Type          |                            Default | Required | Purpose                                                            |
+|--------------------------------|---------------|-----------------------------------:|----------|--------------------------------------------------------------------|
+| `javaVersion`                  | `Integer`     |                               `25` | No       | Java version used for decompilation/tooling                        |
+| `hytaleVersion`                | `String`      |                               none | Usually  | Hytale server version to resolve                                   |
+| `patchline`                    | `String`      |                          `release` | No       | Asset/server patchline                                             |
+| `oauthBaseUrl`                 | `String`      |                   Hytale OAuth URL | No       | Override auth endpoint                                             |
+| `accountBaseUrl`               | `String`      |            Hytale account-data URL | No       | Override account endpoint                                          |
+| `manifestGroup`                | `String`      |                    `project.group` | Yes      | Manifest group / namespace                                         |
+| `modId`                        | `String`      |                     `project.name` | Yes      | Manifest mod id                                                    |
+| `modDescription`               | `String`      |                              empty | No       | Manifest description                                               |
+| `modUrl`                       | `String`      |                              empty | No       | Manifest project URL                                               |
+| `mainClass`                    | `String`      |                              empty | Usually  | Plugin entrypoint                                                  |
+| `modCredits`                   | `String`      |                              empty | No       | Manifest credits                                                   |
+| `manifestDependencies`         | `String`      |                              empty | No       | Required manifest deps                                             |
+| `manifestOptionalDependencies` | `String`      |                              empty | No       | Optional manifest deps                                             |
+| `curseforgeId`                 | `String`      |                              empty | No       | CurseForge project id                                              |
+| `disabledByDefault`            | `Boolean`     |                            `false` | No       | Manifest flag                                                      |
+| `includesPack`                 | `Boolean`     |                            `false` | No       | Manifest flag                                                      |
+| `manifestFile`                 | `RegularFile` | `src/main/resources/manifest.json` | No       | Manifest location                                                  |
+| `runDirectory`                 | `Directory`   |                             `run/` | No       | Local server run dir                                               |
+| `assetPackSourceDirectory`     | `Directory`   |               `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets` |
+| `assetPackRunDirectory`        | `Directory`   |      computed under `run/mods/...` | No       | Assets target dir                                                  |
 
 ## Task Reference
 
-| Task                             | Group    | Purpose                                                    | Typical Use                        |
-|----------------------------------|----------|------------------------------------------------------------|------------------------------------|
-| `createManifestIfMissing`        | `hytale` | Creates a starter manifest if missing                      | First setup                        |
-| `updatePluginManifest`           | `hytale` | Rewrites manifest from Gradle config                       | Normal dev/build                   |
-| `downloadAssetsZip`              | `hytale` | Authenticates and fetches assets                           | Before first run / troubleshooting |
-| `hytaleDoctor`                   | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics | Troubleshooting                    |
-| `runServer`                      | `hytale` | Launches local Hytale server                               | Main dev loop                      |
-| `prepareDecompiledSourcesForIde` | `hytale` | Generates source jars for IDE attachment                   | IDE setup                          |
-| `validateManifest`               | internal | Verifies generated manifest values                         | Runs automatically                 |
-| `prepareRunServer`               | internal | Sets up run directory and mod assets                       | Runs automatically                 |
-| `decompileServerJar`             | internal | Decompiles Hytale server sources                           | Internal source pipeline           |
-| `setupHytaleDev`                 | `hytale` | Prepares IDE sources and downloads assets                  | First-time setup                   |
+| Task                             | Group    | Purpose                                                         | Typical Use                        |
+|----------------------------------|----------|-----------------------------------------------------------------|------------------------------------|
+| `createManifestIfMissing`        | `hytale` | Creates a starter manifest if missing                           | First setup                        |
+| `updatePluginManifest`           | `hytale` | Rewrites manifest from Gradle config                            | Normal dev/build                   |
+| `updateAllPluginManifests`       | `hytale` | Rewrites manifests for all Hytale subprojects                   | Multi-project manifest sync        |
+| `downloadAssetsZip`              | `hytale` | Authenticates and fetches assets                                | Before first run / troubleshooting |
+| `hytaleDoctor`                   | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics      | Troubleshooting                    |
+| `runServer`                      | `hytale` | Launches local Hytale server                                    | Single-project dev loop            |
+| `runAllMods`                     | `hytale` | Launches one shared server with all mod subprojects             | Multi-project dev loop             |
+| `stageAllModAssets`              | `hytale` | Stages each mod's asset pack into the root `run/mods` directory | Multi-project run preparation      |
+| `prepareDecompiledSourcesForIde` | `hytale` | Generates source jars for IDE attachment                        | IDE setup                          |
+| `validateManifest`               | internal | Verifies generated manifest values                              | Runs automatically                 |
+| `validateAllManifests`           | `hytale` | Verifies manifests for all Hytale subprojects                   | Multi-project validation           |
+| `prepareRunServer`               | internal | Sets up run directory and mod assets                            | Runs automatically                 |
+| `decompileServerJar`             | internal | Decompiles Hytale server sources                                | Internal source pipeline           |
+| `setupHytaleDev`                 | `hytale` | Prepares IDE sources and downloads assets                       | First-time setup                   |
 
 ## IDE Source Attachment
 
