@@ -592,7 +592,7 @@ The plugin also reads these Gradle properties automatically:
 If you encounter a bug, unexpected behavior, or have a feature request:
 
 - 🐛 Open an issue: https://github.com/AzureDoom/Hytale-Gradle-Plugin/issues
-- 💬 Join the Discord: https://discord.gg/YOUR_LINK
+- 💬 Join the Discord: https://discord.gg/f2NJGA8ey8
 
 Issue templates are provided for bug reports and feature requests.
 
