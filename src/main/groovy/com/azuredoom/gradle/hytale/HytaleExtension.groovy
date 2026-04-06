@@ -22,6 +22,7 @@ abstract class HytaleExtension {
     abstract Property<String> getCurseforgeId()
     abstract Property<Boolean> getDisabledByDefault()
     abstract Property<Boolean> getIncludesPack()
+    abstract Property<Boolean> getBundleAssetEditorRuntime()
 
     abstract RegularFileProperty getManifestFile()
     abstract DirectoryProperty getRunDirectory()

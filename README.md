@@ -328,28 +328,29 @@ Because manifest generation and validation are wired into the build, most projec
 
 ## Extension Reference
 
-| Property                       | Type          |                            Default | Required | Purpose                                                            |
-|--------------------------------|---------------|-----------------------------------:|----------|--------------------------------------------------------------------|
-| `javaVersion`                  | `Integer`     |                               `25` | No       | Java version used for decompilation/tooling                        |
-| `hytaleVersion`                | `String`      |                               none | Usually  | Hytale server version to resolve                                   |
-| `patchline`                    | `String`      |                          `release` | No       | Asset/server patchline                                             |
-| `oauthBaseUrl`                 | `String`      |                   Hytale OAuth URL | No       | Override auth endpoint                                             |
-| `accountBaseUrl`               | `String`      |            Hytale account-data URL | No       | Override account endpoint                                          |
-| `manifestGroup`                | `String`      |                    `project.group` | Yes      | Manifest group / namespace                                         |
-| `modId`                        | `String`      |                     `project.name` | Yes      | Manifest mod id                                                    |
-| `modDescription`               | `String`      |                              empty | No       | Manifest description                                               |
-| `modUrl`                       | `String`      |                              empty | No       | Manifest project URL                                               |
-| `mainClass`                    | `String`      |                              empty | Usually  | Plugin entrypoint                                                  |
-| `modCredits`                   | `String`      |                              empty | No       | Manifest credits                                                   |
-| `manifestDependencies`         | `String`      |                              empty | No       | Required manifest deps                                             |
-| `manifestOptionalDependencies` | `String`      |                              empty | No       | Optional manifest deps                                             |
-| `curseforgeId`                 | `String`      |                              empty | No       | CurseForge project id                                              |
-| `disabledByDefault`            | `Boolean`     |                            `false` | No       | Manifest flag                                                      |
-| `includesPack`                 | `Boolean`     |                            `false` | No       | Manifest flag                                                      |
-| `manifestFile`                 | `RegularFile` | `src/main/resources/manifest.json` | No       | Manifest location                                                  |
-| `runDirectory`                 | `Directory`   |                             `run/` | No       | Local server run dir                                               |
-| `assetPackSourceDirectory`     | `Directory`   |               `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets` |
-| `assetPackRunDirectory`        | `Directory`   |      computed under `run/mods/...` | No       | Assets target dir                                                  |
+| Property                       | Type          |                            Default | Required | Purpose                                                                 |
+|--------------------------------|---------------|-----------------------------------:|----------|-------------------------------------------------------------------------|
+| `javaVersion`                  | `Integer`     |                               `25` | No       | Java version used for decompilation/tooling                             |
+| `hytaleVersion`                | `String`      |                               none | Usually  | Hytale server version to resolve                                        |
+| `patchline`                    | `String`      |                          `release` | No       | Asset/server patchline                                                  |
+| `oauthBaseUrl`                 | `String`      |                   Hytale OAuth URL | No       | Override auth endpoint                                                  |
+| `accountBaseUrl`               | `String`      |            Hytale account-data URL | No       | Override account endpoint                                               |
+| `manifestGroup`                | `String`      |                    `project.group` | Yes      | Manifest group / namespace                                              |
+| `modId`                        | `String`      |                     `project.name` | Yes      | Manifest mod id                                                         |
+| `modDescription`               | `String`      |                              empty | No       | Manifest description                                                    |
+| `modUrl`                       | `String`      |                              empty | No       | Manifest project URL                                                    |
+| `mainClass`                    | `String`      |                              empty | Usually  | Plugin entrypoint                                                       |
+| `modCredits`                   | `String`      |                              empty | No       | Manifest credits                                                        |
+| `manifestDependencies`         | `String`      |                              empty | No       | Required manifest deps                                                  |
+| `manifestOptionalDependencies` | `String`      |                              empty | No       | Optional manifest deps                                                  |
+| `curseforgeId`                 | `String`      |                              empty | No       | CurseForge project id                                                   |
+| `disabledByDefault`            | `Boolean`     |                            `false` | No       | Manifest flag                                                           |
+| `includesPack`                 | `Boolean`     |                            `false` | No       | Manifest flag                                                           |
+| `manifestFile`                 | `RegularFile` | `src/main/resources/manifest.json` | No       | Manifest location                                                       |
+| `runDirectory`                 | `Directory`   |                             `run/` | No       | Local server run dir                                                    |
+| `assetPackSourceDirectory`     | `Directory`   |               `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`      |
+| `assetPackRunDirectory`        | `Directory`   |      computed under `run/mods/...` | No       | Assets target dir                                                       |
+| `bundleAssetEditorRuntime`     | `Boolean`     |                             `true` | No       | Controls whether the asset editor runtime is bundled into the final jar |
 
 ## Task Reference
 
@@ -459,12 +460,13 @@ The plugin automatically creates:
 
 ### Configuration Overview
 
-| Configuration        | Purpose                                         |
-|----------------------|-------------------------------------------------|
-| vineServerJar        | Hytale server binary (auto-injected)            |
-| vineImplementation   | Runtime dependencies                            |
-| vineCompileOnly      | Compile-time only dependencies                  |
-| vineDecompileTargets | Extra dependencies to decompile for IDE sources |
+| Configuration        | Purpose                                                       |
+|----------------------|---------------------------------------------------------------|
+| vineServerJar        | Hytale server binary (auto-injected)                          |
+| vineImplementation   | Runtime dependencies                                          |
+| vineCompileOnly      | Compile-time only dependencies                                |
+| vineDecompileTargets | Extra dependencies to decompile for IDE sources               |
+| hytaleBundledRuntime | Runtime dependency automatically added and optionally bundled |
 
 `compileOnly` automatically includes:
 - `vineCompileOnly`
@@ -539,6 +541,48 @@ dependencies {
 ```
 
 Auto-injection is skipped when a dependency is already declared.
+
+## Asset Editor Runtime
+
+The plugin automatically adds the Hytale Asset Editor runtime dependency:
+
+```groovy
+dependencies {
+  implementation 'com.azuredoom.hytale:hytale-asset-editor-runtime:0.1.0'
+}
+```
+
+This dependency is:
+- added automatically via the `hytaleBundledRuntime` configuration
+- available on `implementation`
+
+### Bundling into the final jar
+
+By default, the runtime is bundled into your mod jar (similar to a lightweight shading step without requiring an external plugin).
+
+You can disable this behavior:
+```groovy
+hytaleTools {
+    bundleAssetEditorRuntime = false
+}
+```
+
+When disabled:
+- the dependency is still available at `compile`/`runtime`
+- it is not included inside the final `jar`
+
+### Overriding the runtime version
+
+You can override the default version:
+```groovy
+dependencies {
+  hytaleBundledRuntime 'com.azuredoom.hytale:hytale-asset-editor-runtime:0.2.0'
+}
+```
+
+Declaring a dependency manually will replace the plugin’s default.
+
+---
 
 ## Configuration
 

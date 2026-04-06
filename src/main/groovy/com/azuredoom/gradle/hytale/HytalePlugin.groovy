@@ -2,6 +2,8 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.jvm.tasks.Jar
 
 class HytalePlugin implements Plugin<Project> {
     @Override
@@ -27,10 +29,30 @@ class HytalePlugin implements Plugin<Project> {
         def vineImplementation = project.configurations.named('vineImplementation')
         def vineCompileOnly = project.configurations.named('vineCompileOnly')
         def vineDecompileTargets = project.configurations.named('vineDecompileTargets')
+        def hytaleBundledRuntime = project.configurations.named('hytaleBundledRuntime')
 
         vineServerJar.get().defaultDependencies { deps ->
             if (ext.hytaleVersion.isPresent()) {
                 deps.add(project.dependencies.create("com.hypixel.hytale:Server:${ext.hytaleVersion.get()}"))
+            }
+        }
+
+        hytaleBundledRuntime.get().defaultDependencies { deps ->
+            deps.add(project.dependencies.create(
+                    'com.azuredoom.hytale:hytale-asset-editor-runtime:0.1.0'
+            ))
+        }
+
+        project.tasks.named('jar', Jar).configure {
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+            if (ext.bundleAssetEditorRuntime.getOrElse(true)) {
+                from({
+                    hytaleBundledRuntime.get()
+                            .resolve()
+                            .findAll { it.name.endsWith('.jar') }
+                            .collect { project.zipTree(it) }
+                })
             }
         }
 

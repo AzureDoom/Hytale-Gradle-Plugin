@@ -31,5 +31,6 @@ final class HytaleExtensionDefaults {
                     ext.runDirectory.get().dir("mods/${ext.manifestGroup.get().replace('.', '_')}_${ext.modId.get()}")
                 }
         )
+        ext.bundleAssetEditorRuntime.convention(true)
     }
 }
