@@ -12,15 +12,12 @@ import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
 
 import javax.inject.Inject
-import java.net.URI
-import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
-import java.util.Locale
 import java.util.zip.ZipFile
 
 @DisableCachingByDefault(because = "Downloads authenticated remote assets and may fall back to machine-local installs")
@@ -70,7 +67,7 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
                 .build()
     }
 
-    protected Map loadTokens(File tokenFile, JsonSlurper json) {
+    protected static Map loadTokens(File tokenFile, JsonSlurper json) {
         if (!tokenFile.exists()) {
             return null
         }
@@ -81,7 +78,7 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
         ]
     }
 
-    protected void saveTokens(File tokenFile, Map tokenMap) {
+    protected static void saveTokens(File tokenFile, Map tokenMap) {
         tokenFile.text = JsonOutput.prettyPrint(JsonOutput.toJson([
                 accessToken : tokenMap.access_token,
                 refreshToken: tokenMap.refresh_token
@@ -171,9 +168,9 @@ Code: ${userCode}
         throw new GradleException('Timed out waiting for device auth to complete', lastError)
     }
 
-    protected HttpResponse<InputStream> postForm(HttpClient client, String url, Map form) {
+    protected static HttpResponse<InputStream> postForm(HttpClient client, String url, Map form) {
         def encoded = form.collect { k, v ->
-            "${URLEncoder.encode(k, 'UTF-8')}=${URLEncoder.encode(v, 'UTF-8')}"
+            "${URLEncoder.encode(k as String, 'UTF-8')}=${URLEncoder.encode(v as String, 'UTF-8')}"
         }.join('&')
 
         def request = HttpRequest.newBuilder()
@@ -201,7 +198,7 @@ Code: ${userCode}
         client.send(request, HttpResponse.BodyHandlers.ofInputStream())
     }
 
-    protected void validateZipFile(File zipPath, String description) {
+    protected static void validateZipFile(File zipPath, String description) {
         ZipFile zip = null
         try {
             zip = new ZipFile(zipPath)
@@ -253,7 +250,7 @@ Code: ${userCode}
             }
         }
 
-        candidates.find { it.exists() && it.isFile() && it.length() > 0 }
+        candidates.find { it.exists() && it.isFile() && it.length() > 0 } as File
     }
 
     @TaskAction
@@ -305,7 +302,7 @@ Code: ${userCode}
         Exception remoteFailure = null
         try {
             def assetLookupUrl = "${account}/game-assets/builds/${patch}/${version}.zip"
-            def assetLookupResp = getJson(client, assetLookupUrl, activeTokens.access_token)
+            def assetLookupResp = getJson(client, assetLookupUrl, activeTokens.access_token as String)
             if (assetLookupResp.statusCode() < 200 || assetLookupResp.statusCode() >= 300) {
                 throw new GradleException("Asset bundle lookup failed with HTTP ${assetLookupResp.statusCode()} from ${assetLookupUrl}")
             }

@@ -1,14 +1,13 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Project
-import org.gradle.api.provider.Provider
 import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 
 final class HytaleRepositoryConfigurer {
     private HytaleRepositoryConfigurer() {}
 
-    static void configure(Project project, Provider<?> generatedSourcesMavenRepoDir, Provider<?> generatedSourcesIvyRepoDir) {
+    static void configure(Project project) {
         project.repositories.mavenCentral()
 
         addMavenRepo(project, 'Hytale Server Release', 'https://maven.hytale.com/release')

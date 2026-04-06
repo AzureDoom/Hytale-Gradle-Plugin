@@ -14,7 +14,7 @@ class HytalePlugin implements Plugin<Project> {
         def generatedSourcesMavenRepoDir = project.layout.buildDirectory.dir('generated-sources-m2')
         def generatedSourcesIvyRepoDir = project.layout.buildDirectory.dir('generated-sources-ivy')
 
-        HytaleRepositoryConfigurer.configure(project, generatedSourcesMavenRepoDir, generatedSourcesIvyRepoDir)
+        HytaleRepositoryConfigurer.configure(project)
         HytaleConfigurationConfigurer.configure(project)
 
         def vineflowerTool = project.configurations.maybeCreate('vineflowerTool')
@@ -22,13 +22,13 @@ class HytalePlugin implements Plugin<Project> {
         vineflowerTool.canBeResolved = true
         project.dependencies.add('vineflowerTool', 'org.vineflower:vineflower:1.11.2')
 
-        def vineServerJar = project.configurations.getByName('vineServerJar')
-        def vineDependencyJars = project.configurations.getByName('vineDependencyJars')
-        def vineImplementation = project.configurations.getByName('vineImplementation')
-        def vineCompileOnly = project.configurations.getByName('vineCompileOnly')
-        def vineDecompileTargets = project.configurations.getByName('vineDecompileTargets')
+        def vineServerJar = project.configurations.named('vineServerJar')
+        def vineDependencyJars = project.configurations.named('vineDependencyJars')
+        def vineImplementation = project.configurations.named('vineImplementation')
+        def vineCompileOnly = project.configurations.named('vineCompileOnly')
+        def vineDecompileTargets = project.configurations.named('vineDecompileTargets')
 
-        vineServerJar.defaultDependencies { deps ->
+        vineServerJar.get().defaultDependencies { deps ->
             if (ext.hytaleVersion.isPresent()) {
                 deps.add(project.dependencies.create("com.hypixel.hytale:Server:${ext.hytaleVersion.get()}"))
             }

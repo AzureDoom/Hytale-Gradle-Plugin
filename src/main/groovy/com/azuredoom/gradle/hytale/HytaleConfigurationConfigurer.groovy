@@ -6,8 +6,8 @@ final class HytaleConfigurationConfigurer {
     private HytaleConfigurationConfigurer() {}
 
     static void configure(Project project) {
-        def implementation = project.configurations.getByName('implementation')
-        def compileOnly = project.configurations.getByName('compileOnly')
+        def implementation = project.configurations.named('implementation').get()
+        def compileOnly = project.configurations.named('compileOnly').get()
 
         def vineImplementation = project.configurations.maybeCreate('vineImplementation')
         vineImplementation.canBeConsumed = false

@@ -4,7 +4,6 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
 
 final class HytaleDependencySupport {
@@ -52,7 +51,7 @@ final class HytaleDependencySupport {
     }
 
     static Set<ResolvedArtifactResult> resolveArtifacts(Project project, String configurationName) {
-        def configuration = project.configurations.getByName(configurationName)
+        def configuration = project.configurations.named(configurationName).get()
         def artifactView = configuration.incoming.artifactView { view ->
             view.lenient(true)
         }
@@ -81,11 +80,14 @@ final class HytaleDependencySupport {
         ]
     }
 
-    static void installModuleIntoMavenRepo(Project project, File repoRoot, String group, String module, String version, File binaryJarFile, File sourcesJarFile) {
-        def files = mavenRepoFiles(repoRoot, group, module, version)
+    private static File prepareRepoModuleDir(Map<String, File> files) {
         def moduleDir = files.binaryJar.parentFile
         moduleDir.mkdirs()
+        moduleDir
+    }
 
+    private static void copyRepoArtifacts(Project project, File moduleDir, String module, String version,
+                                          File binaryJarFile, File sourcesJarFile) {
         project.copy {
             from binaryJarFile
             into moduleDir
@@ -97,6 +99,13 @@ final class HytaleDependencySupport {
             into moduleDir
             rename { "${module}-${version}-sources.jar" }
         }
+    }
+
+    static void installModuleIntoMavenRepo(Project project, File repoRoot, String group, String module, String version,
+                                           File binaryJarFile, File sourcesJarFile) {
+        def files = mavenRepoFiles(repoRoot, group, module, version)
+        def moduleDir = prepareRepoModuleDir(files)
+        copyRepoArtifacts(project, moduleDir, module, version, binaryJarFile, sourcesJarFile)
 
         files.descriptor.text = """<project xmlns="http://maven.apache.org/POM/4.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -110,24 +119,13 @@ final class HytaleDependencySupport {
 """
     }
 
-    static void installModuleIntoIvyRepo(Project project, File repoRoot, String group, String module, String version, File binaryJarFile, File sourcesJarFile) {
+    static void installModuleIntoIvyRepo(Project project, File repoRoot, String group, String module, String version,
+                                         File binaryJarFile, File sourcesJarFile) {
         def files = ivyRepoFiles(repoRoot, group, module, version)
-        def moduleDir = files.binaryJar.parentFile
-        moduleDir.mkdirs()
+        def moduleDir = prepareRepoModuleDir(files)
+        copyRepoArtifacts(project, moduleDir, module, version, binaryJarFile, sourcesJarFile)
 
-        project.copy {
-            from binaryJarFile
-            into moduleDir
-            rename { "${module}-${version}.jar" }
-        }
-
-        project.copy {
-            from sourcesJarFile
-            into moduleDir
-            rename { "${module}-${version}-sources.jar" }
-        }
-
-        files.descriptor.text = """<ivy-module version="2.0" xmlns:m="http://ant.apache.org/ivy/maven">
+        files.descriptor.text = """<ivy-module version="2.0" xmlns:m="https://ant.apache.org/ivy/maven">
   <info organisation="${group}" module="${module}" revision="${version}"/>
   <configurations>
     <conf name="default"/>

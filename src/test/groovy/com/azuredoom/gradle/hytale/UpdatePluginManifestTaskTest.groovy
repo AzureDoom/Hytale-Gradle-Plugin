@@ -36,7 +36,8 @@ class UpdatePluginManifestTaskTest extends Specification {
         }
         '''
 
-        def task = project.tasks.create('updatePluginManifestTest', UpdatePluginManifestTask)
+        def taskProvider = project.tasks.register('updatePluginManifestTest', UpdatePluginManifestTask)
+        def task = taskProvider.get()
         task.manifestFile.set(manifestFile)
         task.manifestGroup.set('com.example.mods')
         task.modId.set('examplemod')

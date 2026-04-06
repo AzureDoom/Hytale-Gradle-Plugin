@@ -145,7 +145,7 @@ final class HytaleWorkspaceTaskRegistrar {
 
                 task.classpath = project.files(
                         combinedRuntime,
-                        host.configurations.getByName('vineServerJar')
+                        host.configurations.named('vineServerJar').get()
                 )
 
                 task.setArgs([

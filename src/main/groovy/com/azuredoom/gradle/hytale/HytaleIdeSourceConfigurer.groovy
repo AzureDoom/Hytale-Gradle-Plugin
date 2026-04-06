@@ -2,6 +2,9 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.NamedDomainObjectProvider
+import org.gradle.api.Task
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
@@ -12,20 +15,20 @@ import org.gradle.api.tasks.bundling.Jar
 final class HytaleIdeSourceConfigurer {
     private HytaleIdeSourceConfigurer() {}
 
-    static TaskProvider<?> register(
+    static TaskProvider<? extends Task> register(
             Project project,
             HytaleExtension ext,
             def generatedSourcesMavenRepoDir,
             def generatedSourcesIvyRepoDir,
-            def vineflowerTool,
-            def vineServerJar,
-            def vineDependencyJars,
-            def vineImplementation,
-            def vineCompileOnly,
-            def vineDecompileTargets
+            Configuration vineflowerTool,
+            NamedDomainObjectProvider<Configuration> vineServerJar,
+            NamedDomainObjectProvider<Configuration> vineDependencyJars,
+            NamedDomainObjectProvider<Configuration> vineImplementation,
+            NamedDomainObjectProvider<Configuration> vineCompileOnly,
+            NamedDomainObjectProvider<Configuration> vineDecompileTargets
     ) {
-        def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile })
-        def serverJarFile = project.layout.file(project.provider { vineServerJar.singleFile })
+        def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile } as Provider<File>)
+        def serverJarFile = project.layout.file(project.provider { vineServerJar.get().singleFile } as Provider<File>)
         def decompiledServerDir = project.layout.buildDirectory.dir('vineflower/hytale-server')
 
         project.tasks.register('decompileServerJar', DecompileServerJarTask) {
@@ -160,10 +163,12 @@ final class HytaleIdeSourceConfigurer {
         }
 
         [vineDecompileTargets, vineCompileOnly, vineImplementation].each { cfg ->
-            cfg.dependencies.all { dep ->
-                if (dep instanceof ExternalModuleDependency) {
-                    registerDeclaredDependency(dep as ExternalModuleDependency)
-                }
+            cfg.configure { configuration ->
+                configuration.dependencies
+                        .withType(ExternalModuleDependency)
+                        .configureEach { dep ->
+                            registerDeclaredDependency(dep)
+                        }
             }
         }
 
@@ -186,7 +191,7 @@ final class HytaleIdeSourceConfigurer {
             Project project,
             ExternalModuleDependency declaredDep,
             Provider<?> vineflowerJarFile,
-            def vineDependencyJars,
+            NamedDomainObjectProvider<Configuration> vineDependencyJars,
             def generatedSourcesMavenRepoDir,
             def generatedSourcesIvyRepoDir,
             def installDependencySourcesToRepo,

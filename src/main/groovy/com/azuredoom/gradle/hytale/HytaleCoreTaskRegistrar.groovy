@@ -1,6 +1,9 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.NamedDomainObjectProvider
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 
 final class HytaleCoreTaskRegistrar {
@@ -13,11 +16,11 @@ final class HytaleCoreTaskRegistrar {
             def assetsZipFileProvider,
             def tokenFileProvider,
             def generatedSourcesMavenRepoDir,
-            def vineServerJar,
-            def vineImplementation,
-            def vineCompileOnly,
-            def vineDecompileTargets,
-            TaskProvider<?> prepareDecompiledSourcesForIde
+            NamedDomainObjectProvider<Configuration> vineServerJar,
+            NamedDomainObjectProvider<Configuration> vineImplementation,
+            NamedDomainObjectProvider<Configuration> vineCompileOnly,
+            NamedDomainObjectProvider<Configuration> vineDecompileTargets,
+            TaskProvider<? extends Task> prepareDecompiledSourcesForIde
     ) {
         project.tasks.register('createManifestIfMissing', CreateManifestIfMissingTask) {
             group = 'hytale'
@@ -94,13 +97,13 @@ final class HytaleCoreTaskRegistrar {
             tokenCacheFile.set(project.layout.file(tokenFileProvider))
             vineServerJarFiles.from(vineServerJar)
             vineImplementationDependencies.set(project.provider {
-                vineImplementation.allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
+                vineImplementation.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
             })
             vineCompileOnlyDependencies.set(project.provider {
-                vineCompileOnly.allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
+                vineCompileOnly.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
             })
             vineDecompileTargetDependencies.set(project.provider {
-                vineDecompileTargets.allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
+                vineDecompileTargets.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
             })
         }
 
@@ -114,7 +117,7 @@ final class HytaleCoreTaskRegistrar {
             assetsZip.set(project.layout.file(assetsZipFileProvider))
             generatedSourcesMavenRepo.set(generatedSourcesMavenRepoDir)
             vineServerJarDependencies.set(project.provider {
-                vineServerJar.allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
+                vineServerJar.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
             })
         }
     }

@@ -36,7 +36,8 @@ class ValidateManifestTaskTest extends Specification {
         }
         '''
 
-        def task = project.tasks.create('validateManifestTest', ValidateManifestTask)
+        def taskProvider = project.tasks.register('validateManifestTest', ValidateManifestTask)
+        def task = taskProvider.get()
         task.manifestFile.set(manifestFile)
         task.manifestGroup.set('com.example.mods')
         task.modId.set('demo-mod')
@@ -74,7 +75,8 @@ class ValidateManifestTaskTest extends Specification {
         }
         '''
 
-        def task = project.tasks.create('validateManifestTest', ValidateManifestTask)
+        def taskProvider = project.tasks.register('validateManifestTest', ValidateManifestTask)
+        def task = taskProvider.get()
         task.manifestFile.set(manifestFile)
         task.manifestGroup.set('com.example.mods')
         task.modId.set('demo-mod')

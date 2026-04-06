@@ -22,11 +22,6 @@ import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
-import java.io.InputStream
-import java.net.Authenticator
-import java.net.CookieHandler
-import java.net.ProxySelector
-import java.util.Optional
 
 class DownloadAssetsZipTaskTest extends Specification {
 
@@ -66,7 +61,7 @@ class DownloadAssetsZipTaskTest extends Specification {
         task.createHttpClientOverride = {
             called = true
             throw new IllegalStateException('createHttpClient should not be called when cached Assets.zip exists')
-        }
+        } as Closure<HttpClient>
 
         when:
         task.download()
@@ -95,7 +90,7 @@ class DownloadAssetsZipTaskTest extends Specification {
         task.atomicCopyOverride = { File from, File to ->
             to.parentFile.mkdirs()
             to.bytes = from.bytes
-        }
+        } as Closure<Void>
         task.createHttpClientOverride = {
             fakeHttpClient { req, handler ->
                 def tmpFile = new File(
@@ -138,7 +133,7 @@ class DownloadAssetsZipTaskTest extends Specification {
         }
         task.getJsonOverride = { HttpClient client, String url, String bearerToken ->
             throw new GradleException('lookup failed')
-        }
+        } as Closure<HttpResponse<InputStream>>
 
         when:
         task.download()

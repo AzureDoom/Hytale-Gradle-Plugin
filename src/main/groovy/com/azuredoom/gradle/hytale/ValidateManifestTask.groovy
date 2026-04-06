@@ -124,7 +124,7 @@ abstract class ValidateManifestTask extends DefaultTask {
     }
 
     private static void validateDependencyMap(Map deps, String label, List<String> errors) {
-        deps.each { k, v ->
+        deps.forEach { k, v ->
             if (!k?.toString()?.trim()) {
                 errors << ("${label} contains a blank dependency id." as String)
             }

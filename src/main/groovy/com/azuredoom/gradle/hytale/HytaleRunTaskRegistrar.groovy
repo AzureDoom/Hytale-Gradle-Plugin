@@ -1,12 +1,19 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Project
+import org.gradle.api.NamedDomainObjectProvider
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.SourceSetContainer
 
 final class HytaleRunTaskRegistrar {
     private HytaleRunTaskRegistrar() {}
 
-    static void register(Project project, HytaleExtension ext, def assetsZipFileProvider, def vineServerJar) {
+    static void register(
+            Project project,
+            HytaleExtension ext,
+            def assetsZipFileProvider,
+            NamedDomainObjectProvider<Configuration> vineServerJar
+    ) {
         project.pluginManager.withPlugin('java') {
             project.tasks.named('processResources').configure {
                 dependsOn('validateManifest')

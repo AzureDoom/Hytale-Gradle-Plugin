@@ -17,7 +17,8 @@ class CreateManifestIfMissingTaskTest extends Specification {
                 .build()
 
         def manifestFile = new File(testProjectDir, 'src/main/resources/manifest.json')
-        def task = project.tasks.create('createManifestIfMissingTest', CreateManifestIfMissingTask)
+        def taskProvider = project.tasks.register('createManifestIfMissingTest', CreateManifestIfMissingTask)
+        def task = taskProvider.get()
         task.manifestFile.set(manifestFile)
 
         when:
@@ -55,7 +56,8 @@ class CreateManifestIfMissingTaskTest extends Specification {
         manifestFile.parentFile.mkdirs()
         manifestFile.text = '{"Name":"already-there"}'
 
-        def task = project.tasks.create('createManifestIfMissingTest', CreateManifestIfMissingTask)
+        def taskProvider = project.tasks.register('createManifestIfMissingTest', CreateManifestIfMissingTask)
+        def task = taskProvider.get()
         task.manifestFile.set(manifestFile)
 
         when:

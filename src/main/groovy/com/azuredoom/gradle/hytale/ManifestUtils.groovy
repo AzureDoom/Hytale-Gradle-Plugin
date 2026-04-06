@@ -4,7 +4,7 @@ class ManifestUtils {
     static Map<String, String> parseDepMap(String raw) {
         def out = [:]
         if (!raw) {
-            return out
+            return out as Map<String, String>
         }
         raw.split(/\s*,\s*/).findAll { it?.trim() }.each { entry ->
             def parts = entry.split(/\s*=\s*/, 2)
@@ -12,7 +12,7 @@ class ManifestUtils {
                 out[parts[0].trim()] = parts[1].trim()
             }
         }
-        out
+        out as Map<String, String>
     }
 
     static List<Map<String, String>> parseAuthors(String raw) {

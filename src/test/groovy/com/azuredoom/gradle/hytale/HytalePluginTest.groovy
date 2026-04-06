@@ -19,22 +19,21 @@ class HytalePluginTest extends Specification {
         project.pluginManager.apply(HytalePlugin)
 
         then:
-        HytaleExtension.isInstance(project.extensions.findByName('hytaleTools'))
+        project.extensions.findByType(HytaleExtension) != null
 
         and: 'custom configurations exist'
-        project.configurations.findByName('vineImplementation') != null
-        project.configurations.findByName('vineCompileOnly') != null
-        project.configurations.findByName('vineDecompileTargets') != null
-        project.configurations.findByName('vineDecompileClasspath') != null
-        project.configurations.findByName('vineServerJar') != null
-        project.configurations.findByName('vineDependencyJars') != null
-        project.configurations.findByName('vineflowerTool') != null
-
+        project.configurations.named('vineImplementation').present
+        project.configurations.named('vineCompileOnly').present
+        project.configurations.named('vineDecompileTargets').present
+        project.configurations.named('vineDecompileClasspath').present
+        project.configurations.named('vineServerJar').present
+        project.configurations.named('vineDependencyJars').present
+        project.configurations.named('vineflowerTool').present
 
         and: 'compileOnly inherits vineServerJar so one vineServerJar declaration is enough'
-        project.configurations.getByName('compileOnly')
-            .extendsFrom
-            .contains(project.configurations.getByName('vineServerJar'))
+        project.configurations.named('compileOnly').get()
+                .extendsFrom
+                .contains(project.configurations.named('vineServerJar').get())
 
         and: 'base tasks exist'
         CreateManifestIfMissingTask.isInstance(project.tasks.named('createManifestIfMissing').get())
