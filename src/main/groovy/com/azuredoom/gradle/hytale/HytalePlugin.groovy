@@ -39,7 +39,7 @@ class HytalePlugin implements Plugin<Project> {
 
         hytaleBundledRuntime.get().defaultDependencies { deps ->
             deps.add(project.dependencies.create(
-                    'com.azuredoom.hytale:hytale-asset-editor-runtime:0.1.0'
+                    'com.azuredoom.hytale:hytale-asset-editor-runtime:0.2.0'
             ))
         }
 

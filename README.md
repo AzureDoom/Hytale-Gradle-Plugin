@@ -548,7 +548,7 @@ The plugin automatically adds the [AssetBridge library](https://github.com/Azure
 
 ```groovy
 dependencies {
-  implementation 'com.azuredoom.hytale:hytale-asset-editor-runtime:0.1.0'
+  implementation 'com.azuredoom.hytale:hytale-asset-editor-runtime:0.2.0'
 }
 ```
 
@@ -576,7 +576,7 @@ When disabled:
 You can override the default version:
 ```groovy
 dependencies {
-  hytaleBundledRuntime 'com.azuredoom.hytale:hytale-asset-editor-runtime:0.2.0'
+  hytaleBundledRuntime 'com.azuredoom.hytale:hytale-asset-editor-runtime:0.x.0'
 }
 ```
 
