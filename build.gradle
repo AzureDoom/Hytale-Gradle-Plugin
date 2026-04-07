@@ -47,13 +47,18 @@ gradlePlugin {
             implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
             displayName = 'Hytale Gradle Plugin'
             description = 'Tasks for Hytale manifest generation and updates, decompilation, assets download, and local server runs.'
-
             tags.set([
                     'hytale',
                     'modding',
                     'gradle-plugin',
                     'decompilation'
             ])
+
+            compatibility(it) {
+                features {
+                    configurationCache = true
+                }
+            }
         }
     }
 }
