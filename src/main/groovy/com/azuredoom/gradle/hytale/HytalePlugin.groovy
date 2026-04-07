@@ -16,7 +16,11 @@ class HytalePlugin implements Plugin<Project> {
         def generatedSourcesMavenRepoDir = project.layout.buildDirectory.dir('generated-sources-m2')
         def generatedSourcesIvyRepoDir = project.layout.buildDirectory.dir('generated-sources-ivy')
 
-        HytaleRepositoryConfigurer.configure(project)
+        HytaleRepositoryConfigurer.configure(
+                project,
+                generatedSourcesMavenRepoDir,
+                generatedSourcesIvyRepoDir
+        )
         HytaleConfigurationConfigurer.configure(project)
 
         def vineflowerTool = project.configurations.maybeCreate('vineflowerTool')

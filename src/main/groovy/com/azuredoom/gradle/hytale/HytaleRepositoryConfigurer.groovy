@@ -1,14 +1,33 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Project
+import org.gradle.api.provider.Provider
 import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 
 final class HytaleRepositoryConfigurer {
     private HytaleRepositoryConfigurer() {}
 
-    static void configure(Project project) {
+    static void configure(Project project, Provider<?> generatedSourcesMavenRepoDir, Provider<?> generatedSourcesIvyRepoDir) {
         project.repositories.mavenCentral()
+
+        project.repositories.maven { MavenArtifactRepository repo ->
+            repo.name = 'Generated Decompiled Sources'
+            repo.url = generatedSourcesMavenRepoDir.get().asFile.toURI()
+        }
+
+        project.repositories.ivy { IvyArtifactRepository repo ->
+            repo.name = 'Generated Decompiled Sources Ivy'
+            repo.url = generatedSourcesIvyRepoDir.get().asFile.toURI()
+            repo.patternLayout { layout ->
+                layout.ivy('[organisation]/[module]/[revision]/ivy-[revision].xml')
+                layout.artifact('[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]')
+            }
+            repo.metadataSources { sources ->
+                sources.ivyDescriptor()
+                sources.artifact()
+            }
+        }
 
         addMavenRepo(project, 'Hytale Server Release', 'https://maven.hytale.com/release')
         addMavenRepo(project, 'Hytale Server Pre-Release', 'https://maven.hytale.com/pre-release')

@@ -180,8 +180,10 @@ final class HytaleIdeSourceConfigurer {
             dependsOn(installDependencySourcesToRepo)
         }
 
-        project.tasks.matching { it.name == 'idea' }.configureEach {
-            dependsOn(prepareDecompiledSourcesForIde)
+        project.pluginManager.withPlugin('idea') {
+            project.tasks.named('idea').configure {
+                dependsOn(prepareDecompiledSourcesForIde)
+            }
         }
 
         prepareDecompiledSourcesForIde
