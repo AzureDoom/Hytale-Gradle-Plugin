@@ -6,36 +6,36 @@ import spock.lang.TempDir
 
 class MultiProjectWorkspaceFunctionalTest extends Specification {
 
-    @TempDir
-    File testProjectDir
+	@TempDir
+	File testProjectDir
 
-    File writeFile(String path, String content) {
-        File f = new File(testProjectDir, path)
-        f.parentFile?.mkdirs()
-        f.text = content.stripIndent()
-        return f
-    }
+	File writeFile(String path, String content) {
+		File f = new File(testProjectDir, path)
+		f.parentFile?.mkdirs()
+		f.text = content.stripIndent()
+		return f
+	}
 
-    def "runAllMods fails when hytaleVersion differs across mod subprojects"() {
-        given:
-        writeFile("settings.gradle", """
+	def "runAllMods fails when hytaleVersion differs across mod subprojects"() {
+		given:
+		writeFile("settings.gradle", """
             rootProject.name = 'workspace-test'
             include 'common', 'modA', 'modB'
         """)
 
-        writeFile("build.gradle", """
+		writeFile("build.gradle", """
             plugins {
                 id 'com.azuredoom.hytale-tools'
             }
         """)
 
-        writeFile("common/build.gradle", """
+		writeFile("common/build.gradle", """
             plugins {
                 id 'java-library'
             }
         """)
 
-        writeFile("modA/build.gradle", """
+		writeFile("modA/build.gradle", """
             plugins {
                 id 'com.azuredoom.hytale-tools'
             }
@@ -48,7 +48,7 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
             }
         """)
 
-        writeFile("modB/build.gradle", """
+		writeFile("modB/build.gradle", """
             plugins {
                 id 'com.azuredoom.hytale-tools'
             }
@@ -61,31 +61,31 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
             }
         """)
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments("runAllMods", "--stacktrace")
-                .buildAndFail()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments("runAllMods", "--stacktrace")
+				.buildAndFail()
 
-        then:
-        result.output.contains("All Hytale subprojects must use the same hytaleVersion for runAllMods")
-    }
+		then:
+		result.output.contains("All Hytale subprojects must use the same hytaleVersion for runAllMods")
+	}
 
-    def "workspace tasks are only registered on the root project"() {
-        given:
-        writeFile("settings.gradle", """
+	def "workspace tasks are only registered on the root project"() {
+		given:
+		writeFile("settings.gradle", """
             rootProject.name = 'workspace-test'
             include 'modA'
         """)
 
-        writeFile("build.gradle", """
+		writeFile("build.gradle", """
             plugins {
                 id 'com.azuredoom.hytale-tools'
             }
         """)
 
-        writeFile("modA/build.gradle", """
+		writeFile("modA/build.gradle", """
             plugins {
                 id 'com.azuredoom.hytale-tools'
             }
@@ -98,46 +98,46 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
             }
         """)
 
-        when:
-        def rootTasks = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments("tasks", "--all")
-                .build()
+		when:
+		def rootTasks = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments("tasks", "--all")
+				.build()
 
-        def subprojectTasks = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments(":modA:tasks", "--all")
-                .build()
+		def subprojectTasks = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments(":modA:tasks", "--all")
+				.build()
 
-        then:
-        rootTasks.output.contains("runAllMods")
-        rootTasks.output.contains("updateAllPluginManifests")
-        rootTasks.output.contains("validateAllManifests")
-        rootTasks.output.contains("stageAllModAssets")
+		then:
+		rootTasks.output.contains("runAllMods")
+		rootTasks.output.contains("updateAllPluginManifests")
+		rootTasks.output.contains("validateAllManifests")
+		rootTasks.output.contains("stageAllModAssets")
 
-        subprojectTasks.output.contains("runServer")
-        !subprojectTasks.output.contains("runAllMods")
-        !subprojectTasks.output.contains("updateAllPluginManifests")
-        !subprojectTasks.output.contains("validateAllManifests")
-        !subprojectTasks.output.contains("stageAllModAssets")
-    }
+		subprojectTasks.output.contains("runServer")
+		!subprojectTasks.output.contains("runAllMods")
+		!subprojectTasks.output.contains("updateAllPluginManifests")
+		!subprojectTasks.output.contains("validateAllManifests")
+		!subprojectTasks.output.contains("stageAllModAssets")
+	}
 
-    def "stageAllModAssets creates the expected root mod asset path"() {
-        given:
-        writeFile("settings.gradle", """
+	def "stageAllModAssets creates the expected root mod asset path"() {
+		given:
+		writeFile("settings.gradle", """
         rootProject.name = 'workspace-test'
         include 'modA'
     """)
 
-        writeFile("build.gradle", """
+		writeFile("build.gradle", """
         plugins {
             id 'com.azuredoom.hytale-tools'
         }
     """)
 
-        writeFile("modA/build.gradle", """
+		writeFile("modA/build.gradle", """
         plugins {
             id 'com.azuredoom.hytale-tools'
         }
@@ -150,23 +150,23 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
         }
     """)
 
-        writeFile("modA/src/main/resources/test.txt", "hello")
+		writeFile("modA/src/main/resources/test.txt", "hello")
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments("stageAllModAssets", "--stacktrace")
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments("stageAllModAssets", "--stacktrace")
+				.build()
 
-        then:
-        result.output.contains("BUILD SUCCESSFUL")
+		then:
+		result.output.contains("BUILD SUCCESSFUL")
 
-        def stagedPath = new File(testProjectDir, "run/mods/com_example_mods_moda")
-        def stagedFile = new File(stagedPath, "test.txt")
+		def stagedPath = new File(testProjectDir, "run/mods/com_example_mods_moda")
+		def stagedFile = new File(stagedPath, "test.txt")
 
-        stagedPath.exists()
-        stagedFile.exists()
-        stagedFile.text == "hello"
-    }
+		stagedPath.exists()
+		stagedFile.exists()
+		stagedFile.text == "hello"
+	}
 }

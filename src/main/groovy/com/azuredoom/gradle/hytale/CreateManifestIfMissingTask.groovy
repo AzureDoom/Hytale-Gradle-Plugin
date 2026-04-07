@@ -10,37 +10,37 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(because = "Small file-creation task; build cache value is negligible")
 abstract class CreateManifestIfMissingTask extends DefaultTask {
 
-    @OutputFile
-    abstract RegularFileProperty getManifestFile()
+	@OutputFile
+	abstract RegularFileProperty getManifestFile()
 
-    @TaskAction
-    void createIfMissing() {
-        def file = manifestFile.get().asFile
+	@TaskAction
+	void createIfMissing() {
+		def file = manifestFile.get().asFile
 
-        if (file.exists()) {
-            logger.lifecycle("Manifest already exists: {}", file)
-            return
-        }
+		if (file.exists()) {
+			logger.lifecycle("Manifest already exists: {}", file)
+			return
+		}
 
-        file.parentFile?.mkdirs()
+		file.parentFile?.mkdirs()
 
-        def manifestJson = [
-                Group               : '',
-                Name                : '',
-                Version             : '',
-                Description         : '',
-                Authors             : [],
-                Website             : '',
-                ServerVersion       : '',
-                Dependencies        : [:],
-                OptionalDependencies: [:],
-                DisabledByDefault   : false,
-                Main                : '',
-                IncludesAssetPack   : false,
-                UpdateChecker       : [:]
-        ]
+		def manifestJson = [
+			Group               : '',
+			Name                : '',
+			Version             : '',
+			Description         : '',
+			Authors             : [],
+			Website             : '',
+			ServerVersion       : '',
+			Dependencies        : [:],
+			OptionalDependencies: [:],
+			DisabledByDefault   : false,
+			Main                : '',
+			IncludesAssetPack   : false,
+			UpdateChecker       : [:]
+		]
 
-        file.text = JsonOutput.prettyPrint(JsonOutput.toJson(manifestJson))
-        logger.lifecycle("Created missing manifest: {}", file)
-    }
+		file.text = JsonOutput.prettyPrint(JsonOutput.toJson(manifestJson))
+		logger.lifecycle("Created missing manifest: {}", file)
+	}
 }

@@ -10,17 +10,17 @@ import java.util.zip.ZipOutputStream
 
 class HytalePluginFunctionalTest extends Specification {
 
-    @TempDir
-    File testProjectDir
+	@TempDir
+	File testProjectDir
 
-    def "auto injects default server dependency into vineServerJar and compileOnly when resolved"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "auto injects default server dependency into vineServerJar and compileOnly when resolved"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'auto-server-dep-test'
         '''
-        def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
+		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
 
-        new File(testProjectDir, 'build.gradle') << """
+		new File(testProjectDir, 'build.gradle') << """
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -48,28 +48,28 @@ class HytalePluginFunctionalTest extends Specification {
             }
         """
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('printResolvedDeps', '-q', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printResolvedDeps', '-q', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('VINE_SERVER_FILES=Server-1.0.0.jar')
-        result.output.contains('COMPILE_CLASSPATH_FILES=Server-1.0.0.jar')
-    }
+		then:
+		result.output.contains('VINE_SERVER_FILES=Server-1.0.0.jar')
+		result.output.contains('COMPILE_CLASSPATH_FILES=Server-1.0.0.jar')
+	}
 
-    def "does not auto inject when user explicitly declares vineServerJar"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "does not auto inject when user explicitly declares vineServerJar"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'explicit-server-dep-test'
         '''
-        def localRepo = new File(testProjectDir, 'test-m2')
-        createMavenRepoModule(localRepo, 'com.hypixel.hytale', 'Server', '1.0.0')
-        createMavenRepoModule(localRepo, 'com.example', 'custom-server', '9.9.9')
+		def localRepo = new File(testProjectDir, 'test-m2')
+		createMavenRepoModule(localRepo, 'com.hypixel.hytale', 'Server', '1.0.0')
+		createMavenRepoModule(localRepo, 'com.example', 'custom-server', '9.9.9')
 
-        new File(testProjectDir, 'build.gradle') << """
+		new File(testProjectDir, 'build.gradle') << """
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -101,26 +101,26 @@ class HytalePluginFunctionalTest extends Specification {
             }
         """
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('printResolvedDeps', '-q', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printResolvedDeps', '-q', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('VINE_SERVER_FILES=custom-server-9.9.9.jar')
-        result.output.contains('COMPILE_CLASSPATH_FILES=custom-server-9.9.9.jar')
-        !result.output.contains('Server-1.0.0.jar')
-    }
+		then:
+		result.output.contains('VINE_SERVER_FILES=custom-server-9.9.9.jar')
+		result.output.contains('COMPILE_CLASSPATH_FILES=custom-server-9.9.9.jar')
+		!result.output.contains('Server-1.0.0.jar')
+	}
 
-    def "plugin adds expected tasks to a real build"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "plugin adds expected tasks to a real build"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'functional-test'
         '''
 
-        new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'build.gradle') << '''
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -134,38 +134,38 @@ class HytalePluginFunctionalTest extends Specification {
             }
         '''
 
-        when:
-        def runner = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('tasks', '--all', '--stacktrace')
+		when:
+		def runner = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('tasks', '--all', '--stacktrace')
 
-        def result
-        try {
-            result = runner.build()
-        } catch (UnexpectedBuildFailure e) {
-            throw new AssertionError("Gradle build failed.\n\nOutput:\n${e.buildResult.output}", e)
-        }
+		def result
+		try {
+			result = runner.build()
+		} catch (UnexpectedBuildFailure e) {
+			throw new AssertionError("Gradle build failed.\n\nOutput:\n${e.buildResult.output}", e)
+		}
 
-        then:
-        result.output.contains('createManifestIfMissing')
-        result.output.contains('updatePluginManifest')
-        result.output.contains('validateManifest')
-        result.output.contains('decompileServerJar')
-        result.output.contains('prepareRunServer')
-        result.output.contains('downloadAssetsZip')
-        result.output.contains('runServer')
-        result.output.contains('prepareDecompiledSourcesForIde')
-        result.output.contains('hytaleDoctor')
-    }
+		then:
+		result.output.contains('createManifestIfMissing')
+		result.output.contains('updatePluginManifest')
+		result.output.contains('validateManifest')
+		result.output.contains('decompileServerJar')
+		result.output.contains('prepareRunServer')
+		result.output.contains('downloadAssetsZip')
+		result.output.contains('runServer')
+		result.output.contains('prepareDecompiledSourcesForIde')
+		result.output.contains('hytaleDoctor')
+	}
 
-    def "sourcesJar works when manifest must be created during the build"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "sourcesJar works when manifest must be created during the build"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'sourcesjar-test'
         '''
 
-        new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'build.gradle') << '''
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -186,36 +186,36 @@ class HytalePluginFunctionalTest extends Specification {
             }
         '''
 
-        new File(testProjectDir, 'src/main/java/com/example/mods').mkdirs()
-        new File(testProjectDir, 'src/main/java/com/example/mods/ExampleMod.java') << '''
+		new File(testProjectDir, 'src/main/java/com/example/mods').mkdirs()
+		new File(testProjectDir, 'src/main/java/com/example/mods/ExampleMod.java') << '''
             package com.example.mods;
             public class ExampleMod {}
         '''
 
-        new File(testProjectDir, 'src/main/resources').mkdirs()
+		new File(testProjectDir, 'src/main/resources').mkdirs()
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('sourcesJar', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('sourcesJar', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('BUILD SUCCESSFUL')
-        new File(testProjectDir, 'src/main/resources/manifest.json').exists()
-        new File(testProjectDir, 'build/libs').listFiles().any { it.name.endsWith('-sources.jar') }
-    }
+		then:
+		result.output.contains('BUILD SUCCESSFUL')
+		new File(testProjectDir, 'src/main/resources/manifest.json').exists()
+		new File(testProjectDir, 'build/libs').listFiles().any { it.name.endsWith('-sources.jar') }
+	}
 
-    def "javadocJar works when manifest must be created during the build"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "javadocJar works when manifest must be created during the build"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'javadocjar-test'
         '''
 
-        def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
+		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
 
-        new File(testProjectDir, 'build.gradle') << """
+		new File(testProjectDir, 'build.gradle') << """
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -240,31 +240,31 @@ class HytalePluginFunctionalTest extends Specification {
             }
         """
 
-        new File(testProjectDir, 'src/main/java/com/example/mods').mkdirs()
-        new File(testProjectDir, 'src/main/java/com/example/mods/ExampleMod.java') << '''
+		new File(testProjectDir, 'src/main/java/com/example/mods').mkdirs()
+		new File(testProjectDir, 'src/main/java/com/example/mods/ExampleMod.java') << '''
             package com.example.mods;
             public class ExampleMod {}
         '''
 
-        new File(testProjectDir, 'src/main/resources').mkdirs()
+		new File(testProjectDir, 'src/main/resources').mkdirs()
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('javadocJar', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('javadocJar', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('BUILD SUCCESSFUL')
-        new File(testProjectDir, 'src/main/resources/manifest.json').exists()
-        new File(testProjectDir, 'build/libs').listFiles()?.any { it.name.endsWith('-javadoc.jar') }
-    }
+		then:
+		result.output.contains('BUILD SUCCESSFUL')
+		new File(testProjectDir, 'src/main/resources/manifest.json').exists()
+		new File(testProjectDir, 'build/libs').listFiles()?.any { it.name.endsWith('-javadoc.jar') }
+	}
 
-    def "idea depends on prepareDecompiledSourcesForIde when idea plugin is applied"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
-        new File(testProjectDir, 'build.gradle') << '''
+	def "idea depends on prepareDecompiledSourcesForIde when idea plugin is applied"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
+		new File(testProjectDir, 'build.gradle') << '''
         plugins {
             id 'java'
             id 'idea'
@@ -286,21 +286,21 @@ class HytalePluginFunctionalTest extends Specification {
         }
     '''
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('printIdeaDeps', '-q', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printIdeaDeps', '-q', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('prepareDecompiledSourcesForIde')
-    }
+		then:
+		result.output.contains('prepareDecompiledSourcesForIde')
+	}
 
-    def "plugin does not auto apply idea plugin"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
-        new File(testProjectDir, 'build.gradle') << '''
+	def "plugin does not auto apply idea plugin"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
+		new File(testProjectDir, 'build.gradle') << '''
         plugins {
             id 'java'
             id 'com.azuredoom.hytale-tools'
@@ -313,21 +313,21 @@ class HytalePluginFunctionalTest extends Specification {
         }
     '''
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('checkIdeaTask', '-q', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('checkIdeaTask', '-q', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('HAS_IDEA=false')
-    }
+		then:
+		result.output.contains('HAS_IDEA=false')
+	}
 
-    def "vineImplementation without version fails decompile target validation"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
-        new File(testProjectDir, 'build.gradle') << '''
+	def "vineImplementation without version fails decompile target validation"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
+		new File(testProjectDir, 'build.gradle') << '''
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -345,21 +345,21 @@ class HytalePluginFunctionalTest extends Specification {
             }
         '''
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('tasks', '--stacktrace')
-                .buildAndFail()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('tasks', '--stacktrace')
+				.buildAndFail()
 
-        then:
-        result.output.contains('Dependencies used for decompilation must use full GAV coordinates')
-    }
+		then:
+		result.output.contains('Dependencies used for decompilation must use full GAV coordinates')
+	}
 
-    def "vineCompileOnly without version fails decompile target validation"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
-        new File(testProjectDir, 'build.gradle') << '''
+	def "vineCompileOnly without version fails decompile target validation"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
+		new File(testProjectDir, 'build.gradle') << '''
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -377,26 +377,26 @@ class HytalePluginFunctionalTest extends Specification {
             }
         '''
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('tasks', '--stacktrace')
-                .buildAndFail()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('tasks', '--stacktrace')
+				.buildAndFail()
 
-        then:
-        result.output.contains('Dependencies used for decompilation must use full GAV coordinates')
-    }
+		then:
+		result.output.contains('Dependencies used for decompilation must use full GAV coordinates')
+	}
 
-    def "project dependency is ignored by decompile target validation"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "project dependency is ignored by decompile target validation"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'functional-test'
             include 'dep'
         '''
-        new File(testProjectDir, 'dep').mkdirs()
-        new File(testProjectDir, 'dep/build.gradle') << "plugins { id 'java' }\n"
-        new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'dep').mkdirs()
+		new File(testProjectDir, 'dep/build.gradle') << "plugins { id 'java' }\n"
+		new File(testProjectDir, 'build.gradle') << '''
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -414,25 +414,25 @@ class HytalePluginFunctionalTest extends Specification {
             }
         '''
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('tasks', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('tasks', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('BUILD SUCCESSFUL')
-    }
+		then:
+		result.output.contains('BUILD SUCCESSFUL')
+	}
 
-    def "hytaleDoctor prints a useful diagnostic summary"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "hytaleDoctor prints a useful diagnostic summary"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'doctor-test'
         '''
-        def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
+		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
 
-        new File(testProjectDir, 'build.gradle') << """
+		new File(testProjectDir, 'build.gradle') << """
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -450,28 +450,28 @@ class HytalePluginFunctionalTest extends Specification {
                 patchline = 'release'
             }
         """
-        new File(testProjectDir, 'src/main/resources').mkdirs()
-        new File(testProjectDir, 'src/main/resources/manifest.json') << '{}'
+		new File(testProjectDir, 'src/main/resources').mkdirs()
+		new File(testProjectDir, 'src/main/resources/manifest.json') << '{}'
 
-        when:
-        def result = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('hytaleDoctor', '-q', '--stacktrace')
-                .build()
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('hytaleDoctor', '-q', '--stacktrace')
+				.build()
 
-        then:
-        result.output.contains('HYTALE_VERSION=1.0.0')
-        result.output.contains('PATCHLINE=release')
-        result.output.contains('VINE_SERVER_FILES=Server-1.0.0.jar')
-    }
+		then:
+		result.output.contains('HYTALE_VERSION=1.0.0')
+		result.output.contains('PATCHLINE=release')
+		result.output.contains('VINE_SERVER_FILES=Server-1.0.0.jar')
+	}
 
-    def "tasks is configuration cache compatible across two runs"() {
-        given:
-        new File(testProjectDir, 'settings.gradle') << '''
+	def "tasks is configuration cache compatible across two runs"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'configuration-cache-test'
         '''
-        new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'build.gradle') << '''
             plugins {
                 id 'java'
                 id 'com.azuredoom.hytale-tools'
@@ -489,36 +489,36 @@ class HytalePluginFunctionalTest extends Specification {
             }
         '''
 
-        when:
-        def first = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('tasks', '--configuration-cache', '--stacktrace')
-                .build()
+		when:
+		def first = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('tasks', '--configuration-cache', '--stacktrace')
+				.build()
 
-        def second = GradleRunner.create()
-                .withProjectDir(testProjectDir)
-                .withPluginClasspath()
-                .withArguments('tasks', '--configuration-cache', '--stacktrace')
-                .build()
+		def second = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('tasks', '--configuration-cache', '--stacktrace')
+				.build()
 
-        then:
-        first.output.contains('Configuration cache entry stored') || first.output.contains('Configuration cache entry reused')
-        second.output.contains('Configuration cache entry reused')
-    }
+		then:
+		first.output.contains('Configuration cache entry stored') || first.output.contains('Configuration cache entry reused')
+		second.output.contains('Configuration cache entry reused')
+	}
 
-    private File createMavenRepoModule(String group, String module, String version) {
-        def repo = new File(testProjectDir, 'test-m2')
-        createMavenRepoModule(repo, group, module, version)
-        repo
-    }
+	private File createMavenRepoModule(String group, String module, String version) {
+		def repo = new File(testProjectDir, 'test-m2')
+		createMavenRepoModule(repo, group, module, version)
+		repo
+	}
 
-    private static void createMavenRepoModule(File repoRoot, String group, String module, String version) {
-        def groupPath = group.replace('.', '/')
-        def artifactDir = new File(repoRoot, "${groupPath}/${module}/${version}")
-        artifactDir.mkdirs()
+	private static void createMavenRepoModule(File repoRoot, String group, String module, String version) {
+		def groupPath = group.replace('.', '/')
+		def artifactDir = new File(repoRoot, "${groupPath}/${module}/${version}")
+		artifactDir.mkdirs()
 
-        new File(artifactDir, "${module}-${version}.pom").text = """
+		new File(artifactDir, "${module}-${version}.pom").text = """
             <project xmlns="http://maven.apache.org/POM/4.0.0">
               <modelVersion>4.0.0</modelVersion>
               <groupId>${group}</groupId>
@@ -528,15 +528,15 @@ class HytalePluginFunctionalTest extends Specification {
             </project>
         """
 
-        createJar(new File(artifactDir, "${module}-${version}.jar"), 'placeholder.txt', 'ok'.bytes)
-    }
+		createJar(new File(artifactDir, "${module}-${version}.jar"), 'placeholder.txt', 'ok'.bytes)
+	}
 
-    private static void createJar(File file, String entryName, byte[] content) {
-        file.parentFile.mkdirs()
-        new ZipOutputStream(file.newOutputStream()).withCloseable { zos ->
-            zos.putNextEntry(new ZipEntry(entryName))
-            zos.write(content)
-            zos.closeEntry()
-        }
-    }
+	private static void createJar(File file, String entryName, byte[] content) {
+		file.parentFile.mkdirs()
+		new ZipOutputStream(file.newOutputStream()).withCloseable { zos ->
+			zos.putNextEntry(new ZipEntry(entryName))
+			zos.write(content)
+			zos.closeEntry()
+		}
+	}
 }

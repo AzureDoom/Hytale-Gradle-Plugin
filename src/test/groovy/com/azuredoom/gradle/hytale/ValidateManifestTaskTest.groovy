@@ -7,18 +7,18 @@ import spock.lang.TempDir
 
 class ValidateManifestTaskTest extends Specification {
 
-    @TempDir
-    File testProjectDir
+	@TempDir
+	File testProjectDir
 
-    def "passes for a valid manifest"() {
-        given:
-        def project = ProjectBuilder.builder()
-                .withProjectDir(testProjectDir)
-                .build()
+	def "passes for a valid manifest"() {
+		given:
+		def project = ProjectBuilder.builder()
+				.withProjectDir(testProjectDir)
+				.build()
 
-        def manifestFile = new File(testProjectDir, 'src/main/resources/manifest.json')
-        manifestFile.parentFile.mkdirs()
-        manifestFile.text = '''
+		def manifestFile = new File(testProjectDir, 'src/main/resources/manifest.json')
+		manifestFile.parentFile.mkdirs()
+		manifestFile.text = '''
         {
           "Group": "com.example.mods",
           "Name": "demo-mod",
@@ -36,33 +36,33 @@ class ValidateManifestTaskTest extends Specification {
         }
         '''
 
-        def taskProvider = project.tasks.register('validateManifestTest', ValidateManifestTask)
-        def task = taskProvider.get()
-        task.manifestFile.set(manifestFile)
-        task.manifestGroup.set('com.example.mods')
-        task.modId.set('demo-mod')
-        task.mainClass.set('com.example.mods.DemoMod')
-        task.hytaleVersion.set('1.0.0')
-        task.manifestDependencies.set('core=1.0.0')
-        task.manifestOptionalDependencies.set('')
-        task.includesPack.set(false)
+		def taskProvider = project.tasks.register('validateManifestTest', ValidateManifestTask)
+		def task = taskProvider.get()
+		task.manifestFile.set(manifestFile)
+		task.manifestGroup.set('com.example.mods')
+		task.modId.set('demo-mod')
+		task.mainClass.set('com.example.mods.DemoMod')
+		task.hytaleVersion.set('1.0.0')
+		task.manifestDependencies.set('core=1.0.0')
+		task.manifestOptionalDependencies.set('')
+		task.includesPack.set(false)
 
-        when:
-        task.validateManifest()
+		when:
+		task.validateManifest()
 
-        then:
-        noExceptionThrown()
-    }
+		then:
+		noExceptionThrown()
+	}
 
-    def "fails for missing required fields"() {
-        given:
-        def project = ProjectBuilder.builder()
-                .withProjectDir(testProjectDir)
-                .build()
+	def "fails for missing required fields"() {
+		given:
+		def project = ProjectBuilder.builder()
+				.withProjectDir(testProjectDir)
+				.build()
 
-        def manifestFile = new File(testProjectDir, 'src/main/resources/manifest.json')
-        manifestFile.parentFile.mkdirs()
-        manifestFile.text = '''
+		def manifestFile = new File(testProjectDir, 'src/main/resources/manifest.json')
+		manifestFile.parentFile.mkdirs()
+		manifestFile.text = '''
         {
           "Group": "",
           "Name": "",
@@ -75,25 +75,25 @@ class ValidateManifestTaskTest extends Specification {
         }
         '''
 
-        def taskProvider = project.tasks.register('validateManifestTest', ValidateManifestTask)
-        def task = taskProvider.get()
-        task.manifestFile.set(manifestFile)
-        task.manifestGroup.set('com.example.mods')
-        task.modId.set('demo-mod')
-        task.mainClass.set('com.example.mods.DemoMod')
-        task.hytaleVersion.set('1.0.0')
-        task.manifestDependencies.set('')
-        task.manifestOptionalDependencies.set('')
-        task.includesPack.set(false)
+		def taskProvider = project.tasks.register('validateManifestTest', ValidateManifestTask)
+		def task = taskProvider.get()
+		task.manifestFile.set(manifestFile)
+		task.manifestGroup.set('com.example.mods')
+		task.modId.set('demo-mod')
+		task.mainClass.set('com.example.mods.DemoMod')
+		task.hytaleVersion.set('1.0.0')
+		task.manifestDependencies.set('')
+		task.manifestOptionalDependencies.set('')
+		task.includesPack.set(false)
 
-        when:
-        task.validateManifest()
+		when:
+		task.validateManifest()
 
-        then:
-        def ex = thrown(GradleException)
-        ex.message.contains("Manifest field 'Group' is missing or blank.")
-        ex.message.contains("Manifest field 'Name' is missing or blank.")
-        ex.message.contains("Manifest field 'ServerVersion' is missing or blank.")
-        ex.message.contains("Manifest field 'Main' is missing or blank.")
-    }
+		then:
+		def ex = thrown(GradleException)
+		ex.message.contains("Manifest field 'Group' is missing or blank.")
+		ex.message.contains("Manifest field 'Name' is missing or blank.")
+		ex.message.contains("Manifest field 'ServerVersion' is missing or blank.")
+		ex.message.contains("Manifest field 'Main' is missing or blank.")
+	}
 }

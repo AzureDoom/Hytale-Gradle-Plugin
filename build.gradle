@@ -1,99 +1,109 @@
 plugins {
-    id 'groovy'
-    id 'java-gradle-plugin'
-    id 'maven-publish'
-    id 'com.gradle.plugin-publish' version '2.1.1'
+	id 'groovy'
+	id 'java-gradle-plugin'
+	id 'maven-publish'
+	id 'com.gradle.plugin-publish' version '2.1.1'
+	id 'com.diffplug.spotless' version '8.1.0'
 }
 
 group = project.plugin_group
 version = project.plugin_version
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(plugin_java_version)
-    withSourcesJar()
-    withJavadocJar()
+	toolchain.languageVersion = JavaLanguageVersion.of(plugin_java_version)
+	withSourcesJar()
+	withJavadocJar()
 }
 
 repositories {
-    mavenCentral()
-    gradlePluginPortal()
+	mavenCentral()
+	gradlePluginPortal()
 }
 
 dependencies {
-    implementation localGroovy()
+	implementation localGroovy()
 
-    testImplementation gradleTestKit()
-    testImplementation 'org.spockframework:spock-core:2.4-groovy-4.0'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation gradleTestKit()
+	testImplementation 'org.spockframework:spock-core:2.4-groovy-4.0'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
-    useJUnitPlatform()
+	useJUnitPlatform()
 }
 
 tasks.withType(Test).configureEach {
-    testLogging {
-        events 'passed', 'skipped', 'failed'
-    }
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+	}
 }
 
 gradlePlugin {
-    website = project.plugin_website
-    vcsUrl = project.plugin_vcs_url
+	website = project.plugin_website
+	vcsUrl = project.plugin_vcs_url
 
-    plugins {
-        create('hytaleTools') {
-            id = 'com.azuredoom.hytale-tools'
-            implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
-            displayName = 'Hytale Gradle Plugin'
-            description = 'Tasks for Hytale manifest generation and updates, decompilation, assets download, and local server runs.'
-            tags.set([
-                    'hytale',
-                    'modding',
-                    'gradle-plugin',
-                    'decompilation'
-            ])
+	plugins {
+		create('hytaleTools') {
+			id = 'com.azuredoom.hytale-tools'
+			implementationClass = 'com.azuredoom.gradle.hytale.HytalePlugin'
+			displayName = 'Hytale Gradle Plugin'
+			description = 'Tasks for Hytale manifest generation and updates, decompilation, assets download, and local server runs.'
+			tags.set([
+				'hytale',
+				'modding',
+				'gradle-plugin',
+				'decompilation'
+			])
 
-            compatibility(it) {
-                features {
-                    configurationCache = true
-                }
-            }
-        }
-    }
+			compatibility(it) {
+				features {
+					configurationCache = true
+				}
+			}
+		}
+	}
 }
 
 publishing {
-    publications {
-        withType(MavenPublication).configureEach {
-            pom {
-                name = 'Hytale Gradle Plugin'
-                description = 'Reusable Gradle plugin for Hytale mod/plugin development workflows.'
-            }
-        }
-    }
+	publications {
+		withType(MavenPublication).configureEach {
+			pom {
+				name = 'Hytale Gradle Plugin'
+				description = 'Reusable Gradle plugin for Hytale mod/plugin development workflows.'
+			}
+		}
+	}
 
-    repositories {
-        maven {
-            name = project.mod_id
-            url = uri(project.maven_url)
-            credentials(PasswordCredentials)
-            authentication {
-                basic(BasicAuthentication)
-            }
-        }
-    }
+	repositories {
+		maven {
+			name = project.mod_id
+			url = uri(project.maven_url)
+			credentials(PasswordCredentials)
+			authentication {
+				basic(BasicAuthentication)
+			}
+		}
+	}
 }
 
 
 tasks.register('publishPluginRelease') {
-    group = 'publishing'
-    description = 'Validates, tests, and publishes the plugin to the Gradle Plugin Portal.'
-    dependsOn 'clean', 'check', 'validatePlugins', 'publishPlugins'
+	group = 'publishing'
+	description = 'Validates, tests, and publishes the plugin to the Gradle Plugin Portal.'
+	dependsOn 'clean', 'check', 'validatePlugins', 'publishPlugins'
 }
 
 tasks.register('publishEverywhere') {
-    group = 'publishing'
-    description = 'Publishes to both the configured Maven repository and the Gradle Plugin Portal.'
-    dependsOn 'clean', 'check', 'validatePlugins', 'publish', 'publishPlugins'
+	group = 'publishing'
+	description = 'Publishes to both the configured Maven repository and the Gradle Plugin Portal.'
+	dependsOn 'clean', 'check', 'validatePlugins', 'publish', 'publishPlugins'
+}
+
+spotless {
+	groovy {
+		greclipse()
+	}
+	groovyGradle {
+		greclipse()
+	}
 }

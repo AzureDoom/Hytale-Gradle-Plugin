@@ -21,92 +21,93 @@ import javax.inject.Inject
 
 @CacheableTask
 abstract class DecompileServerJarTask extends DefaultTask {
-    @InputFile
-    @PathSensitive(PathSensitivity.NONE)
-    abstract RegularFileProperty getServerJar()
+	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
+	abstract RegularFileProperty getServerJar()
 
-    @Classpath
-    abstract ConfigurableFileCollection getDecompileClasspath()
+	@Classpath
+	abstract ConfigurableFileCollection getDecompileClasspath()
 
-    @InputFile
-    @PathSensitive(PathSensitivity.NONE)
-    abstract RegularFileProperty getVineflowerJar()
+	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
+	abstract RegularFileProperty getVineflowerJar()
 
-    @OutputDirectory
-    abstract DirectoryProperty getOutputDirectory()
+	@OutputDirectory
+	abstract DirectoryProperty getOutputDirectory()
 
-    @OutputDirectory
-    abstract DirectoryProperty getTempDirectoryRoot()
+	@OutputDirectory
+	abstract DirectoryProperty getTempDirectoryRoot()
 
-    @Input
-    abstract Property<Integer> getJavaVersion()
+	@Input
+	abstract Property<Integer> getJavaVersion()
 
-    @Inject
-    abstract JavaToolchainService getJavaToolchainService()
+	@Inject
+	abstract JavaToolchainService getJavaToolchainService()
 
-    @TaskAction
-    void decompile() {
-        def outDir = outputDirectory.get().asFile
-        def tempDir = tempDirectoryRoot.get().asFile
-        project.delete(outDir, tempDir)
-        outDir.mkdirs()
-        tempDir.mkdirs()
+	@TaskAction
+	void decompile() {
+		def outDir = outputDirectory.get().asFile
+		def tempDir = tempDirectoryRoot.get().asFile
+		project.delete(outDir, tempDir)
+		outDir.mkdirs()
+		tempDir.mkdirs()
 
-        def launcher = javaToolchainService.launcherFor { spec ->
-            spec.languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(javaVersion.get()))
-        }
+		def launcher = javaToolchainService.launcherFor { spec ->
+			spec.languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(javaVersion.get()))
+		}
 
-        def javaExe = launcher.get().executablePath.asFile.absolutePath
+		def javaExe = launcher.get().executablePath.asFile.absolutePath
 
-        def server = serverJar.get().asFile
-        if (!server.exists()) {
-            throw new GradleException('Could not resolve Hytale Server jar from vineServerJar')
-        }
+		def server = serverJar.get().asFile
+		if (!server.exists()) {
+			throw new GradleException('Could not resolve Hytale Server jar from vineServerJar')
+		}
 
-        def filteredJar = new File(tempDir, 'Server-com-hytale-only.jar')
-        project.ant.jar(destfile: filteredJar.absolutePath) {
-            zipfileset(src: server.absolutePath) {
-                include(name: 'com/hypixel/hytale/**')
-            }
-        }
+		def filteredJar = new File(tempDir, 'Server-com-hytale-only.jar')
+		project.ant.jar(destfile: filteredJar.absolutePath) {
+			zipfileset(src: server.absolutePath) {
+				include(name: 'com/hypixel/hytale/**')
+			}
+		}
 
-        if (!filteredJar.exists() || filteredJar.length() == 0) {
-            throw new GradleException("Filtered jar is empty. Nothing matched com/hypixel/hytale/** inside ${server.name}")
-        }
+		if (!filteredJar.exists() || filteredJar.length() == 0) {
+			throw new GradleException("Filtered jar is empty. Nothing matched com/hypixel/hytale/** inside ${server.name}")
+		}
 
-        def externals = decompileClasspath.files
-                .findAll {
-                    it.name.endsWith('.jar') &&
-                            it != server &&
-                            !it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-m2${File.separator}") &&
-                            !it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-ivy${File.separator}")
-                }
-                .collect { "-e=${it.absolutePath}" }
+		def externals = decompileClasspath.files
+				.findAll {
+					it.name.endsWith('.jar') &&
+							it != server &&
+							!it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-m2${File.separator}") &&
+							!it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-ivy${File.separator}")
+				}
+				.collect { "-e=${it.absolutePath}" }
 
-        def cmd = [
-            javaExe,
-            '-jar', vineflowerJar.get().asFile.absolutePath,
-            *externals,
-            filteredJar.absolutePath,
-            outDir.absolutePath
-        ].collect { it.toString() }
+		def cmd = [
+			javaExe,
+			'-jar',
+			vineflowerJar.get().asFile.absolutePath,
+			*externals,
+			filteredJar.absolutePath,
+			outDir.absolutePath
+		].collect { it.toString() }
 
-        logger.lifecycle("Running: ${cmd.join(' ')}")
+		logger.lifecycle("Running: ${cmd.join(' ')}")
 
-        def proc = new ProcessBuilder(cmd)
-            .directory(project.projectDir)
-            .redirectErrorStream(true)
-            .start()
+		def proc = new ProcessBuilder(cmd)
+				.directory(project.projectDir)
+				.redirectErrorStream(true)
+				.start()
 
-        proc.inputStream.withReader { reader ->
-            reader.eachLine { line -> logger.lifecycle(line) }
-        }
+		proc.inputStream.withReader { reader ->
+			reader.eachLine { line -> logger.lifecycle(line) }
+		}
 
-        def exit = proc.waitFor()
-        if (exit != 0) {
-            throw new GradleException("Vineflower failed (exit ${exit})")
-        }
+		def exit = proc.waitFor()
+		if (exit != 0) {
+			throw new GradleException("Vineflower failed (exit ${exit})")
+		}
 
-        logger.lifecycle("Decompiled com/hypixel/hytale only from ${server.name} -> ${outDir}")
-    }
+		logger.lifecycle("Decompiled com/hypixel/hytale only from ${server.name} -> ${outDir}")
+	}
 }

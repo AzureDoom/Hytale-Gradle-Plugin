@@ -11,28 +11,28 @@ import org.gradle.work.DisableCachingByDefault
 
 @DisableCachingByDefault(because = "Launches a long-running external server process")
 abstract class RunServerTask extends JavaExec {
-    @InputFile
-    @PathSensitive(PathSensitivity.NONE)
-    abstract RegularFileProperty getAssetsZip()
+	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
+	abstract RegularFileProperty getAssetsZip()
 
-    @TaskAction
-    @Override
-    void exec() {
-        def resolvedAssetsZip = assetsZip.get().asFile
+	@TaskAction
+	@Override
+	void exec() {
+		def resolvedAssetsZip = assetsZip.get().asFile
 
-        logger.lifecycle("Using extracted assets zip: ${resolvedAssetsZip.absolutePath}")
-        logger.lifecycle("Assets exists: ${resolvedAssetsZip.exists()}, size: ${resolvedAssetsZip.exists() ? resolvedAssetsZip.length() : 0}")
+		logger.lifecycle("Using extracted assets zip: ${resolvedAssetsZip.absolutePath}")
+		logger.lifecycle("Assets exists: ${resolvedAssetsZip.exists()}, size: ${resolvedAssetsZip.exists() ? resolvedAssetsZip.length() : 0}")
 
-        if (!resolvedAssetsZip.exists() || resolvedAssetsZip.length() == 0) {
-            throw new GradleException("Assets zip not found or empty: ${resolvedAssetsZip}")
-        }
+		if (!resolvedAssetsZip.exists() || resolvedAssetsZip.length() == 0) {
+			throw new GradleException("Assets zip not found or empty: ${resolvedAssetsZip}")
+		}
 
-        setArgs([
-            "--assets=${resolvedAssetsZip.absolutePath}",
-            '--allow-op',
-            '--disable-sentry'
-        ])
+		setArgs([
+			"--assets=${resolvedAssetsZip.absolutePath}",
+			'--allow-op',
+			'--disable-sentry'
+		])
 
-        super.exec()
-    }
+		super.exec()
+	}
 }
