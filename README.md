@@ -48,9 +48,14 @@ Having issues? See [Support & Issues](#support--issues).
 
 ## Multi-Project Setup
 
-This plugin supports a standard Gradle multi-project layout for shared code and multiple mods.
+This plugin supports a clean separation between **workspace orchestration** and **individual mod projects**.
 
-### Quick Start
+- `com.azuredoom.hytale-workspace` → applied to the **root project**
+- `com.azuredoom.hytale-tools` → applied to each **mod project**
+
+---
+
+### Project Layout
 
 ```text
 root/
@@ -61,24 +66,41 @@ root/
 └── modB/
 ```
 
+---
+
+### settings.gradle
+
 ```gradle
-// settings.gradle
 rootProject.name = "my-hytale-workspace"
 include("common", "modA", "modB")
 ```
 
+---
+
+### Root Project (Workspace)
+
 ```gradle
 // root build.gradle
 plugins {
-    id 'com.azuredoom.hytale-tools' version '1.0.17'
+    id 'com.azuredoom.hytale-workspace' version '1.0.18'
 }
 
-subprojects {
-    plugins.withId('com.azuredoom.hytale-tools') {
-        group = 'com.example.mods'
-    }
+hytaleWorkspace {
+    modProjects = [':modA', ':modB']
+
+    // Optional (recommended)
+    hostProject = ':modA'
+
+    // Optional shared defaults
+    manifestGroup = 'com.example.mods'
+    hytaleVersion = '1.0.0'
+    patchline = 'release'
 }
 ```
+
+---
+
+### Shared Module
 
 ```gradle
 // common/build.gradle
@@ -86,6 +108,10 @@ plugins {
     id 'java-library'
 }
 ```
+
+---
+
+### Mod Project
 
 ```gradle
 // modA/build.gradle
@@ -105,49 +131,28 @@ hytaleTools {
 }
 ```
 
-Repeat for additional mod subprojects (e.g. `modB`).
+Repeat for additional mod projects (e.g. `modB`).
 
 ---
 
-### How it works
+## How It Works
 
-* `common` is a standard shared library and does not apply the plugin
-* each mod (`modA`, `modB`, etc.) applies the plugin independently
-* shared code is included via normal Gradle `project()` dependencies
-* when the plugin is applied to the root project, it also exposes workspace tasks for multi-project builds
-* workspace tasks (`runAllMods`, etc.) are only available when the plugin is applied to the root project
-* `stageAllModAssets` stages each mod's asset pack into the root `run/mods` directory for the combined dev server
-    * uses `assetPackSourceDirectory` (defaults to `src/main/resources`)
-    * copies raw resource files and does not depend on compiled outputs
-* workspace tasks operate across all subprojects that apply the plugin, ignoring non-Hytale projects (e.g. `common`)
+- The **workspace plugin** (`hytale-workspace`) only applies to the root project
+- Each **mod project** applies `hytale-tools` independently
+- Non-mod projects (e.g. `common`) remain standard Gradle modules
+- Workspace tasks operate only on projects listed in `modProjects`
+- The workspace plugin does **not** automatically apply the mod plugin
 
 ---
 
-### Running
+## Workspace Tasks
 
-Run a single module:
+Available only on the root project:
 
-```bash
-./gradlew :modA:runServer
-./gradlew :modB:runServer
-```
-
-Or run a combined dev server for all Hytale mod projects:
-
-```bash
-./gradlew runAllMods
-```
-
----
-
-### Root tasks
-
-When the plugin is applied to the root project, it also exposes these workspace tasks:
-
-* `updateAllPluginManifests`
-* `validateAllManifests`
-* `stageAllModAssets`
-* `runAllMods`
+- `updateAllPluginManifests`
+- `validateAllManifests`
+- `stageAllModAssets`
+- `runAllMods`
 
 Example:
 
@@ -157,30 +162,65 @@ Example:
 ./gradlew runAllMods
 ```
 
-`runAllMods` launches a single dev server with all Hytale mod subprojects on the combined runtime classpath.
+---
+
+## Running
+
+Run a single mod:
+
+```bash
+./gradlew :modA:runServer
+```
+
+Run all mods together:
+
+```bash
+./gradlew runAllMods
+```
 
 ---
 
-### Notes
+## Host Project
 
-* each mod must define its own `modId`, `mainClass`, and manifest
-* `common` should not apply the plugin unless it is a real mod
-* ordering is deterministic based on Gradle project path (e.g. `:modA`, `:modB`)
-* all Hytale subprojects must use the same `hytaleVersion` and `patchline` for `runAllMods`
-* `runAllMods` will fail early if any Hytale subproject has mismatched `hytaleVersion` or `patchline`
-* asset packs are linked when possible and copied as a fallback on platforms where symlinks are unavailable
+The workspace uses a **host project** to resolve:
+
+- Hytale assets
+- Server runtime configuration
+
+You can explicitly configure it:
+
+```gradle
+hytaleWorkspace {
+    hostProject = ':modA'
+}
+```
+
+If not set, the first project (by path) is used.
 
 ---
 
-### Official support
+## Notes
 
-This multi-project layout is the recommended approach for:
+- All mod projects must use the same `hytaleVersion` and `patchline`
+- `runAllMods` fails early if versions mismatch
+- Asset packs are staged into `run/mods/`
+- Symlinks are used when possible, with copy fallback
+- `common` should not apply the plugin unless it is a real mod
 
-* shared code in `common`
-* multiple mods in separate subprojects
-* one combined dev runtime from the root project
+---
 
-The plugin is designed to work per-project, while the root project provides workspace-style orchestration for multi-project builds.
+## Recommended Usage
+
+This setup is ideal for:
+
+- shared code (`common`)
+- multiple independent mods
+- a single combined development server
+
+The design keeps:
+
+- mod configuration **isolated per project**
+- workspace behavior **centralized at the root**
 
 ---
 

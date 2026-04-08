@@ -25,7 +25,11 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 
 		writeFile("build.gradle", """
             plugins {
-                id 'com.azuredoom.hytale-tools'
+                id 'com.azuredoom.hytale-workspace'
+            }
+
+            hytaleWorkspace {
+                modProjects = [':modA', ':modB']
             }
         """)
 
@@ -42,6 +46,7 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 
             hytaleTools {
                 hytaleVersion = '1.0.0'
+                patchline = 'release'
                 manifestGroup = 'com.example.mods'
                 modId = 'moda'
                 mainClass = 'com.example.mods.moda.ModA'
@@ -55,6 +60,7 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 
             hytaleTools {
                 hytaleVersion = '1.0.1'
+                patchline = 'release'
                 manifestGroup = 'com.example.mods'
                 modId = 'modb'
                 mainClass = 'com.example.mods.modb.ModB'
@@ -81,7 +87,11 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 
 		writeFile("build.gradle", """
             plugins {
-                id 'com.azuredoom.hytale-tools'
+                id 'com.azuredoom.hytale-workspace'
+            }
+
+            hytaleWorkspace {
+                modProjects = [':modA']
             }
         """)
 
@@ -92,6 +102,7 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 
             hytaleTools {
                 hytaleVersion = '1.0.0'
+                patchline = 'release'
                 manifestGroup = 'com.example.mods'
                 modId = 'moda'
                 mainClass = 'com.example.mods.moda.ModA'
@@ -127,28 +138,33 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 	def "stageAllModAssets creates the expected root mod asset path"() {
 		given:
 		writeFile("settings.gradle", """
-        rootProject.name = 'workspace-test'
-        include 'modA'
-    """)
+            rootProject.name = 'workspace-test'
+            include 'modA'
+        """)
 
 		writeFile("build.gradle", """
-        plugins {
-            id 'com.azuredoom.hytale-tools'
-        }
-    """)
+            plugins {
+                id 'com.azuredoom.hytale-workspace'
+            }
+
+            hytaleWorkspace {
+                modProjects = [':modA']
+            }
+        """)
 
 		writeFile("modA/build.gradle", """
-        plugins {
-            id 'com.azuredoom.hytale-tools'
-        }
+            plugins {
+                id 'com.azuredoom.hytale-tools'
+            }
 
-        hytaleTools {
-            hytaleVersion = '1.0.0'
-            manifestGroup = 'com.example.mods'
-            modId = 'moda'
-            mainClass = 'com.example.mods.moda.ModA'
-        }
-    """)
+            hytaleTools {
+                hytaleVersion = '1.0.0'
+                patchline = 'release'
+                manifestGroup = 'com.example.mods'
+                modId = 'moda'
+                mainClass = 'com.example.mods.moda.ModA'
+            }
+        """)
 
 		writeFile("modA/src/main/resources/test.txt", "hello")
 

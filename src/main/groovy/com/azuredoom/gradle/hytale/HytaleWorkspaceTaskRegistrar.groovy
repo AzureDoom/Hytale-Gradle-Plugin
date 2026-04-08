@@ -17,22 +17,34 @@ final class HytaleWorkspaceTaskRegistrar {
 		}
 
 		def hytaleProjectsProvider = project.providers.provider {
-			project.subprojects.findAll { it.plugins.hasPlugin('com.azuredoom.hytale-tools') }
+			def workspaceExt = project.extensions.findByType(HytaleWorkspaceExtension)
+
+			if (workspaceExt != null &&
+					workspaceExt.modProjects.present &&
+					!workspaceExt.modProjects.get().isEmpty()) {
+				return workspaceExt.modProjects.get().collect { path ->
+					project.project(path)
+				}
+			}
+
+			return project.subprojects.findAll {
+				it.plugins.hasPlugin('com.azuredoom.hytale-tools')
+			}
 		}
 
 		def validatedHytaleProjectsProvider = project.providers.provider {
 			def projects = hytaleProjectsProvider.get()
 			if (projects.isEmpty()) {
 				throw new GradleException(
-				"No subprojects apply 'com.azuredoom.hytale-tools'. " +
-				"Apply the plugin to each mod project you want included in workspace tasks."
+				"No Hytale workspace mod projects were found. " +
+				"Set hytaleWorkspace.modProjects or apply 'com.azuredoom.hytale-tools' to subprojects you want included."
 				)
 			}
 			projects
 		}
 
 		def hostProjectProvider = project.providers.provider {
-			validatedHytaleProjectsProvider.get().sort { it.path }.first()
+			resolveHostProject(project, validatedHytaleProjectsProvider.get())
 		}
 
 		project.tasks.register('updateAllPluginManifests') {
@@ -124,7 +136,7 @@ final class HytaleWorkspaceTaskRegistrar {
 				def projects = validatedHytaleProjectsProvider.get()
 				validateWorkspaceCompatibility(projects)
 
-				def host = projects.sort { it.path }.first()
+				def host = hostProjectProvider.get()
 				def hostExt = host.extensions.getByType(HytaleExtension)
 
 				def assetsZip = new File(
@@ -225,5 +237,27 @@ final class HytaleWorkspaceTaskRegistrar {
 			into targetDir.toFile()
 		}
 		project.logger.lifecycle("Copied asset pack ${sourceDir} -> ${targetDir}")
+	}
+
+	private static Project resolveHostProject(Project root, Collection<Project> projects) {
+		def workspaceExt = root.extensions.findByType(HytaleWorkspaceExtension)
+
+		if (workspaceExt != null &&
+				workspaceExt.hostProject.present &&
+				workspaceExt.hostProject.get()?.trim()) {
+			def hostPath = workspaceExt.hostProject.get().trim()
+			def hostProject = root.project(hostPath)
+
+			if (!projects.contains(hostProject)) {
+				throw new GradleException(
+				"The configured hytaleWorkspace.hostProject '${hostPath}' " +
+				"is not included in the workspace mod projects: ${projects*.path}"
+				)
+			}
+
+			return hostProject
+		}
+
+		return projects.toList().sort { it.path }.first()
 	}
 }

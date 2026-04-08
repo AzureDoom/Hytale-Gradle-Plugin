@@ -61,6 +61,18 @@ gradlePlugin {
 				}
 			}
 		}
+
+		create('hytaleWorkspace') {
+			id = 'com.azuredoom.hytale-workspace'
+			implementationClass = 'com.azuredoom.gradle.hytale.HytaleWorkspacePlugin'
+			displayName = 'Hytale Workspace Plugin'
+			description = 'Workspace conventions and aggregate tasks for multi-project Hytale builds.'
+			tags.set([
+				'hytale',
+				'modding',
+				'gradle-plugin'
+			])
+		}
 	}
 }
 

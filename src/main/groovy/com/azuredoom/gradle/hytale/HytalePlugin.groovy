@@ -114,7 +114,5 @@ class HytalePlugin implements Plugin<Project> {
 				assetsZipFileProvider,
 				vineServerJar
 				)
-
-		HytaleWorkspaceTaskRegistrar.register(project)
 	}
 }
