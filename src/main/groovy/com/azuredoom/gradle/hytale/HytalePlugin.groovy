@@ -100,11 +100,12 @@ class HytalePlugin implements Plugin<Project> {
 				prepareDecompiledSourcesForIde
 				)
 
-		def downloadAssetsZip = project.tasks.named('downloadAssetsZip', DownloadAssetsZipTask)
-
 		project.dependencies.add(
 				'hytaleAssets',
-				project.files(assetsZipFileProvider).builtBy(downloadAssetsZip)
+				project.files(project.provider {
+					def assetsZip = assetsZipFileProvider.get()
+					assetsZip.exists() ? [assetsZip] : []
+				})
 				)
 
 		HytaleRunTaskRegistrar.register(
