@@ -46,6 +46,27 @@ Having issues? See [Support & Issues](#support--issues).
 
 ---
 
+## Hot Swap Quickstart
+
+To enable debugging and hot swap:
+
+```bash
+./gradlew runServer -Ddebug=true -Dhotswap=true
+```
+
+For best results:
+
+- Install JetBrains Runtime (JBR)
+- Let the plugin auto-detect it or set `jbrHome`
+
+Verify your setup:
+
+```bash
+./gradlew hytaleJvmDoctor
+```
+
+---
+
 ## Multi-Project Setup
 
 This plugin supports a clean separation between **workspace orchestration** and **individual mod projects**.
@@ -314,6 +335,7 @@ Recommended CI flags:
 - Generates, updates, and validates `manifest.json`
 - Downloads authenticated Hytale assets
 - Runs a local Hytale server for development
+- Supports debug mode and hot swap capable JVM runtime setup
 - Generates decompiled sources and attaches them in IDEs
 
 ## Included Tasks
@@ -352,7 +374,7 @@ Launches a local Hytale server using:
 
 ### Customizing `runServer`
 
-You can customize the server launch arguments and JVM arguments through the extension:
+You can customize the server launch arguments, JVM arguments, debug mode, and hot swap behavior through the extension:
 
 ```gradle
 hytaleTools {
@@ -370,6 +392,18 @@ hytaleTools {
     ]
 
     preRunTask = 'generateDevResources'
+
+    // Optional debug / hot swap support
+    debugEnabled = false
+    debugPort = 5005
+    debugSuspend = false
+
+    hotSwapEnabled = false
+    requireDcevm = false
+    useHotswapAgent = true
+
+    // Optional explicit JetBrains Runtime location
+    // jbrHome = '/path/to/jbr'
 }
 
 tasks.register('generateDevResources') {
@@ -379,10 +413,46 @@ tasks.register('generateDevResources') {
 }
 ```
 
+You can also enable debug and hot swap from the command line:
+
+```bash
+./gradlew runServer -Ddebug=true
+./gradlew runServer -Ddebug=true -Dhotswap=true
+```
+
+Hot swap support depends on the selected JVM:
+
+- Standard JVM: limited to method body changes
+- JetBrains Runtime (JBR): supports enhanced class redefinition
+- HotswapAgent (if available): improves runtime reload behavior
+
+For best results, use JetBrains Runtime with hot swap enabled.
+
 Notes:
 - `serverArgs` are appended to the default `--assets=...` argument automatically added by the plugin
 - `serverJvmArgs` are added in addition to the plugin’s default JVM launch settings
 - `preRunTask` lets you run a custom preparation task before `runServer`
+- `debugEnabled` enables JDWP debugging for IDE attach
+- `hotSwapEnabled` enables runtime probing for enhanced class redefinition support
+- `requireDcevm` fails early if enhanced class redefinition is not available
+- `useHotswapAgent` enables bundled HotswapAgent support when available in the selected runtime
+- `jbrHome` can be used to point the plugin at a specific JetBrains Runtime installation
+
+### `hytaleJvmDoctor`
+
+Prints JVM diagnostics relevant to debugging and hot swap, including:
+
+- resolved Java executable
+- JetBrains Runtime detection
+- enhanced class redefinition support
+- HotswapAgent mode support
+- bundled HotswapAgent availability
+
+This is useful when validating a local JetBrains Runtime setup before using hot swap. 
+
+Runtime resolution uses `jbrHome` first, then known JetBrains Runtime environment variables (`JBR_HOME`, etc.), and finally falls back to the current JVM.
+
+The plugin can automatically detect JetBrains Runtime installations from common locations, including JetBrains Toolbox installs, when `jbrHome` is not explicitly configured.
 
 ## `prepareDecompiledSourcesForIde`
 
@@ -440,6 +510,13 @@ Because manifest generation and validation are wired into the build, most projec
 | `serverArgs`                   | `List<String>` | `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument |
 | `serverJvmArgs`                | `List<String>` |                                 `[]` | No       | Extra JVM arguments for `runServer`                                                    |
 | `preRunTask`                   | `String`       |                                empty | No       | Task name to run before `runServer`                                                    |
+| `debugEnabled`                 | `Boolean`      |                              `false` | No       | Enables JDWP debugging for `runServer`                                                 |
+| `debugPort`                    | `Integer`      |                               `5005` | No       | Debug port used when `debugEnabled` is true                                            |
+| `debugSuspend`                 | `Boolean`      |                              `false` | No       | Whether the JVM waits for a debugger before starting                                   |
+| `hotSwapEnabled`               | `Boolean`      |                              `false` | No       | Enables hot swap capability detection and runtime setup                                |
+| `requireDcevm`                 | `Boolean`      |                              `false` | No       | Fails launch if enhanced class redefinition support is unavailable                     |
+| `useHotswapAgent`              | `Boolean`      |                               `true` | No       | Enables bundled HotswapAgent integration when available                                |
+| `jbrHome`                      | `String`       |                                empty | No       | Optional path to a JetBrains Runtime installation                                      |
 
 ## Task Reference
 
@@ -459,6 +536,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `prepareRunServer`               | internal | Sets up run directory and mod assets                            | Runs automatically                 |
 | `decompileServerJar`             | internal | Decompiles Hytale server sources                                | Internal source pipeline           |
 | `setupHytaleDev`                 | `hytale` | Prepares IDE sources and downloads assets                       | First-time setup                   |
+| `hytaleJvmDoctor`                | `hytale` | Prints JVM debug / hot swap diagnostics                         | Debugging hot swap setup           |
 
 ## IDE Source Attachment
 
@@ -701,6 +779,17 @@ hytaleTools {
     serverArgs = ['--allow-op', '--disable-sentry']
     serverJvmArgs = ['-Xms1G', '-Xmx2G']
     preRunTask = 'generateDevResources'
+    
+    debugEnabled = false
+    debugPort = 5005
+    debugSuspend = false
+
+    hotSwapEnabled = false
+    requireDcevm = false
+    useHotswapAgent = true
+
+    // Optional
+    // jbrHome = '/path/to/jbr'
 }
 ```
 
@@ -711,8 +800,8 @@ The plugin also reads these Gradle properties automatically:
 - `java_version`
 - `hytale_version`
 - `hytale_patchline`
-- `hygradle.hytale.oauth.base`
-- `hygradle.hytale.accounts.base`
+- `hytools.hytale.oauth.base`
+- `hytools.hytale.accounts.base`
 - `manifest_group`
 - `mod_id`
 - `mod_description`
@@ -724,6 +813,14 @@ The plugin also reads these Gradle properties automatically:
 - `curseforgeID`
 - `disabled_by_default`
 - `includes_pack`
+- `hytools.debug.port`
+- `hytools.debug.suspend`
+- `hytools.jbr.home`
+
+The plugin also recognizes these system properties for dev runtime features:
+
+- `debug` → enables debug mode
+- `hotswap` → enables hot swap support
 
 ## Support & Issues
 
@@ -843,6 +940,22 @@ Verify that:
 - the task name matches exactly
 - the task is registered in the same project as `runServer`
 - `preRunTask` is set to the task name as a string
+
+### Validate your debug / hot swap runtime
+
+Run:
+
+```bash
+./gradlew hytaleJvmDoctor
+```
+
+Use it to verify:
+- which Java executable `runServer` will use
+- whether JetBrains Runtime was detected
+- whether enhanced class redefinition is supported
+- whether bundled HotswapAgent support is available
+
+If hot swap is not working as expected, this should be the first check.
 
 ## Notes
 

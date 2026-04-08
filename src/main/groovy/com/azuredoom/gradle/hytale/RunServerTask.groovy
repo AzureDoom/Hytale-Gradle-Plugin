@@ -3,6 +3,7 @@ package com.azuredoom.gradle.hytale
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.JavaExec
@@ -13,6 +14,7 @@ import org.gradle.work.DisableCachingByDefault
 
 @DisableCachingByDefault(because = "Launches a long-running external server process")
 abstract class RunServerTask extends JavaExec {
+
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
 	abstract RegularFileProperty getAssetsZip()
@@ -23,10 +25,71 @@ abstract class RunServerTask extends JavaExec {
 	@Input
 	abstract ListProperty<String> getServerJvmArgs()
 
-	protected List<String> buildResolvedJvmArgs() {
-		List<String> resolvedJvmArgs = []
-		resolvedJvmArgs.addAll(serverJvmArgs.getOrElse([]))
-		return resolvedJvmArgs
+	@Input
+	abstract Property<Boolean> getDebugEnabled()
+
+	@Input
+	abstract Property<Integer> getDebugPort()
+
+	@Input
+	abstract Property<Boolean> getDebugSuspend()
+
+	@Input
+	abstract Property<Boolean> getHotSwapEnabled()
+
+	@Input
+	abstract Property<Boolean> getRequireDcevm()
+
+	@Input
+	abstract Property<Boolean> getUseHotswapAgent()
+
+	@Input
+	abstract Property<String> getJbrHome()
+
+	protected List<String> buildResolvedJvmArgs(File javaExe) {
+		List<String> resolved = []
+		resolved.addAll(serverJvmArgs.getOrElse([]))
+
+		if (debugEnabled.getOrElse(false)) {
+			resolved.add(
+					"-agentlib:jdwp=transport=dt_socket,server=y,suspend=${debugSuspend.getOrElse(false) ? 'y' : 'n'},address=*:${debugPort.getOrElse(5005)}"
+					)
+		}
+
+		if (hotSwapEnabled.getOrElse(false)) {
+			boolean isJbr = JvmDevRuntimeSupport.isJetBrainsRuntime(javaExe)
+			boolean hasEnhanced = JvmDevRuntimeSupport.supportsEnhancedRedefinition(javaExe)
+
+			logger.lifecycle("Dev JVM: ${javaExe}")
+			logger.lifecycle("JetBrains Runtime detected: ${isJbr}")
+			logger.lifecycle("Enhanced class redefinition supported: ${hasEnhanced}")
+
+			if (requireDcevm.getOrElse(false) && !hasEnhanced) {
+				throw new GradleException(
+				"Hot swap was requested with requireDcevm=true, but the selected JVM does not support enhanced class redefinition."
+				)
+			}
+
+			if (hasEnhanced) {
+				resolved.add('-XX:+AllowEnhancedClassRedefinition')
+			} else {
+				logger.warn("Falling back to normal debugger hot swap only (method-body changes only).")
+			}
+
+			if (useHotswapAgent.getOrElse(true)) {
+				boolean supportsHaMode = JvmDevRuntimeSupport.supportsHotswapAgentMode(javaExe)
+				File bundledAgent = JvmDevRuntimeSupport.resolveBundledHotswapAgent(javaExe)
+
+				if (supportsHaMode && bundledAgent != null) {
+					resolved.add('-XX:HotswapAgent=fatjar')
+					logger.lifecycle("Using bundled HotswapAgent: ${bundledAgent}")
+				} else {
+					logger.lifecycle("HotswapAgent not enabled: expected lib/hotswap/hotswap-agent.jar in the selected JBR.")
+				}
+			}
+		}
+
+		return resolved
 	}
 
 	protected List<String> buildResolvedArgs(File resolvedAssetsZip) {
@@ -49,7 +112,15 @@ abstract class RunServerTask extends JavaExec {
 			throw new GradleException("Assets zip not found or empty: ${resolvedAssetsZip}")
 		}
 
-		jvmArgs(buildResolvedJvmArgs())
+		def resolution = JvmDevRuntimeSupport.resolveJava(jbrHome.getOrElse(''))
+		File javaExe = resolution.javaExecutable
+
+		logger.lifecycle("Dev JVM: ${javaExe}")
+		logger.lifecycle("Dev JVM source: ${resolution.source}")
+		logger.lifecycle("Dev JVM home: ${resolution.javaHome}")
+		executable(javaExe.absolutePath)
+
+		jvmArgs(buildResolvedJvmArgs(javaExe))
 		setArgs(buildResolvedArgs(resolvedAssetsZip))
 
 		super.exec()

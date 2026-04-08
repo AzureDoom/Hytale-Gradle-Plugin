@@ -29,6 +29,15 @@ abstract class HytaleExtension {
 	abstract ListProperty<String> getServerJvmArgs()
 	abstract Property<String> getPreRunTask()
 
+	abstract Property<Boolean> getDebugEnabled()
+	abstract Property<Integer> getDebugPort()
+	abstract Property<Boolean> getDebugSuspend()
+
+	abstract Property<Boolean> getHotSwapEnabled()
+	abstract Property<Boolean> getRequireDcevm()
+	abstract Property<Boolean> getUseHotswapAgent()
+	abstract Property<String> getJbrHome()
+
 	abstract RegularFileProperty getManifestFile()
 	abstract DirectoryProperty getRunDirectory()
 	abstract DirectoryProperty getAssetPackSourceDirectory()

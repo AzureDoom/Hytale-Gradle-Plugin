@@ -9,8 +9,8 @@ final class HytaleExtensionDefaults {
 		ext.javaVersion.convention(project.providers.gradleProperty('java_version').map { (it ?: '25') as Integer }.orElse(25))
 		ext.hytaleVersion.convention(project.providers.gradleProperty('hytale_version'))
 		ext.patchline.convention(project.providers.gradleProperty('hytale_patchline').orElse('release'))
-		ext.oauthBaseUrl.convention(project.providers.gradleProperty('hygradle.hytale.oauth.base').orElse('https://oauth.accounts.hytale.com'))
-		ext.accountBaseUrl.convention(project.providers.gradleProperty('hygradle.hytale.accounts.base').orElse('https://account-data.hytale.com'))
+		ext.oauthBaseUrl.convention(project.providers.gradleProperty('hytools.hytale.oauth.base').orElse('https://oauth.accounts.hytale.com'))
+		ext.accountBaseUrl.convention(project.providers.gradleProperty('hytools.hytale.accounts.base').orElse('https://account-data.hytale.com'))
 
 		ext.manifestGroup.convention(project.providers.gradleProperty('manifest_group').orElse(project.group.toString()))
 		ext.modId.convention(project.providers.gradleProperty('mod_id').orElse(project.name))
@@ -38,5 +38,27 @@ final class HytaleExtensionDefaults {
 		])
 		ext.serverJvmArgs.convention([])
 		ext.preRunTask.convention('')
+
+		ext.debugEnabled.convention(
+				project.providers.systemProperty('debug').map { it.toBoolean() }.orElse(false)
+				)
+		ext.debugPort.convention(
+				project.providers.gradleProperty('hytools.debug.port').map { it as Integer }.orElse(5005)
+				)
+		ext.debugSuspend.convention(
+				project.providers.gradleProperty('hytools.debug.suspend').map { it.toBoolean() }.orElse(false)
+				)
+
+		ext.hotSwapEnabled.convention(
+				project.providers.systemProperty('hotswap').map { it.toBoolean() }.orElse(false)
+				)
+		ext.requireDcevm.convention(false)
+		ext.useHotswapAgent.convention(true)
+
+		ext.jbrHome.convention(
+				project.providers.gradleProperty('hytools.jbr.home')
+				.orElse(project.providers.environmentVariable('JBR_HOME'))
+				.orElse('')
+				)
 	}
 }

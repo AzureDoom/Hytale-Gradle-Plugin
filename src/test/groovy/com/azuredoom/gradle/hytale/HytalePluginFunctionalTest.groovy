@@ -490,60 +490,71 @@ class HytalePluginFunctionalTest extends Specification {
 	'''
 
 		new File(testProjectDir, 'build.gradle') << '''
-		import com.azuredoom.gradle.hytale.RunServerTask
-		import org.gradle.api.tasks.TaskAction
+import com.azuredoom.gradle.hytale.RunServerTask
+import com.azuredoom.gradle.hytale.JvmDevRuntimeSupport
+import org.gradle.api.tasks.TaskAction
 
-		plugins {
-			id 'java'
-			id 'com.azuredoom.hytale-tools'
-		}
+plugins {
+    id 'java'
+    id 'com.azuredoom.hytale-tools'
+}
 
-		group = 'com.example'
-		version = '1.0.0'
+group = 'com.example'
+version = '1.0.0'
 
-		hytaleTools {
-			hytaleVersion = '1.0.0'
-			patchline = 'release'
-			serverArgs = ['--allow-op', '--disable-sentry', '--disable-file-watcher']
-			serverJvmArgs = ['-Xms1G', '-Xmx2G']
-		}
+hytaleTools {
+    hytaleVersion = '1.0.0'
+    patchline = 'release'
+    serverArgs = ['--allow-op', '--disable-sentry', '--disable-file-watcher']
+    serverJvmArgs = ['-Xms1G', '-Xmx2G']
+}
 
-		def assetsFile = new File(gradle.gradleUserHomeDir, 'caches/hytale-assets/release-1.0.0-Assets.zip')
+def assetsFile = new File(gradle.gradleUserHomeDir, 'caches/hytale-assets/release-1.0.0-Assets.zip')
 
-		tasks.register('seedAssetsZip') {
-			doLast {
-				assetsFile.parentFile.mkdirs()
+tasks.register('seedAssetsZip') {
+    doLast {
+        assetsFile.parentFile.mkdirs()
 
-				new java.util.zip.ZipOutputStream(new FileOutputStream(assetsFile)).withCloseable { zos ->
-					zos.putNextEntry(new java.util.zip.ZipEntry('placeholder.txt'))
-					zos.write('ok'.bytes)
-					zos.closeEntry()
-				}
-			}
-		}
+        new java.util.zip.ZipOutputStream(new FileOutputStream(assetsFile)).withCloseable { zos ->
+            zos.putNextEntry(new java.util.zip.ZipEntry('placeholder.txt'))
+            zos.write('ok'.bytes)
+            zos.closeEntry()
+        }
+    }
+}
 
-		abstract class InspectRunServerTask extends RunServerTask {
-			@TaskAction
-			@Override
-			void exec() {
-				def resolvedAssetsZip = assetsZip.get().asFile
-				println 'FINAL_ARGS=' + buildResolvedArgs(resolvedAssetsZip).join(',')
-				println 'FINAL_JVM_ARGS=' + buildResolvedJvmArgs().join(',')
-			}
-		}
+abstract class InspectRunServerTask extends RunServerTask {
+    @TaskAction
+    @Override
+    void exec() {
+        def resolvedAssetsZip = assetsZip.get().asFile
+        def javaExe = JvmDevRuntimeSupport.resolveJava(jbrHome.getOrElse('')).javaExecutable
 
-		tasks.register('inspectRunServerArgs', InspectRunServerTask) {
-			dependsOn 'seedAssetsZip'
+        println 'FINAL_ARGS=' + buildResolvedArgs(resolvedAssetsZip).join(',')
+        println 'FINAL_JVM_ARGS=' + buildResolvedJvmArgs(javaExe).join(',')
+    }
+}
 
-			serverArgs.set(hytaleTools.serverArgs)
-			serverJvmArgs.set(hytaleTools.serverJvmArgs)
-			assetsZip.set(layout.file(provider { assetsFile }))
+tasks.register('inspectRunServerArgs', InspectRunServerTask) {
+    dependsOn 'seedAssetsZip'
 
-			mainClass.set('com.example.DoesNotMatter')
-			classpath = files()
-			jvmArgs('--enable-native-access=ALL-UNNAMED')
-		}
-	'''
+    serverArgs.set(hytaleTools.serverArgs)
+    serverJvmArgs.set(hytaleTools.serverJvmArgs)
+    assetsZip.set(layout.file(provider { assetsFile }))
+
+    debugEnabled.set(hytaleTools.debugEnabled)
+    debugPort.set(hytaleTools.debugPort)
+    debugSuspend.set(hytaleTools.debugSuspend)
+    hotSwapEnabled.set(hytaleTools.hotSwapEnabled)
+    requireDcevm.set(hytaleTools.requireDcevm)
+    useHotswapAgent.set(hytaleTools.useHotswapAgent)
+    jbrHome.set(hytaleTools.jbrHome)
+
+    mainClass.set('com.example.DoesNotMatter')
+    classpath = files()
+    jvmArgs('--enable-native-access=ALL-UNNAMED')
+}
+'''
 
 		when:
 		def result = GradleRunner.create()

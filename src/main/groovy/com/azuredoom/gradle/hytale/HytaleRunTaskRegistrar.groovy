@@ -41,24 +41,40 @@ final class HytaleRunTaskRegistrar {
 			project.tasks.register('runServer', RunServerTask) {
 				group = 'hytale'
 				description = 'Launches a local Hytale server with this project and its dependencies'
-
 				dependsOn('prepareRunServer', 'downloadAssetsZip')
 
 				def sourceSets = project.extensions.getByType(SourceSetContainer)
+
 				mainClass.set('com.hypixel.hytale.Main')
 				classpath = project.files(
 						sourceSets.named('main').get().output,
 						sourceSets.named('main').get().runtimeClasspath,
 						vineServerJar
 						)
+
 				modularity.inferModulePath.set(true)
 				workingDir = ext.runDirectory.get().asFile
 				standardInput = System.in
 
 				jvmArgs('--enable-native-access=ALL-UNNAMED')
+
 				serverArgs.set(ext.serverArgs)
 				serverJvmArgs.set(ext.serverJvmArgs)
 				assetsZip.set(project.layout.file(assetsZipFileProvider))
+
+				debugEnabled.set(ext.debugEnabled)
+				debugPort.set(ext.debugPort)
+				debugSuspend.set(ext.debugSuspend)
+				hotSwapEnabled.set(ext.hotSwapEnabled)
+				requireDcevm.set(ext.requireDcevm)
+				useHotswapAgent.set(ext.useHotswapAgent)
+				jbrHome.set(ext.jbrHome)
+			}
+
+			project.tasks.register('hytaleJvmDoctor', HytaleJvmDoctorTask) {
+				group = 'hytale'
+				description = 'Prints JVM hot swap diagnostics for the configured runtime'
+				jbrHome.set(ext.jbrHome)
 			}
 
 			project.afterEvaluate {
