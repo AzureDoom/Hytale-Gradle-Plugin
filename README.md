@@ -24,7 +24,7 @@ This plugin replaces manual setup tasks such as:
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.17'
+    id 'com.azuredoom.hytale-tools' version '1.0.18'
 }
 
 hytaleTools {
@@ -585,7 +585,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.17'
+    id 'com.azuredoom.hytale-tools' version '1.0.18'
 }
 ```
 
