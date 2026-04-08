@@ -5,6 +5,8 @@ import org.gradle.api.Task
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.javadoc.Javadoc
 
 final class HytaleCoreTaskRegistrar {
 	private HytaleCoreTaskRegistrar() {}
@@ -70,7 +72,7 @@ final class HytaleCoreTaskRegistrar {
 			dependsOn('updatePluginManifest')
 		}
 
-		project.tasks.register('downloadAssetsZip', DownloadAssetsZipTask) {
+		def downloadAssetsZipTask = project.tasks.register('downloadAssetsZip', DownloadAssetsZipTask) {
 			group = 'hytale'
 			description = 'Downloads the authenticated Hytale asset wrapper and extracts the inner Assets.zip'
 
@@ -82,6 +84,14 @@ final class HytaleCoreTaskRegistrar {
 			resolvedAssetsWrapper.set(project.layout.file(wrapperFileProvider))
 			resolvedAssetsZip.set(project.layout.file(assetsZipFileProvider))
 			tokenCacheFile.set(project.layout.file(tokenFileProvider))
+		}
+
+		project.tasks.withType(JavaCompile).configureEach {
+			mustRunAfter(downloadAssetsZipTask)
+		}
+
+		project.tasks.withType(Javadoc).configureEach {
+			mustRunAfter(downloadAssetsZipTask)
 		}
 
 		project.tasks.register('hytaleDoctor', HytaleDoctorTask) {
@@ -111,7 +121,7 @@ final class HytaleCoreTaskRegistrar {
 			group = 'hytale'
 			description = 'Prepares local development by validating configuration, generating IDE sources, and downloading assets.'
 
-			dependsOn(prepareDecompiledSourcesForIde, 'downloadAssetsZip')
+			dependsOn(prepareDecompiledSourcesForIde, downloadAssetsZipTask)
 
 			hytaleVersion.set(ext.hytaleVersion)
 			assetsZip.set(project.layout.file(assetsZipFileProvider))

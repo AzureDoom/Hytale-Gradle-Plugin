@@ -1,23 +1,42 @@
 package com.azuredoom.gradle.hytale
 
+import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 
+import javax.inject.Inject
+
 @DisableCachingByDefault(because = "Launches a long-running external server process")
-abstract class RunServerTask extends JavaExec {
+abstract class RunServerTask extends DefaultTask {
+
+	@Inject
+	protected abstract ExecOperations getExecOperations()
+
+	@Inject
+	protected abstract ObjectFactory getObjectFactory()
 
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
 	abstract RegularFileProperty getAssetsZip()
+
+	@Classpath
+	abstract ConfigurableFileCollection getRuntimeClasspath()
+
+	@Input
+	abstract Property<String> getMainClassName()
 
 	@Input
 	abstract ListProperty<String> getServerArgs()
@@ -45,6 +64,9 @@ abstract class RunServerTask extends JavaExec {
 
 	@Input
 	abstract Property<String> getJbrHome()
+
+	@Internal
+	final Property<File> workingDirectory = getObjectFactory().property(File)
 
 	protected List<String> buildResolvedJvmArgs(File javaExe) {
 		List<String> resolved = []
@@ -101,9 +123,8 @@ abstract class RunServerTask extends JavaExec {
 	}
 
 	@TaskAction
-	@Override
-	void exec() {
-		def resolvedAssetsZip = assetsZip.get().asFile
+	void runServer() {
+		File resolvedAssetsZip = assetsZip.get().asFile
 
 		logger.lifecycle("Using extracted assets zip: ${resolvedAssetsZip.absolutePath}")
 		logger.lifecycle("Assets exists: ${resolvedAssetsZip.exists()}, size: ${resolvedAssetsZip.exists() ? resolvedAssetsZip.length() : 0}")
@@ -118,11 +139,16 @@ abstract class RunServerTask extends JavaExec {
 		logger.lifecycle("Dev JVM: ${javaExe}")
 		logger.lifecycle("Dev JVM source: ${resolution.source}")
 		logger.lifecycle("Dev JVM home: ${resolution.javaHome}")
-		executable(javaExe.absolutePath)
 
-		jvmArgs(buildResolvedJvmArgs(javaExe))
-		setArgs(buildResolvedArgs(resolvedAssetsZip))
-
-		super.exec()
+		execOperations.javaexec { spec ->
+			spec.executable = javaExe.absolutePath
+			spec.classpath = runtimeClasspath
+			spec.mainClass.set(mainClassName)
+			spec.workingDir = workingDirectory.get()
+			spec.standardInput = System.in
+			spec.jvmArgs('--enable-native-access=ALL-UNNAMED')
+			spec.jvmArgs(buildResolvedJvmArgs(javaExe))
+			spec.args(buildResolvedArgs(resolvedAssetsZip))
+		}
 	}
 }

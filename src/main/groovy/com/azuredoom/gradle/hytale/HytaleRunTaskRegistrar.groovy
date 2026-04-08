@@ -45,18 +45,13 @@ final class HytaleRunTaskRegistrar {
 
 				def sourceSets = project.extensions.getByType(SourceSetContainer)
 
-				mainClass.set('com.hypixel.hytale.Main')
-				classpath = project.files(
+				mainClassName.set('com.hypixel.hytale.Main')
+				runtimeClasspath.from(project.files(
 						sourceSets.named('main').get().output,
 						sourceSets.named('main').get().runtimeClasspath,
 						vineServerJar
-						)
-
-				modularity.inferModulePath.set(true)
-				workingDir = ext.runDirectory.get().asFile
-				standardInput = System.in
-
-				jvmArgs('--enable-native-access=ALL-UNNAMED')
+						))
+				workingDirectory.set(ext.runDirectory.map { it.asFile })
 
 				serverArgs.set(ext.serverArgs)
 				serverJvmArgs.set(ext.serverJvmArgs)

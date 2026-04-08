@@ -526,7 +526,7 @@ tasks.register('seedAssetsZip') {
 abstract class InspectRunServerTask extends RunServerTask {
     @TaskAction
     @Override
-    void exec() {
+    void runServer() {
         def resolvedAssetsZip = assetsZip.get().asFile
         def javaExe = JvmDevRuntimeSupport.resolveJava(jbrHome.getOrElse('')).javaExecutable
 
@@ -550,9 +550,9 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
     useHotswapAgent.set(hytaleTools.useHotswapAgent)
     jbrHome.set(hytaleTools.jbrHome)
 
-    mainClass.set('com.example.DoesNotMatter')
-    classpath = files()
-    jvmArgs('--enable-native-access=ALL-UNNAMED')
+	mainClassName.set('com.example.DoesNotMatter')
+	runtimeClasspath.from(files())
+	workingDirectory.set(layout.projectDirectory.asFile)
 }
 '''
 
