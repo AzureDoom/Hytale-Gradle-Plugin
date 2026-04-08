@@ -2,6 +2,7 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 abstract class HytaleExtension {
@@ -23,6 +24,10 @@ abstract class HytaleExtension {
 	abstract Property<Boolean> getDisabledByDefault()
 	abstract Property<Boolean> getIncludesPack()
 	abstract Property<Boolean> getBundleAssetEditorRuntime()
+
+	abstract ListProperty<String> getServerArgs()
+	abstract ListProperty<String> getServerJvmArgs()
+	abstract Property<String> getPreRunTask()
 
 	abstract RegularFileProperty getManifestFile()
 	abstract DirectoryProperty getRunDirectory()

@@ -54,8 +54,20 @@ final class HytaleRunTaskRegistrar {
 				modularity.inferModulePath.set(true)
 				workingDir = ext.runDirectory.get().asFile
 				standardInput = System.in
+
 				jvmArgs('--enable-native-access=ALL-UNNAMED')
+				serverArgs.set(ext.serverArgs)
+				serverJvmArgs.set(ext.serverJvmArgs)
 				assetsZip.set(project.layout.file(assetsZipFileProvider))
+			}
+
+			project.afterEvaluate {
+				def preRunTaskName = ext.preRunTask.orNull
+				if (preRunTaskName != null && !preRunTaskName.trim().isEmpty()) {
+					project.tasks.named('runServer').configure {
+						dependsOn(preRunTaskName)
+					}
+				}
 			}
 		}
 	}

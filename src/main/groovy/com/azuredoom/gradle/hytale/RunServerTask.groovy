@@ -2,6 +2,8 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.PathSensitive
@@ -15,6 +17,26 @@ abstract class RunServerTask extends JavaExec {
 	@PathSensitive(PathSensitivity.NONE)
 	abstract RegularFileProperty getAssetsZip()
 
+	@Input
+	abstract ListProperty<String> getServerArgs()
+
+	@Input
+	abstract ListProperty<String> getServerJvmArgs()
+
+	protected List<String> buildResolvedJvmArgs() {
+		List<String> resolvedJvmArgs = []
+		resolvedJvmArgs.addAll(serverJvmArgs.getOrElse([]))
+		return resolvedJvmArgs
+	}
+
+	protected List<String> buildResolvedArgs(File resolvedAssetsZip) {
+		List<String> resolvedArgs = [
+			"--assets=${resolvedAssetsZip.absolutePath}"
+		]
+		resolvedArgs.addAll(serverArgs.getOrElse([]))
+		return resolvedArgs
+	}
+
 	@TaskAction
 	@Override
 	void exec() {
@@ -27,11 +49,8 @@ abstract class RunServerTask extends JavaExec {
 			throw new GradleException("Assets zip not found or empty: ${resolvedAssetsZip}")
 		}
 
-		setArgs([
-			"--assets=${resolvedAssetsZip.absolutePath}",
-			'--allow-op',
-			'--disable-sentry'
-		])
+		jvmArgs(buildResolvedJvmArgs())
+		setArgs(buildResolvedArgs(resolvedAssetsZip))
 
 		super.exec()
 	}

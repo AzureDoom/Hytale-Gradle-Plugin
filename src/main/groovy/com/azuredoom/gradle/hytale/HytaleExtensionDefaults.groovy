@@ -32,5 +32,11 @@ final class HytaleExtensionDefaults {
 				}
 				)
 		ext.bundleAssetEditorRuntime.convention(true)
+		ext.serverArgs.convention([
+			'--allow-op',
+			'--disable-sentry'
+		])
+		ext.serverJvmArgs.convention([])
+		ext.preRunTask.convention('')
 	}
 }

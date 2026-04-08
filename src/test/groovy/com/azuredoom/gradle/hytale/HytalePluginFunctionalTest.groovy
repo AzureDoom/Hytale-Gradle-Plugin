@@ -399,6 +399,264 @@ class HytalePluginFunctionalTest extends Specification {
 		result.output.contains('HAS_IDEA=false')
 	}
 
+	def "runServer uses default server args and empty custom jvm args by default"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
+		rootProject.name = 'runserver-default-args-test'
+	'''
+
+		new File(testProjectDir, 'build.gradle') << '''
+		plugins {
+			id 'java'
+			id 'com.azuredoom.hytale-tools'
+		}
+
+		group = 'com.example'
+		version = '1.0.0'
+
+		hytaleTools {
+			hytaleVersion = '1.0.0'
+		}
+
+		tasks.register('printRunServerConfig') {
+			doLast {
+				def runServer = tasks.named('runServer', com.azuredoom.gradle.hytale.RunServerTask).get()
+
+				println 'SERVER_ARGS=' + runServer.serverArgs.get().join(',')
+				println 'SERVER_JVM_ARGS=' + runServer.serverJvmArgs.get().join(',')
+			}
+		}
+	'''
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printRunServerConfig', '-q', '--stacktrace')
+				.build()
+
+		then:
+		result.output.contains('SERVER_ARGS=--allow-op,--disable-sentry')
+		result.output.contains('SERVER_JVM_ARGS=')
+	}
+
+	def "runServer uses custom server args and custom jvm args from the extension"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
+		rootProject.name = 'runserver-custom-args-test'
+	'''
+
+		new File(testProjectDir, 'build.gradle') << '''
+		plugins {
+			id 'java'
+			id 'com.azuredoom.hytale-tools'
+		}
+
+		group = 'com.example'
+		version = '1.0.0'
+
+		hytaleTools {
+			hytaleVersion = '1.0.0'
+			serverArgs = ['--allow-op', '--disable-sentry', '--disable-file-watcher']
+			serverJvmArgs = ['-Xms1G', '-Xmx2G']
+		}
+
+		tasks.register('printRunServerConfig') {
+			doLast {
+				def runServer = tasks.named('runServer', com.azuredoom.gradle.hytale.RunServerTask).get()
+
+				println 'SERVER_ARGS=' + runServer.serverArgs.get().join(',')
+				println 'SERVER_JVM_ARGS=' + runServer.serverJvmArgs.get().join(',')
+			}
+		}
+	'''
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printRunServerConfig', '-q', '--stacktrace')
+				.build()
+
+		then:
+		result.output.contains('SERVER_ARGS=--allow-op,--disable-sentry,--disable-file-watcher')
+		result.output.contains('SERVER_JVM_ARGS=-Xms1G,-Xmx2G')
+	}
+
+	def "RunServerTask prepends the required assets argument before custom server args at execution time"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
+		rootProject.name = 'runserver-assets-arg-test'
+	'''
+
+		new File(testProjectDir, 'build.gradle') << '''
+		import com.azuredoom.gradle.hytale.RunServerTask
+		import org.gradle.api.tasks.TaskAction
+
+		plugins {
+			id 'java'
+			id 'com.azuredoom.hytale-tools'
+		}
+
+		group = 'com.example'
+		version = '1.0.0'
+
+		hytaleTools {
+			hytaleVersion = '1.0.0'
+			patchline = 'release'
+			serverArgs = ['--allow-op', '--disable-sentry', '--disable-file-watcher']
+			serverJvmArgs = ['-Xms1G', '-Xmx2G']
+		}
+
+		def assetsFile = new File(gradle.gradleUserHomeDir, 'caches/hytale-assets/release-1.0.0-Assets.zip')
+
+		tasks.register('seedAssetsZip') {
+			doLast {
+				assetsFile.parentFile.mkdirs()
+
+				new java.util.zip.ZipOutputStream(new FileOutputStream(assetsFile)).withCloseable { zos ->
+					zos.putNextEntry(new java.util.zip.ZipEntry('placeholder.txt'))
+					zos.write('ok'.bytes)
+					zos.closeEntry()
+				}
+			}
+		}
+
+		abstract class InspectRunServerTask extends RunServerTask {
+			@TaskAction
+			@Override
+			void exec() {
+				def resolvedAssetsZip = assetsZip.get().asFile
+				println 'FINAL_ARGS=' + buildResolvedArgs(resolvedAssetsZip).join(',')
+				println 'FINAL_JVM_ARGS=' + buildResolvedJvmArgs().join(',')
+			}
+		}
+
+		tasks.register('inspectRunServerArgs', InspectRunServerTask) {
+			dependsOn 'seedAssetsZip'
+
+			serverArgs.set(hytaleTools.serverArgs)
+			serverJvmArgs.set(hytaleTools.serverJvmArgs)
+			assetsZip.set(layout.file(provider { assetsFile }))
+
+			mainClass.set('com.example.DoesNotMatter')
+			classpath = files()
+			jvmArgs('--enable-native-access=ALL-UNNAMED')
+		}
+	'''
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withTestKitDir(new File(testProjectDir, '.gradle-test-kit'))
+				.withPluginClasspath()
+				.withArguments('inspectRunServerArgs', '-q', '--stacktrace')
+				.build()
+
+		then:
+		def argsLine = result.output.readLines().find { it.startsWith('FINAL_ARGS=') }
+		assert argsLine != null
+		assert argsLine.contains('--assets=')
+		assert argsLine.contains('release-1.0.0-Assets.zip')
+		assert argsLine.contains('--allow-op,--disable-sentry,--disable-file-watcher')
+
+		def jvmArgsLine = result.output.readLines().find { it.startsWith('FINAL_JVM_ARGS=') }
+		assert jvmArgsLine != null
+		assert jvmArgsLine.contains('-Xms1G')
+		assert jvmArgsLine.contains('-Xmx2G')
+	}
+
+	def "runServer depends on configured preRunTask when set"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
+		rootProject.name = 'runserver-prerun-test'
+	'''
+
+		new File(testProjectDir, 'build.gradle') << '''
+		plugins {
+			id 'java'
+			id 'com.azuredoom.hytale-tools'
+		}
+
+		group = 'com.example'
+		version = '1.0.0'
+
+		tasks.register('generateDevResources') {
+			doLast {
+				println 'generated'
+			}
+		}
+
+		hytaleTools {
+			hytaleVersion = '1.0.0'
+			preRunTask = 'generateDevResources'
+		}
+
+		tasks.register('printRunServerDeps') {
+			doLast {
+				def runServer = tasks.named('runServer').get()
+				def deps = runServer.taskDependencies.getDependencies(runServer)*.name.sort()
+
+				println 'RUN_SERVER_DEPS=' + deps.join(',')
+			}
+		}
+	'''
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printRunServerDeps', '-q', '--stacktrace')
+				.build()
+
+		then:
+		result.output.contains('generateDevResources')
+		result.output.contains('prepareRunServer')
+		result.output.contains('downloadAssetsZip')
+	}
+
+	def "runServer does not add a preRunTask dependency when preRunTask is blank"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
+		rootProject.name = 'runserver-no-prerun-test'
+	'''
+
+		new File(testProjectDir, 'build.gradle') << '''
+		plugins {
+			id 'java'
+			id 'com.azuredoom.hytale-tools'
+		}
+
+		group = 'com.example'
+		version = '1.0.0'
+
+		hytaleTools {
+			hytaleVersion = '1.0.0'
+			preRunTask = ''
+		}
+
+		tasks.register('printRunServerDeps') {
+			doLast {
+				def runServer = tasks.named('runServer').get()
+				def deps = runServer.taskDependencies.getDependencies(runServer)*.name.sort()
+
+				println 'RUN_SERVER_DEPS=' + deps.join(',')
+			}
+		}
+	'''
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments('printRunServerDeps', '-q', '--stacktrace')
+				.build()
+
+		then:
+		result.output.contains('prepareRunServer')
+		result.output.contains('downloadAssetsZip')
+	}
+
 	def "vineImplementation without version fails decompile target validation"() {
 		given:
 		new File(testProjectDir, 'settings.gradle') << "rootProject.name = 'functional-test'\n"
