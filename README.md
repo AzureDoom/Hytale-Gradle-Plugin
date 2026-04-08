@@ -211,6 +211,18 @@ At a high level:
 - `vineServerJar` provides the Hytale server API
 - `vineCompileOnly` and `vineImplementation` define your dependencies
 - `vineDecompileTargets` controls which dependencies get source attachment
+- Hytale `Assets.zip` (for IDE asset browsing)
+
+### Assets.zip in IDEs
+
+The plugin automatically adds the resolved Hytale `Assets.zip` to the `compileOnly` classpath.
+
+This means:
+- it appears under **External Libraries** in IntelliJ
+- you can browse game assets directly in your IDE
+- it is **not included in your final jar**
+
+This is provided via an internal `hytaleAssets` configuration, which is added to `compileOnly`.
 
 ## Version Compatibility
 
@@ -471,6 +483,7 @@ The plugin automatically creates:
 `compileOnly` automatically includes:
 - `vineCompileOnly`
 - `vineServerJar`
+- `hytaleAssets` (Assets.zip for IDE browsing)
 
 This lets you write mods against the Hytale server API without manually declaring the server dependency.
 
