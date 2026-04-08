@@ -60,6 +60,80 @@ class HytalePluginFunctionalTest extends Specification {
 		result.output.contains('COMPILE_CLASSPATH_FILES=Server-1.0.0.jar')
 	}
 
+	def "adds Assets.zip file dependency to hytaleAssets and exposes it through compileOnly only when present"() {
+		given:
+		new File(testProjectDir, 'settings.gradle') << '''
+	rootProject.name = 'assets-zip-classpath-test'
+'''
+		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
+
+		new File(testProjectDir, 'build.gradle') << """
+	plugins {
+		id 'java'
+		id 'com.azuredoom.hytale-tools'
+	}
+
+	group = 'com.example'
+	version = '1.0.0'
+
+	repositories {
+		maven { url = uri('${localRepo.toURI()}') }
+	}
+
+	hytaleTools {
+		hytaleVersion = '1.0.0'
+		patchline = 'release'
+	}
+
+	tasks.register('seedAssetsZip') {
+		doLast {
+			def assetsFile = new File(gradle.gradleUserHomeDir, 'caches/hytale-assets/release-1.0.0-Assets.zip')
+			assetsFile.parentFile.mkdirs()
+
+			new java.util.zip.ZipOutputStream(new FileOutputStream(assetsFile)).withCloseable { zos ->
+				zos.putNextEntry(new java.util.zip.ZipEntry('placeholder.txt'))
+				zos.write('ok'.bytes)
+				zos.closeEntry()
+			}
+		}
+	}
+
+	tasks.register('printAssetsClasspathInfo') {
+		dependsOn 'seedAssetsZip'
+
+		doLast {
+			def hytaleAssets = configurations.hytaleAssets
+			def compileOnly = configurations.compileOnly
+
+			println "COMPILE_ONLY_EXTENDS_HYTALE_ASSETS=" + compileOnly.extendsFrom.contains(hytaleAssets)
+
+			def fileDeps = hytaleAssets.dependencies.findAll {
+				it instanceof org.gradle.api.artifacts.FileCollectionDependency
+			}
+
+			println "HYTALE_ASSETS_DEP_COUNT=" + fileDeps.size()
+			println "COMPILE_CLASSPATH_FILES=" + configurations.compileClasspath.files*.name.sort().join(',')
+		}
+	}
+	"""
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withTestKitDir(new File(testProjectDir, '.gradle-test-kit'))
+				.withPluginClasspath()
+				.withArguments('printAssetsClasspathInfo', '-q', '--stacktrace')
+				.build()
+
+		then:
+		result.output.contains('COMPILE_ONLY_EXTENDS_HYTALE_ASSETS=true')
+		result.output.contains('HYTALE_ASSETS_DEP_COUNT=1')
+
+		def classpathLine = result.output.readLines().find { it.startsWith('COMPILE_CLASSPATH_FILES=') }
+		assert classpathLine != null
+		assert classpathLine.contains('release-1.0.0-Assets.zip')
+	}
+
 	def "does not auto inject when user explicitly declares vineServerJar"() {
 		given:
 		new File(testProjectDir, 'settings.gradle') << '''
@@ -251,6 +325,7 @@ class HytalePluginFunctionalTest extends Specification {
 		when:
 		def result = GradleRunner.create()
 				.withProjectDir(testProjectDir)
+				.withTestKitDir(new File(testProjectDir, '.gradle-test-kit'))
 				.withPluginClasspath()
 				.withArguments('javadocJar', '--stacktrace')
 				.build()
