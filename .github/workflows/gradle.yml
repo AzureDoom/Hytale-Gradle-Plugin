@@ -35,18 +35,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            gradle: "8.10.2"
-            java: "23"
-          - os: windows-latest
-            gradle: "8.10.2"
-            java: "23"
-          - os: ubuntu-latest
-            gradle: "9.0.0"
-            java: "24"
-          - os: windows-latest
-            gradle: "9.0.0"
-            java: "24"
-          - os: ubuntu-latest
             gradle: "9.4.0"
             java: "25"
           - os: windows-latest
