@@ -51,7 +51,7 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
 	transient Closure<Map> startDeviceFlowOverride
 
 	@Internal
-	transient Closure<HttpResponse<InputStream>> getJsonOverride
+	transient Closure<HttpResponse<String>> getJsonOverride
 
 	@Internal
 	transient Closure<Void> atomicCopyOverride
@@ -98,7 +98,7 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
 		if (response.statusCode() < 200 || response.statusCode() >= 300) {
 			throw new GradleException("Refresh token failed with HTTP ${response.statusCode()}")
 		}
-		def parsed = json.parse(response.body())
+		def parsed = json.parseText(response.body())
 		[
 			access_token : parsed.access_token,
 			refresh_token: parsed.refresh_token ?: tokens.refresh_token
@@ -118,7 +118,7 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
 			throw new GradleException("Device auth start failed with HTTP ${deviceResp.statusCode()}")
 		}
 
-		def codeResponse = json.parse(deviceResp.body())
+		def codeResponse = json.parseText(deviceResp.body())
 		def verificationUri = codeResponse.verification_uri?.toString()
 		def userCode = codeResponse.user_code?.toString()
 		def deviceCode = codeResponse.device_code?.toString()
@@ -153,7 +153,7 @@ Code: ${userCode}
 					grant_type : 'urn:ietf:params:oauth:grant-type:device_code'
 				])
 				if (tokenResp.statusCode() >= 200 && tokenResp.statusCode() < 300) {
-					def parsed = json.parse(tokenResp.body())
+					def parsed = json.parseText(tokenResp.body())
 					return [
 						access_token : parsed.access_token,
 						refresh_token: parsed.refresh_token
@@ -168,7 +168,7 @@ Code: ${userCode}
 		throw new GradleException('Timed out waiting for device auth to complete', lastError)
 	}
 
-	protected static HttpResponse<InputStream> postForm(HttpClient client, String url, Map form) {
+	protected static HttpResponse<String> postForm(HttpClient client, String url, Map form) {
 		def encoded = form.collect { k, v ->
 			"${URLEncoder.encode(k as String, 'UTF-8')}=${URLEncoder.encode(v as String, 'UTF-8')}"
 		}.join('&')
@@ -180,12 +180,12 @@ Code: ${userCode}
 				.POST(HttpRequest.BodyPublishers.ofString(encoded))
 				.build()
 
-		client.send(request, HttpResponse.BodyHandlers.ofInputStream())
+		client.send(request, HttpResponse.BodyHandlers.ofString())
 	}
 
-	protected HttpResponse<InputStream> getJson(HttpClient client, String url, String bearerToken) {
+	protected HttpResponse<String> getJson(HttpClient client, String url, String bearerToken) {
 		if (getJsonOverride != null) {
-			return (HttpResponse<InputStream>) getJsonOverride.call(client, url, bearerToken)
+			return (HttpResponse<String>) getJsonOverride.call(client, url, bearerToken)
 		}
 
 		def request = HttpRequest.newBuilder()
@@ -195,7 +195,7 @@ Code: ${userCode}
 				.header('Authorization', "Bearer ${bearerToken}")
 				.build()
 
-		client.send(request, HttpResponse.BodyHandlers.ofInputStream())
+		client.send(request, HttpResponse.BodyHandlers.ofString())
 	}
 
 	protected static void validateZipFile(File zipPath, String description) {
@@ -273,98 +273,102 @@ Code: ${userCode}
 		}
 
 		def json = new JsonSlurper()
+
 		def client = createHttpClient()
-
-		Map tokens = loadTokens(tokenFile, json)
-		Map activeTokens = null
-
-		if (tokens?.refresh_token) {
-			try {
-				activeTokens = refreshToken(client, json, oauth, tokens)
-				logger.lifecycle('Refreshed cached Hytale OAuth tokens')
-			} catch (Exception e) {
-				logger.lifecycle("Cached token refresh failed, starting device auth: ${e.message}")
-			}
-		}
-
-		if (activeTokens == null) {
-			activeTokens = startDeviceFlow(client, json, oauth)
-		}
-
-		if (!activeTokens?.access_token) {
-			throw new GradleException('Did not obtain a valid Hytale access token')
-		}
-
-		if (activeTokens.refresh_token) {
-			saveTokens(tokenFile, activeTokens)
-		}
-
-		Exception remoteFailure = null
 		try {
-			def assetLookupUrl = "${account}/game-assets/builds/${patch}/${version}.zip"
-			def assetLookupResp = getJson(client, assetLookupUrl, activeTokens.access_token as String)
-			if (assetLookupResp.statusCode() < 200 || assetLookupResp.statusCode() >= 300) {
-				throw new GradleException("Asset bundle lookup failed with HTTP ${assetLookupResp.statusCode()} from ${assetLookupUrl}")
+			Map tokens = loadTokens(tokenFile, json)
+			Map activeTokens = null
+
+			if (tokens?.refresh_token) {
+				try {
+					activeTokens = refreshToken(client, json, oauth, tokens)
+					logger.lifecycle('Refreshed cached Hytale OAuth tokens')
+				} catch (Exception e) {
+					logger.lifecycle("Cached token refresh failed, starting device auth: ${e.message}")
+				}
 			}
 
-			def assetLookup = json.parse(assetLookupResp.body())
-			def bundleUrl = assetLookup.url?.toString()
-			if (!bundleUrl) {
-				throw new GradleException('Asset bundle lookup did not return a download url')
+			if (activeTokens == null) {
+				activeTokens = startDeviceFlow(client, json, oauth)
 			}
 
-			def tmpWrapper = new File(wrapper.parentFile, wrapper.name + '.part')
-			client.send(
-					HttpRequest.newBuilder()
-					.uri(URI.create(bundleUrl))
-					.timeout(Duration.ofMinutes(30))
-					.GET()
-					.build(),
-					HttpResponse.BodyHandlers.ofFile(tmpWrapper.toPath())
-					)
-
-			if (!tmpWrapper.exists() || tmpWrapper.length() == 0) {
-				throw new GradleException('Downloaded asset wrapper is empty')
+			if (!activeTokens?.access_token) {
+				throw new GradleException('Did not obtain a valid Hytale access token')
 			}
 
-			atomicCopy(tmpWrapper, wrapper)
+			if (activeTokens.refresh_token) {
+				saveTokens(tokenFile, activeTokens)
+			}
 
-			def zipFile = new ZipFile(wrapper)
+			Exception remoteFailure = null
 			try {
-				def innerEntry = zipFile.getEntry('Assets.zip')
-				if (innerEntry == null) {
-					def sample = zipFile.entries().toList().take(20)*.name
-					throw new GradleException("Wrapper did not contain Assets.zip. Found entries: ${sample}")
+				def assetLookupUrl = "${account}/game-assets/builds/${patch}/${version}.zip"
+				def assetLookupResp = getJson(client, assetLookupUrl, activeTokens.access_token as String)
+				if (assetLookupResp.statusCode() < 200 || assetLookupResp.statusCode() >= 300) {
+					throw new GradleException("Asset bundle lookup failed with HTTP ${assetLookupResp.statusCode()} from ${assetLookupUrl}")
 				}
 
-				def tmpAssetsZip = new File(assetsZip.parentFile, assetsZip.name + '.part')
-				tmpAssetsZip.withOutputStream { os ->
-					zipFile.getInputStream(innerEntry).withStream { ins -> os << ins }
+				def assetLookup = json.parseText(assetLookupResp.body())
+				def bundleUrl = assetLookup.url?.toString()
+				if (!bundleUrl) {
+					throw new GradleException('Asset bundle lookup did not return a download url')
 				}
-				validateZipFile(tmpAssetsZip, 'Extracted Assets.zip')
-				atomicCopy(tmpAssetsZip, assetsZip)
-			} finally {
-				zipFile.close()
+
+				def tmpWrapper = new File(wrapper.parentFile, wrapper.name + '.part')
+				client.send(
+						HttpRequest.newBuilder()
+						.uri(URI.create(bundleUrl))
+						.timeout(Duration.ofMinutes(30))
+						.GET()
+						.build(),
+						HttpResponse.BodyHandlers.ofFile(tmpWrapper.toPath())
+						)
+
+				if (!tmpWrapper.exists() || tmpWrapper.length() == 0) {
+					throw new GradleException('Downloaded asset wrapper is empty')
+				}
+
+				atomicCopy(tmpWrapper, wrapper)
+
+				def zipFile = new ZipFile(wrapper)
+				try {
+					def innerEntry = zipFile.getEntry('Assets.zip')
+					if (innerEntry == null) {
+						def sample = zipFile.entries().toList().take(20)*.name
+						throw new GradleException("Wrapper did not contain Assets.zip. Found entries: ${sample}")
+					}
+
+					def tmpAssetsZip = new File(assetsZip.parentFile, assetsZip.name + '.part')
+					tmpAssetsZip.withOutputStream { os ->
+						zipFile.getInputStream(innerEntry).withStream { ins -> os << ins }
+					}
+					validateZipFile(tmpAssetsZip, 'Extracted Assets.zip')
+					atomicCopy(tmpAssetsZip, assetsZip)
+				} finally {
+					zipFile.close()
+				}
+
+				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
+				return
+			} catch (Exception e) {
+				remoteFailure = e
+				logger.warn("Failed to download remote Hytale assets, trying local install fallback: ${e.message}")
 			}
 
-			logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
-			return
-		} catch (Exception e) {
-			remoteFailure = e
-			logger.warn("Failed to download remote Hytale assets, trying local install fallback: ${e.message}")
-		}
+			def localAssetsZip = resolveLocalAssetsZip(patch)
+			if (localAssetsZip != null) {
+				validateZipFile(localAssetsZip, "Copied Assets.zip from ${localAssetsZip}")
+				atomicCopy(localAssetsZip, assetsZip)
+				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
+				return
+			}
 
-		def localAssetsZip = resolveLocalAssetsZip(patch)
-		if (localAssetsZip != null) {
-			validateZipFile(localAssetsZip, "Copied Assets.zip from ${localAssetsZip}")
-			atomicCopy(localAssetsZip, assetsZip)
-			logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
-			return
+			throw new GradleException(
+			"Failed to resolve Hytale assets from remote bundle and could not find a local Assets.zip fallback",
+			remoteFailure
+			)
+		} finally {
+			client.close()
 		}
-
-		throw new GradleException(
-		"Failed to resolve Hytale assets from remote bundle and could not find a local Assets.zip fallback",
-		remoteFailure
-		)
 	}
 }

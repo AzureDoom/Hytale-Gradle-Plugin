@@ -18,7 +18,9 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLParameters
 import java.net.http.HttpResponse
 import java.net.http.HttpClient
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -89,7 +91,7 @@ class DownloadAssetsZipTaskTest extends Specification {
 		}
 		task.atomicCopyOverride = { File from, File to ->
 			to.parentFile.mkdirs()
-			to.bytes = from.bytes
+			Files.copy(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING)
 		} as Closure<Void>
 		task.createHttpClientOverride = {
 			fakeHttpClient { req, handler ->
@@ -98,7 +100,7 @@ class DownloadAssetsZipTaskTest extends Specification {
 						task.resolvedAssetsWrapper.get().asFile.name + '.part'
 						)
 				tmpFile.parentFile.mkdirs()
-				tmpFile.bytes = wrapper.bytes
+				Files.copy(wrapper.toPath(), tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
 				[
 					statusCode: { -> 200 },
 					body      : {
@@ -165,7 +167,7 @@ class DownloadAssetsZipTaskTest extends Specification {
 						task.resolvedAssetsWrapper.get().asFile.name + '.part'
 						)
 				tmpFile.parentFile.mkdirs()
-				tmpFile.bytes = wrapper.bytes
+				Files.copy(wrapper.toPath(), tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
 				[
 					statusCode: { -> 200 },
 					body      : {
@@ -255,12 +257,12 @@ class DownloadAssetsZipTaskTest extends Specification {
 				}
 	}
 
-	private static HttpResponse<InputStream> fakeJsonResponse(String body) {
+	private static HttpResponse<String> fakeJsonResponse(String body) {
 		[
 			statusCode: { -> 200 },
 			body      : {
-				-> new ByteArrayInputStream(body.bytes)
+				-> body
 			}
-		] as HttpResponse<InputStream>
+		] as HttpResponse<String>
 	}
 }
