@@ -2,11 +2,8 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
-import org.gradle.api.tasks.JavaExec
+import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.SourceSetContainer
-
-import java.nio.file.Files
-import java.nio.file.Path
 
 final class HytaleWorkspaceTaskRegistrar {
 	private HytaleWorkspaceTaskRegistrar() {}
@@ -16,171 +13,127 @@ final class HytaleWorkspaceTaskRegistrar {
 			return
 		}
 
-		def hytaleProjectsProvider = project.providers.provider {
-			def workspaceExt = project.extensions.findByType(HytaleWorkspaceExtension)
+		project.gradle.projectsEvaluated {
+			List<String> projectPaths = resolveWorkspaceProjectPaths(project)
+			WorkspaceMetadata metadata = collectWorkspaceMetadata(project, projectPaths)
+			String hostPath = resolveHostProjectPath(project, projectPaths)
 
-			if (workspaceExt != null &&
-					workspaceExt.modProjects.present &&
-					!workspaceExt.modProjects.get().isEmpty()) {
-				return workspaceExt.modProjects.get().collect { path ->
-					project.project(path)
-				}
+			def hostProject = project.project(hostPath)
+			def hostExt = hostProject.extensions.getByType(HytaleExtension)
+
+			File assetsZipFile = new File(
+					project.gradle.gradleUserHomeDir,
+					"caches/hytale-assets/${hostExt.patchline.get()}-${hostExt.hytaleVersion.get()}-Assets.zip"
+					)
+
+			project.tasks.register('updateAllPluginManifests') { t ->
+				t.group = 'hytale'
+				t.description = 'Updates manifests for all Hytale subprojects.'
+				t.dependsOn(projectPaths.collect { path ->
+					project.project(path).tasks.named('updatePluginManifest')
+				})
 			}
 
-			return project.subprojects.findAll {
-				it.plugins.hasPlugin('com.azuredoom.hytale-tools')
-			}
-		}
-
-		def validatedHytaleProjectsProvider = project.providers.provider {
-			def projects = hytaleProjectsProvider.get()
-			if (projects.isEmpty()) {
-				throw new GradleException(
-				"No Hytale workspace mod projects were found. " +
-				"Set hytaleWorkspace.modProjects or apply 'com.azuredoom.hytale-tools' to subprojects you want included."
-				)
-			}
-			projects
-		}
-
-		def hostProjectProvider = project.providers.provider {
-			resolveHostProject(project, validatedHytaleProjectsProvider.get())
-		}
-
-		project.tasks.register('updateAllPluginManifests') {
-			group = 'hytale'
-			description = 'Updates manifests for all Hytale subprojects.'
-
-			dependsOn(validatedHytaleProjectsProvider.map { projects ->
-				projects.collect { it.tasks.named('updatePluginManifest') }
-			})
-		}
-
-		project.tasks.register('validateAllManifests') {
-			group = 'hytale'
-			description = 'Validates manifests for all Hytale subprojects.'
-
-			dependsOn(validatedHytaleProjectsProvider.map { projects ->
-				projects.collect { it.tasks.named('validateManifest') }
-			})
-		}
-
-		def stageAllModAssets = project.tasks.register('stageAllModAssets') {
-			group = 'hytale'
-			description = 'Stages all Hytale mod asset packs into the root run directory.'
-
-			doFirst {
-				validateWorkspaceCompatibility(validatedHytaleProjectsProvider.get())
+			project.tasks.register('validateAllManifests') { t ->
+				t.group = 'hytale'
+				t.description = 'Validates manifests for all Hytale subprojects.'
+				t.dependsOn(projectPaths.collect { path ->
+					project.project(path).tasks.named('validateManifest')
+				})
 			}
 
-			doLast {
-				def runDir = new File(project.rootDir, 'run')
-				def modsDir = new File(runDir, 'mods')
+			def stageAllModAssets = project.tasks.register('stageAllModAssets', StageAllModAssetsTask) { t ->
+				t.group = 'hytale'
+				t.description = 'Stages all Hytale mod asset packs into the root run directory.'
 
-				runDir.mkdirs()
-				modsDir.mkdirs()
-
-				validatedHytaleProjectsProvider.get().each { modProject ->
-					def ext = modProject.extensions.getByType(HytaleExtension)
-
-					File sourceDirFile = ext.assetPackSourceDirectory.get().asFile
-					if (!sourceDirFile.exists()) {
-						sourceDirFile = new File(modProject.projectDir, 'src/main/resources')
-					}
-
-					if (!sourceDirFile.exists()) {
-						throw new GradleException(
-						"Asset pack source directory does not exist: ${sourceDirFile}"
-						)
-					}
-
-					Path sourceDir = sourceDirFile.toPath().toAbsolutePath().normalize()
-					Path targetDir = new File(
-							modsDir,
-							"${ext.manifestGroup.get().replace('.', '_')}_${ext.modId.get()}"
-							).toPath().toAbsolutePath().normalize()
-
-					if (Files.exists(targetDir)) {
-						project.delete(targetDir.toFile())
-					}
-
-					targetDir.parent.toFile().mkdirs()
-					createLinkJunctionOrCopy(project, sourceDir, targetDir)
-				}
+				t.projectPaths.set(metadata.projectPaths)
+				t.manifestGroups.set(metadata.manifestGroups)
+				t.modIds.set(metadata.modIds)
+				t.assetSourceDirectoryPaths.set(metadata.assetSourceDirectoryPaths)
+				t.expectedHytaleVersion.set(metadata.expectedHytaleVersion)
+				t.expectedPatchline.set(metadata.expectedPatchline)
+				t.runDirectory.set(project.layout.projectDirectory.dir('run'))
+				t.modsDirectory.set(project.layout.projectDirectory.dir('run/mods'))
 			}
-		}
 
-		project.tasks.register('runAllMods', JavaExec) { task ->
-			group = 'hytale'
-			description = 'Runs one Hytale server with all Hytale mod subprojects on the classpath.'
+			project.tasks.register('runAllMods', RunAllModsTask) { t ->
+				t.group = 'hytale'
+				t.description = 'Runs one Hytale server with all Hytale mod subprojects on the classpath.'
 
-			dependsOn(stageAllModAssets)
-			dependsOn(validatedHytaleProjectsProvider.map { projects ->
-				projects.collect { it.tasks.named('classes') }
-			})
-			dependsOn(hostProjectProvider.map { host ->
-				def downloadTask = host.tasks.named('downloadAssetsZip')
-				downloadTask.configure {
-					mustRunAfter(stageAllModAssets)
-				}
-				downloadTask
-			})
+				t.dependsOn(stageAllModAssets)
+				t.dependsOn(projectPaths.collect { path ->
+					project.project(path).tasks.named(JavaPlugin.CLASSES_TASK_NAME)
+				})
+				t.dependsOn(hostProject.tasks.named('downloadAssetsZip'))
 
-			mainClass.set('com.hypixel.hytale.Main')
-			workingDir = new File(project.rootDir, 'run')
-			standardInput = System.in
-			jvmArgs('--enable-native-access=ALL-UNNAMED')
-			modularity.inferModulePath.set(true)
+				t.projectPaths.set(metadata.projectPaths)
+				t.expectedHytaleVersion.set(metadata.expectedHytaleVersion)
+				t.expectedPatchline.set(metadata.expectedPatchline)
+				t.hostProjectPath.set(hostPath)
+				t.runDirectory.set(project.layout.projectDirectory.dir('run'))
+				t.assetsZip.set(assetsZipFile)
 
-			doFirst {
-				def projects = validatedHytaleProjectsProvider.get()
-				validateWorkspaceCompatibility(projects)
+				t.mainClass.set('com.hypixel.hytale.Main')
+				t.jvmArgs('--enable-native-access=ALL-UNNAMED')
+				t.modularity.inferModulePath.set(true)
 
-				def host = hostProjectProvider.get()
-				def hostExt = host.extensions.getByType(HytaleExtension)
-
-				def assetsZip = new File(
-						project.gradle.gradleUserHomeDir,
-						"caches/hytale-assets/${hostExt.patchline.get()}-${hostExt.hytaleVersion.get()}-Assets.zip"
-						)
-
-				if (!assetsZip.exists() || assetsZip.length() == 0) {
-					throw new GradleException("Assets zip not found or empty: ${assetsZip}")
+				projectPaths.each { path ->
+					def subproject = project.project(path)
+					def sourceSets = subproject.extensions.getByType(SourceSetContainer)
+					t.classpath(sourceSets.named('main').get().runtimeClasspath)
 				}
 
-				def combinedRuntime = project.files(
-						projects.collect { modProject ->
-							def sourceSets = modProject.extensions.getByType(SourceSetContainer)
-							sourceSets.named('main').get().runtimeClasspath
-						}
-						)
+				t.classpath(hostProject.configurations.named('vineServerJar').get())
 
-				task.classpath = project.files(
-						combinedRuntime,
-						host.configurations.named('vineServerJar').get()
+				t.args(
+						"--assets=${assetsZipFile.absolutePath}",
+						'--allow-op',
+						'--disable-sentry'
 						)
-
-				task.setArgs([
-					"--assets=${assetsZip.absolutePath}",
-					'--allow-op',
-					'--disable-sentry'
-				])
 			}
 		}
 	}
 
-	private static void validateWorkspaceCompatibility(Iterable<Project> projects) {
-		def projectList = projects.toList()
-		def firstExt = projectList.first().extensions.getByType(HytaleExtension)
+	private static List<String> resolveWorkspaceProjectPaths(Project root) {
+		def workspaceExt = root.extensions.findByType(HytaleWorkspaceExtension)
 
+		List<String> paths
+		if (workspaceExt != null &&
+				workspaceExt.modProjects.present &&
+				!workspaceExt.modProjects.get().isEmpty()) {
+			paths = workspaceExt.modProjects.get()
+		} else {
+			paths = root.subprojects
+					.findAll { it.plugins.hasPlugin('com.azuredoom.hytale-tools') }
+					.collect { it.path }
+		}
+
+		if (paths == null || paths.isEmpty()) {
+			throw new GradleException(
+			"No Hytale workspace mod projects were found. " +
+			"Set hytaleWorkspace.modProjects or apply 'com.azuredoom.hytale-tools' to subprojects you want included."
+			)
+		}
+
+		return paths
+	}
+
+	private static WorkspaceMetadata collectWorkspaceMetadata(Project root, List<String> projectPaths) {
+		def projects = projectPaths.collect { root.project(it) }
+
+		def firstExt = projects.first().extensions.getByType(HytaleExtension)
 		if (!firstExt.hytaleVersion.isPresent()) {
 			throw new GradleException("runAllMods requires hytaleVersion to be set on all Hytale subprojects.")
 		}
 
-		def expectedVersion = firstExt.hytaleVersion.orNull
-		def expectedPatchline = firstExt.patchline.orNull
+		String expectedVersion = firstExt.hytaleVersion.get()
+		String expectedPatchline = firstExt.patchline.orNull
 
-		projectList.each { modProject ->
+		List<String> manifestGroups = []
+		List<String> modIds = []
+		List<String> assetSourceDirectoryPaths = []
+
+		projects.each { modProject ->
 			def ext = modProject.extensions.getByType(HytaleExtension)
 
 			if (ext.hytaleVersion.orNull != expectedVersion) {
@@ -196,68 +149,54 @@ final class HytaleWorkspaceTaskRegistrar {
 				"Expected '${expectedPatchline}' but '${modProject.path}' uses '${ext.patchline.orNull}'."
 				)
 			}
-		}
-	}
 
-	private static void createLinkJunctionOrCopy(Project project, Path sourceDir, Path targetDir) {
-		try {
-			def relativeSource = targetDir.parent.relativize(sourceDir)
-			Files.createSymbolicLink(targetDir, relativeSource)
-			project.logger.lifecycle("Created symlink ${targetDir} -> ${relativeSource}")
-			return
-		} catch (Exception ex) {
-			project.logger.warn("Symlink creation failed, attempting fallback: ${ex.message}")
-		}
-
-		if (System.getProperty('os.name').toLowerCase().contains('win')) {
-			def process = new ProcessBuilder(
-					'cmd', '/c', 'mklink', '/J',
-					targetDir.toString(),
-					sourceDir.toString()
-					).redirectErrorStream(true).start()
-
-			def output = process.inputStream.text
-			def code = process.waitFor()
-
-			if (code == 0 && Files.exists(targetDir)) {
-				project.logger.lifecycle("Created junction ${targetDir} -> ${sourceDir}")
-				return
+			File sourceDirFile = ext.assetPackSourceDirectory.get().asFile
+			if (!sourceDirFile.exists()) {
+				sourceDirFile = new File(modProject.projectDir, 'src/main/resources')
 			}
 
-			project.logger.warn(
-					"Junction creation failed, falling back to copy.\n" +
-					"Target: ${targetDir}\n" +
-					"Source: ${sourceDir}\n" +
-					"Output:\n${output}"
-					)
+			manifestGroups.add(ext.manifestGroup.get())
+			modIds.add(ext.modId.get())
+			assetSourceDirectoryPaths.add(sourceDirFile.absolutePath)
 		}
 
-		project.copy {
-			from sourceDir.toFile()
-			into targetDir.toFile()
-		}
-		project.logger.lifecycle("Copied asset pack ${sourceDir} -> ${targetDir}")
+		return new WorkspaceMetadata(
+				projectPaths: projectPaths,
+				expectedHytaleVersion: expectedVersion,
+				expectedPatchline: expectedPatchline,
+				manifestGroups: manifestGroups,
+				modIds: modIds,
+				assetSourceDirectoryPaths: assetSourceDirectoryPaths
+				)
 	}
 
-	private static Project resolveHostProject(Project root, Collection<Project> projects) {
+	private static String resolveHostProjectPath(Project root, List<String> projectPaths) {
 		def workspaceExt = root.extensions.findByType(HytaleWorkspaceExtension)
 
 		if (workspaceExt != null &&
 				workspaceExt.hostProject.present &&
 				workspaceExt.hostProject.get()?.trim()) {
-			def hostPath = workspaceExt.hostProject.get().trim()
-			def hostProject = root.project(hostPath)
+			String hostPath = workspaceExt.hostProject.get().trim()
 
-			if (!projects.contains(hostProject)) {
+			if (!projectPaths.contains(hostPath)) {
 				throw new GradleException(
 				"The configured hytaleWorkspace.hostProject '${hostPath}' " +
-				"is not included in the workspace mod projects: ${projects*.path}"
+				"is not included in the workspace mod projects: ${projectPaths}"
 				)
 			}
 
-			return hostProject
+			return hostPath
 		}
 
-		return projects.toList().sort { it.path }.first()
+		return projectPaths.min()
+	}
+
+	private static final class WorkspaceMetadata implements Serializable {
+		List<String> projectPaths
+		String expectedHytaleVersion
+		String expectedPatchline
+		List<String> manifestGroups
+		List<String> modIds
+		List<String> assetSourceDirectoryPaths
 	}
 }
