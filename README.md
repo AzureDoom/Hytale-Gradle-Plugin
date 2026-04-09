@@ -112,7 +112,8 @@ hytaleWorkspace {
     // Optional (recommended)
     hostProject = ':modA'
 
-    // Optional shared defaults
+    // Optional shared defaults propagated to child `hytaleTools` projects
+    // when those projects apply the plugin, unless overridden locally
     manifestGroup = 'com.example.mods'
     hytaleVersion = '1.0.0'
     patchline = 'release'
@@ -145,8 +146,10 @@ dependencies {
 }
 
 hytaleTools {
-    hytaleVersion = '1.0.0'
-    manifestGroup = 'com.example.mods'
+    // hytaleVersion, patchline, and manifestGroup are inherited from the workspace
+    // Override workspace default
+    manifestGroup = 'com.example.custom'
+    
     modId = 'moda'
     mainClass = 'com.example.mods.moda.ModA'
 }
@@ -222,7 +225,8 @@ If not set, the first project (by path) is used.
 
 ## Notes
 
-- All mod projects must use the same `hytaleVersion` and `patchline`
+- All mod projects must resolve to the same `hytaleVersion` and `patchline`
+  (after applying workspace defaults and/or local overrides)
 - `runAllMods` fails early if versions mismatch
 - Asset packs are staged into `run/mods/`
 - Symlinks are used when possible, with copy fallback

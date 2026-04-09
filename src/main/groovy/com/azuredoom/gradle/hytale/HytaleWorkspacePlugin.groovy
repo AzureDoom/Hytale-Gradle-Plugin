@@ -13,14 +13,24 @@ class HytaleWorkspacePlugin implements Plugin<Project> {
 			)
 		}
 
-		def ext = project.extensions.create(
+		def workspaceExt = project.extensions.create(
 				'hytaleWorkspace',
 				HytaleWorkspaceExtension
 				)
 
-		ext.patchline.convention('release')
-		ext.modProjects.convention([])
-		ext.hostProject.convention('')
+		workspaceExt.patchline.convention('release')
+		workspaceExt.modProjects.convention([])
+		workspaceExt.hostProject.convention('')
+
+		project.subprojects { subproject ->
+			subproject.plugins.withId('com.azuredoom.hytale-tools') {
+				def childExt = subproject.extensions.getByType(HytaleExtension)
+
+				childExt.manifestGroup.convention(workspaceExt.manifestGroup)
+				childExt.hytaleVersion.convention(workspaceExt.hytaleVersion)
+				childExt.patchline.convention(workspaceExt.patchline)
+			}
+		}
 
 		HytaleWorkspaceTaskRegistrar.register(project)
 	}

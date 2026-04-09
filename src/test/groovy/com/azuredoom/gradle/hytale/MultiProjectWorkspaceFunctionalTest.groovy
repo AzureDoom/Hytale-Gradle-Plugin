@@ -185,4 +185,101 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 		stagedFile.exists()
 		stagedFile.text == "hello"
 	}
+
+	def "workspace defaults propagate to child hytaleTools extension"() {
+		given:
+		writeFile("settings.gradle", """
+        rootProject.name = 'workspace-test'
+        include 'modA'
+    """)
+
+		writeFile("build.gradle", """
+        plugins {
+            id 'com.azuredoom.hytale-workspace'
+        }
+
+        hytaleWorkspace {
+            modProjects = [':modA']
+            hytaleVersion = '1.0.0'
+            patchline = 'release'
+            manifestGroup = 'com.example.mods'
+        }
+    """)
+
+		writeFile("modA/build.gradle", """
+        plugins {
+            id 'com.azuredoom.hytale-tools'
+        }
+
+        hytaleTools {
+            modId = 'moda'
+            mainClass = 'com.example.mods.moda.ModA'
+        }
+    """)
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments(":modA:updatePluginManifest", "--stacktrace")
+				.build()
+
+		then:
+		result.output.contains("BUILD SUCCESSFUL")
+		def manifest = new File(testProjectDir, "modA/src/main/resources/manifest.json")
+		manifest.exists()
+		manifest.text.contains('"Group": "com.example.mods"')
+		manifest.text.contains('"ServerVersion": "1.0.0"')
+		manifest.text.contains('"Main": "com.example.mods.moda.ModA"')
+	}
+
+	def "child hytaleTools values override workspace defaults"() {
+		given:
+		writeFile("settings.gradle", """
+        rootProject.name = 'workspace-test'
+        include 'modA'
+    """)
+
+		writeFile("build.gradle", """
+        plugins {
+            id 'com.azuredoom.hytale-workspace'
+        }
+
+        hytaleWorkspace {
+            modProjects = [':modA']
+            hytaleVersion = '1.0.0'
+            patchline = 'release'
+            manifestGroup = 'com.example.root'
+        }
+    """)
+
+		writeFile("modA/build.gradle", """
+        plugins {
+            id 'com.azuredoom.hytale-tools'
+        }
+
+        hytaleTools {
+            manifestGroup = 'com.example.child'
+            modId = 'moda'
+            mainClass = 'com.example.mods.moda.ModA'
+            hytaleVersion = '1.0.0'
+            patchline = 'release'
+        }
+    """)
+
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(testProjectDir)
+				.withPluginClasspath()
+				.withArguments(":modA:updatePluginManifest", "--stacktrace")
+				.build()
+
+		then:
+		result.output.contains("BUILD SUCCESSFUL")
+		def manifest = new File(testProjectDir, "modA/src/main/resources/manifest.json")
+		manifest.exists()
+		manifest.text.contains('"Group": "com.example.child"')
+		!manifest.text.contains('"Group": "com.example.root"')
+		manifest.text.contains('"ServerVersion": "1.0.0"')
+	}
 }
