@@ -189,14 +189,13 @@ final class JvmDevRuntimeSupport {
 		cmd.addAll(args)
 
 		Process process = new ProcessBuilder(cmd)
-				.redirectErrorStream(false)
+				.redirectErrorStream(true)
 				.start()
 
-		String stdout = process.inputStream.getText('UTF-8')
-		String stderr = process.errorStream.getText('UTF-8')
+		String combined = process.inputStream.getText('UTF-8')
 		int exit = process.waitFor()
 
-		new ProbeResult(exitCode: exit, stdout: stdout, stderr: stderr)
+		new ProbeResult(exitCode: exit, stdout: combined, stderr: '')
 	}
 
 	static class JavaResolution {
