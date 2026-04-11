@@ -1,5 +1,8 @@
 package com.azuredoom.gradle.hytale
 
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.api.Project
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration
@@ -14,6 +17,8 @@ final class HytaleRunTaskRegistrar {
 			def assetsZipFileProvider,
 			NamedDomainObjectProvider<Configuration> vineServerJar
 	) {
+		def javaToolchains = project.extensions.getByType(JavaToolchainService)
+
 		project.pluginManager.withPlugin('java') {
 			project.tasks.named('processResources').configure {
 				dependsOn('validateManifest')
@@ -45,13 +50,15 @@ final class HytaleRunTaskRegistrar {
 
 				def sourceSets = project.extensions.getByType(SourceSetContainer)
 
-				mainClassName.set('com.hypixel.hytale.Main')
-				runtimeClasspath.from(project.files(
+				mainClass.set('com.hypixel.hytale.Main')
+				classpath.from(project.files(
 						sourceSets.named('main').get().output,
 						sourceSets.named('main').get().runtimeClasspath,
 						vineServerJar
 						))
-				workingDirectory.set(ext.runDirectory.map { it.asFile })
+				doFirst {
+					workingDir = ext.runDirectory.get().asFile
+				}
 
 				serverArgs.set(ext.serverArgs)
 				serverJvmArgs.set(ext.serverJvmArgs)
@@ -64,6 +71,10 @@ final class HytaleRunTaskRegistrar {
 				requireDcevm.set(ext.requireDcevm)
 				useHotswapAgent.set(ext.useHotswapAgent)
 				jbrHome.set(ext.jbrHome)
+
+				javaLauncher.convention(javaToolchains.launcherFor {
+					languageVersion = JavaLanguageVersion.of(ext.javaVersion.get())
+				})
 			}
 
 			project.tasks.register('hytaleJvmDoctor', HytaleJvmDoctorTask) {

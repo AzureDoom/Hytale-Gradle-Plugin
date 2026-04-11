@@ -59,6 +59,15 @@ class HytalePluginTest extends Specification {
 		project.repositories.find { it.name == 'Hytale Modding Maven' } != null
 	}
 
+	def "runServer wires classpath"() {
+		when:
+		project.pluginManager.apply(HytalePlugin)
+
+		then:
+		def task = project.tasks.named('runServer').get() as RunServerTask
+		!task.classpath.files.isEmpty()
+	}
+
 	def "java plugin adds runServer and wires task dependencies"() {
 		when:
 		project.pluginManager.apply(HytalePlugin)

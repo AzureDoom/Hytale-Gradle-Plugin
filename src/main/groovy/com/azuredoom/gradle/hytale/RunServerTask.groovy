@@ -1,42 +1,22 @@
 package com.azuredoom.gradle.hytale
 
-import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
+import org.gradle.api.tasks.JavaExec
 import org.gradle.work.DisableCachingByDefault
 
-import javax.inject.Inject
-
 @DisableCachingByDefault(because = "Launches a long-running external server process")
-abstract class RunServerTask extends DefaultTask {
-
-	@Inject
-	protected abstract ExecOperations getExecOperations()
-
-	@Inject
-	protected abstract ObjectFactory getObjectFactory()
+abstract class RunServerTask extends JavaExec {
 
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
 	abstract RegularFileProperty getAssetsZip()
-
-	@Classpath
-	abstract ConfigurableFileCollection getRuntimeClasspath()
-
-	@Input
-	abstract Property<String> getMainClassName()
 
 	@Input
 	abstract ListProperty<String> getServerArgs()
@@ -65,18 +45,13 @@ abstract class RunServerTask extends DefaultTask {
 	@Input
 	abstract Property<String> getJbrHome()
 
-	@Internal
-	final Property<File> workingDirectory = getObjectFactory().property(File)
+	RunServerTask() {
+		standardInput = System.in
+	}
 
 	protected List<String> buildResolvedJvmArgs(File javaExe) {
 		List<String> resolved = []
 		resolved.addAll(serverJvmArgs.getOrElse([]))
-
-		if (debugEnabled.getOrElse(false)) {
-			resolved.add(
-					"-agentlib:jdwp=transport=dt_socket,server=y,suspend=${debugSuspend.getOrElse(false) ? 'y' : 'n'},address=*:${debugPort.getOrElse(5005)}"
-					)
-		}
 
 		if (hotSwapEnabled.getOrElse(false)) {
 			boolean isJbr = JvmDevRuntimeSupport.isJetBrainsRuntime(javaExe)
@@ -122,8 +97,8 @@ abstract class RunServerTask extends DefaultTask {
 		return resolvedArgs
 	}
 
-	@TaskAction
-	void runServer() {
+	@Override
+	void exec() {
 		File resolvedAssetsZip = assetsZip.get().asFile
 
 		logger.lifecycle("Using extracted assets zip: ${resolvedAssetsZip.absolutePath}")
@@ -133,22 +108,26 @@ abstract class RunServerTask extends DefaultTask {
 			throw new GradleException("Assets zip not found or empty: ${resolvedAssetsZip}")
 		}
 
-		def resolution = JvmDevRuntimeSupport.resolveJava(jbrHome.getOrElse(''))
-		File javaExe = resolution.javaExecutable
+		File javaExe = javaLauncher.get().executablePath.asFile
+		def metadata = javaLauncher.get().metadata
 
 		logger.lifecycle("Dev JVM: ${javaExe}")
-		logger.lifecycle("Dev JVM source: ${resolution.source}")
-		logger.lifecycle("Dev JVM home: ${resolution.javaHome}")
+		logger.lifecycle("Dev JVM home: ${metadata.installationPath.asFile}")
+		logger.lifecycle("Dev JVM version: ${metadata.languageVersion}")
 
-		execOperations.javaexec { spec ->
-			spec.executable = javaExe.absolutePath
-			spec.classpath = runtimeClasspath
-			spec.mainClass.set(mainClassName)
-			spec.workingDir = workingDirectory.get()
-			spec.standardInput = System.in
-			spec.jvmArgs('--enable-native-access=ALL-UNNAMED')
-			spec.jvmArgs(buildResolvedJvmArgs(javaExe))
-			spec.args(buildResolvedArgs(resolvedAssetsZip))
+		jvmArgs('--enable-native-access=ALL-UNNAMED')
+		jvmArgs(buildResolvedJvmArgs(javaExe))
+		args(buildResolvedArgs(resolvedAssetsZip))
+
+		if (!debug && debugEnabled.getOrElse(false)) {
+			debug = true
+			debugOptions {
+				port = debugPort.getOrElse(5005)
+				server = true
+				suspend = debugSuspend.getOrElse(false)
+			}
 		}
+
+		super.exec()
 	}
 }
