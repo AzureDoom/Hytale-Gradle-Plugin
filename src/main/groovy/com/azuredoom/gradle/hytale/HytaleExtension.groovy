@@ -43,31 +43,85 @@ abstract class HytaleExtension {
 	abstract DirectoryProperty getAssetPackSourceDirectory()
 	abstract DirectoryProperty getAssetPackRunDirectory()
 
-	void setJavaVersion(int v)                            { javaVersion.set(v) }
-	void setHytaleVersion(String v)                       { hytaleVersion.set(v) }
-	void setPatchline(String v)                           { patchline.set(v) }
-	void setOauthBaseUrl(String v)                        { oauthBaseUrl.set(v) }
-	void setAccountBaseUrl(String v)                      { accountBaseUrl.set(v) }
-	void setManifestGroup(String v)                       { manifestGroup.set(v) }
-	void setModId(String v)                               { modId.set(v) }
-	void setModDescription(String v)                      { modDescription.set(v) }
-	void setModUrl(String v)                              { modUrl.set(v) }
-	void setMainClass(String v)                           { mainClass.set(v) }
-	void setModCredits(String v)                          { modCredits.set(v) }
-	void setManifestDependencies(String v)                { manifestDependencies.set(v) }
-	void setManifestOptionalDependencies(String v)        { manifestOptionalDependencies.set(v) }
-	void setCurseforgeId(String v)                        { curseforgeId.set(v) }
-	void setDisabledByDefault(boolean v)                  { disabledByDefault.set(v) }
-	void setIncludesPack(boolean v)                       { includesPack.set(v) }
-	void setBundleAssetEditorRuntime(boolean v)           { bundleAssetEditorRuntime.set(v) }
-	void setServerArgs(List<String> v)                    { serverArgs.set(v) }
-	void setServerJvmArgs(List<String> v)                 { serverJvmArgs.set(v) }
-	void setPreRunTask(String v)                          { preRunTask.set(v) }
-	void setDebugEnabled(boolean v)                       { debugEnabled.set(v) }
-	void setDebugPort(int v)                              { debugPort.set(v) }
-	void setDebugSuspend(boolean v)                       { debugSuspend.set(v) }
-	void setHotSwapEnabled(boolean v)                     { hotSwapEnabled.set(v) }
-	void setRequireDcevm(boolean v)                       { requireDcevm.set(v) }
-	void setUseHotswapAgent(boolean v)                    { useHotswapAgent.set(v) }
-	void setJbrHome(String v)                             { jbrHome.set(v) }
+	void setJavaVersion(int v)                            {
+		javaVersion.set(v)
+	}
+	void setHytaleVersion(String v)                       {
+		hytaleVersion.set(v)
+	}
+	void setPatchline(String v)                           {
+		patchline.set(v)
+	}
+	void setOauthBaseUrl(String v)                        {
+		oauthBaseUrl.set(v)
+	}
+	void setAccountBaseUrl(String v)                      {
+		accountBaseUrl.set(v)
+	}
+	void setManifestGroup(String v)                       {
+		manifestGroup.set(v)
+	}
+	void setModId(String v)                               {
+		modId.set(v)
+	}
+	void setModDescription(String v)                      {
+		modDescription.set(v)
+	}
+	void setModUrl(String v)                              {
+		modUrl.set(v)
+	}
+	void setMainClass(String v)                           {
+		mainClass.set(v)
+	}
+	void setModCredits(String v)                          {
+		modCredits.set(v)
+	}
+	void setManifestDependencies(String v)                {
+		manifestDependencies.set(v)
+	}
+	void setManifestOptionalDependencies(String v)        {
+		manifestOptionalDependencies.set(v)
+	}
+	void setCurseforgeId(String v)                        {
+		curseforgeId.set(v)
+	}
+	void setDisabledByDefault(boolean v)                  {
+		disabledByDefault.set(v)
+	}
+	void setIncludesPack(boolean v)                       {
+		includesPack.set(v)
+	}
+	void setBundleAssetEditorRuntime(boolean v)           {
+		bundleAssetEditorRuntime.set(v)
+	}
+	void setServerArgs(List<String> v)                    {
+		serverArgs.set(v)
+	}
+	void setServerJvmArgs(List<String> v)                 {
+		serverJvmArgs.set(v)
+	}
+	void setPreRunTask(String v)                          {
+		preRunTask.set(v)
+	}
+	void setDebugEnabled(boolean v)                       {
+		debugEnabled.set(v)
+	}
+	void setDebugPort(int v)                              {
+		debugPort.set(v)
+	}
+	void setDebugSuspend(boolean v)                       {
+		debugSuspend.set(v)
+	}
+	void setHotSwapEnabled(boolean v)                     {
+		hotSwapEnabled.set(v)
+	}
+	void setRequireDcevm(boolean v)                       {
+		requireDcevm.set(v)
+	}
+	void setUseHotswapAgent(boolean v)                    {
+		useHotswapAgent.set(v)
+	}
+	void setJbrHome(String v)                             {
+		jbrHome.set(v)
+	}
 }
