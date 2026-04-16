@@ -43,85 +43,109 @@ abstract class HytaleExtension {
 	abstract DirectoryProperty getAssetPackSourceDirectory()
 	abstract DirectoryProperty getAssetPackRunDirectory()
 
-	void setJavaVersion(int v)                            {
-		javaVersion.set(v)
+	void javaVersion(int v) {
+		getJavaVersion().set(v)
 	}
-	void setHytaleVersion(String v)                       {
-		hytaleVersion.set(v)
+	void hytaleVersion(String v) {
+		getHytaleVersion().set(v)
 	}
-	void setPatchline(String v)                           {
-		patchline.set(v)
+	void patchline(String v) {
+		getPatchline().set(v)
 	}
-	void setOauthBaseUrl(String v)                        {
-		oauthBaseUrl.set(v)
+	void oauthBaseUrl(String v) {
+		getOauthBaseUrl().set(v)
 	}
-	void setAccountBaseUrl(String v)                      {
-		accountBaseUrl.set(v)
+	void accountBaseUrl(String v) {
+		getAccountBaseUrl().set(v)
 	}
-	void setManifestGroup(String v)                       {
-		manifestGroup.set(v)
+	void manifestGroup(String v) {
+		getManifestGroup().set(v)
 	}
-	void setModId(String v)                               {
-		modId.set(v)
+	void modId(String v) {
+		getModId().set(v)
 	}
-	void setModDescription(String v)                      {
-		modDescription.set(v)
+	void modDescription(String v) {
+		getModDescription().set(v)
 	}
-	void setModUrl(String v)                              {
-		modUrl.set(v)
+	void modUrl(String v) {
+		getModUrl().set(v)
 	}
-	void setMainClass(String v)                           {
-		mainClass.set(v)
+	void mainClass(String v) {
+		getMainClass().set(v)
 	}
-	void setModCredits(String v)                          {
-		modCredits.set(v)
+	void modCredits(String v) {
+		getModCredits().set(v)
 	}
-	void setManifestDependencies(String v)                {
-		manifestDependencies.set(v)
+	void manifestDependencies(String v) {
+		getManifestDependencies().set(v)
 	}
-	void setManifestOptionalDependencies(String v)        {
-		manifestOptionalDependencies.set(v)
+	void manifestOptionalDependencies(String v) {
+		getManifestOptionalDependencies().set(v)
 	}
-	void setCurseforgeId(String v)                        {
-		curseforgeId.set(v)
+	void curseforgeId(String v) {
+		getCurseforgeId().set(v)
 	}
-	void setDisabledByDefault(boolean v)                  {
-		disabledByDefault.set(v)
+	void disabledByDefault(boolean v) {
+		getDisabledByDefault().set(v)
 	}
-	void setIncludesPack(boolean v)                       {
-		includesPack.set(v)
+	void includesPack(boolean v) {
+		getIncludesPack().set(v)
 	}
-	void setBundleAssetEditorRuntime(boolean v)           {
-		bundleAssetEditorRuntime.set(v)
+	void bundleAssetEditorRuntime(boolean v) {
+		getBundleAssetEditorRuntime().set(v)
 	}
-	void setServerArgs(List<String> v)                    {
-		serverArgs.set(v)
+	void preRunTask(String v) {
+		getPreRunTask().set(v)
 	}
-	void setServerJvmArgs(List<String> v)                 {
-		serverJvmArgs.set(v)
+	void debugEnabled(boolean v) {
+		getDebugEnabled().set(v)
 	}
-	void setPreRunTask(String v)                          {
-		preRunTask.set(v)
+	void debugPort(int v) {
+		getDebugPort().set(v)
 	}
-	void setDebugEnabled(boolean v)                       {
-		debugEnabled.set(v)
+	void debugSuspend(boolean v) {
+		getDebugSuspend().set(v)
 	}
-	void setDebugPort(int v)                              {
-		debugPort.set(v)
+	void hotSwapEnabled(boolean v) {
+		getHotSwapEnabled().set(v)
 	}
-	void setDebugSuspend(boolean v)                       {
-		debugSuspend.set(v)
+	void requireDcevm(boolean v) {
+		getRequireDcevm().set(v)
 	}
-	void setHotSwapEnabled(boolean v)                     {
-		hotSwapEnabled.set(v)
+	void useHotswapAgent(boolean v) {
+		getUseHotswapAgent().set(v)
 	}
-	void setRequireDcevm(boolean v)                       {
-		requireDcevm.set(v)
+	void jbrHome(String v) {
+		getJbrHome().set(v)
 	}
-	void setUseHotswapAgent(boolean v)                    {
-		useHotswapAgent.set(v)
+	void serverArgs(List<String> v) {
+		getServerArgs().set(v)
 	}
-	void setJbrHome(String v)                             {
-		jbrHome.set(v)
+	void serverArgs(String... v) {
+		getServerArgs().addAll(v as List)
+	}
+	void serverArg(String v) {
+		getServerArgs().add(v)
+	}
+	void serverJvmArgs(List<String> v) {
+		getServerJvmArgs().set(v)
+	}
+	void serverJvmArgs(String... v) {
+		getServerJvmArgs().addAll(v as List)
+	}
+	void serverJvmArg(String v) {
+		getServerJvmArgs().add(v)
+	}
+	void manifestFile(Object v) {
+		getManifestFile().set(v)
+	}
+	void runDirectory(Object v) {
+		getRunDirectory().set(v)
+	}
+	void assetPackSourceDirectory(Object v) {
+		getAssetPackSourceDirectory().set(v)
+	}
+	void assetPackRunDirectory(Object v) {
+		getAssetPackRunDirectory().set(v)
 	}
 }
