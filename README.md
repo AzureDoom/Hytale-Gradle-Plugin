@@ -24,7 +24,7 @@ This plugin replaces manual setup tasks such as:
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.22'
+    id 'com.azuredoom.hytale-tools' version '1.0.23'
 }
 
 hytaleTools {
@@ -103,7 +103,7 @@ include("common", "modA", "modB")
 ```gradle
 // root build.gradle
 plugins {
-    id 'com.azuredoom.hytale-workspace' version '1.0.22'
+    id 'com.azuredoom.hytale-workspace' version '1.0.23'
 }
 
 hytaleWorkspace {
@@ -671,7 +671,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.22'
+    id 'com.azuredoom.hytale-tools' version '1.0.23'
 }
 ```
 
