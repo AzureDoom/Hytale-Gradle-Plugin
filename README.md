@@ -280,14 +280,18 @@ At a high level:
 
 ### Assets.zip in IDEs
 
-The plugin automatically adds the resolved Hytale `Assets.zip` to the `compileOnly` classpath.
+### Assets in IDEs
+
+The plugin merges the resolved Hytale `Assets.zip` directly into a generated server jar used for IDE dependency resolution.
+
+Unlike previous versions (which exposed assets as a separate dependency), this approach ensures a more stable and consistent IDE experience.
 
 This means:
-- it appears under **External Libraries** in IntelliJ
-- you can browse game assets directly in your IDE
-- it is **not included in your final jar**
 
-This is provided via an internal `hytaleAssets` configuration, which is added to `compileOnly`.
+* assets appear directly under the Hytale server library in IntelliJ (External Libraries)
+* you can browse game assets alongside server classes in the same library tree
+* assets are no longer exposed as a separate dependency or external library
+* assets are not included in your final mod jar
 
 ## Version Compatibility
 

@@ -25,11 +25,14 @@ final class HytaleIdeSourceConfigurer {
 			NamedDomainObjectProvider<Configuration> vineDependencyJars,
 			NamedDomainObjectProvider<Configuration> vineImplementation,
 			NamedDomainObjectProvider<Configuration> vineCompileOnly,
-			NamedDomainObjectProvider<Configuration> vineDecompileTargets
+			NamedDomainObjectProvider<Configuration> vineDecompileTargets,
+			def assetsZipFileProvider
 	) {
 		def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile } as Provider<File>)
 		def serverJarFile = project.layout.file(project.provider { vineServerJar.get().singleFile } as Provider<File>)
 		def decompiledServerDir = project.layout.buildDirectory.dir('vineflower/hytale-server')
+		def assetsZipFile = project.layout.file(project.provider { assetsZipFileProvider.get() } as Provider)
+		def mergedServerBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/server/hytale-server-merged.jar')
 
 		project.tasks.register('decompileServerJar', DecompileServerJarTask) {
 			group = null
@@ -41,6 +44,15 @@ final class HytaleIdeSourceConfigurer {
 			outputDirectory.set(decompiledServerDir)
 			tempDirectoryRoot.set(project.layout.buildDirectory.dir('tmp/vineflower-server'))
 			javaVersion.set(ext.javaVersion)
+		}
+
+		def mergeServerBinaryAndAssets = project.tasks.register('mergeServerBinaryAndAssets', MergeServerBinaryAndAssetsTask) {
+			group = null
+			description = 'Merge resolved Hytale server jar with Assets.zip for IDE library browsing.'
+			dependsOn('downloadAssetsZip')
+			serverJar.set(serverJarFile)
+			assetsZip.set(assetsZipFile)
+			outputJar.set(mergedServerBinaryJar)
 		}
 
 		Provider<Set<ResolvedArtifactResult>> serverArtifactsProvider = project.providers.provider {
@@ -71,7 +83,9 @@ final class HytaleIdeSourceConfigurer {
 			description = 'Installs generated server sources jar into local repos for IDE attachment.'
 
 			dependsOn(serverSourcesJar)
+			dependsOn(mergeServerBinaryAndAssets)
 			inputs.file(serverSourcesJar.flatMap { it.archiveFile })
+			inputs.file(mergeServerBinaryAndAssets.flatMap { it.outputJar })
 
 			outputs.files(project.provider {
 				def artifacts = serverArtifactsProvider.get()
@@ -116,7 +130,7 @@ final class HytaleIdeSourceConfigurer {
 					return
 				}
 
-				def binaryJarFile = artifact.file
+				def binaryJarFile = mergeServerBinaryAndAssets.get().outputJar.get().asFile
 				def sourcesJarFile = serverSourcesJar.get().archiveFile.get().asFile
 
 				HytaleDependencySupport.installModuleIntoMavenRepo(

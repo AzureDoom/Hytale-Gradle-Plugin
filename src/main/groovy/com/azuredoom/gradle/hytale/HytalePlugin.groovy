@@ -83,7 +83,8 @@ class HytalePlugin implements Plugin<Project> {
 				vineDependencyJars,
 				vineImplementation,
 				vineCompileOnly,
-				vineDecompileTargets
+				vineDecompileTargets,
+				assetsZipFileProvider
 				)
 
 		HytaleCoreTaskRegistrar.register(
@@ -98,14 +99,6 @@ class HytalePlugin implements Plugin<Project> {
 				vineCompileOnly,
 				vineDecompileTargets,
 				prepareDecompiledSourcesForIde
-				)
-
-		project.dependencies.add(
-				'hytaleAssets',
-				project.files(project.provider {
-					def assetsZip = assetsZipFileProvider.get()
-					assetsZip.exists() ? [assetsZip] : []
-				})
 				)
 
 		HytaleRunTaskRegistrar.register(

@@ -60,10 +60,10 @@ class HytalePluginFunctionalTest extends Specification {
 		result.output.contains('COMPILE_CLASSPATH_FILES=Server-1.0.0.jar')
 	}
 
-	def "adds Assets.zip file dependency to hytaleAssets and exposes it through compileOnly only when present"() {
+	def "merges Assets.zip into generated server binary jar instead of exposing it on compileOnly"() {
 		given:
 		new File(testProjectDir, 'settings.gradle') << '''
-	rootProject.name = 'assets-zip-classpath-test'
+	rootProject.name = 'assets-merged-into-binary-test'
 '''
 		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
 
@@ -98,21 +98,26 @@ class HytalePluginFunctionalTest extends Specification {
 		}
 	}
 
-	tasks.register('printAssetsClasspathInfo') {
+	tasks.named('downloadAssetsZip').configure {
 		dependsOn 'seedAssetsZip'
+	}
+
+	tasks.register('printMergedBinaryInfo') {
+		dependsOn 'mergeServerBinaryAndAssets'
 
 		doLast {
-			def hytaleAssets = configurations.hytaleAssets
-			def compileOnly = configurations.compileOnly
+			def compileClasspathFiles = configurations.compileClasspath.files*.name.sort()
+			println "COMPILE_CLASSPATH_FILES=" + compileClasspathFiles.join(',')
 
-			println "COMPILE_ONLY_EXTENDS_HYTALE_ASSETS=" + compileOnly.extendsFrom.contains(hytaleAssets)
+			def jarFile = tasks.named('mergeServerBinaryAndAssets').get().outputJar.get().asFile
+			println "MERGED_SERVER_BINARY_EXISTS=" + jarFile.exists()
 
-			def fileDeps = hytaleAssets.dependencies.findAll {
-				it instanceof org.gradle.api.artifacts.FileCollectionDependency
+			def entries = new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+				zip.entries().collect { it.name }.sort()
 			}
 
-			println "HYTALE_ASSETS_DEP_COUNT=" + fileDeps.size()
-			println "COMPILE_CLASSPATH_FILES=" + configurations.compileClasspath.files*.name.sort().join(',')
+			println "HAS_ORIGINAL_ENTRY=" + entries.contains('placeholder.txt')
+			println "HAS_ASSET_ENTRY=" + entries.contains('assets/placeholder.txt')
 		}
 	}
 	"""
@@ -122,16 +127,17 @@ class HytalePluginFunctionalTest extends Specification {
 				.withProjectDir(testProjectDir)
 				.withTestKitDir(new File(testProjectDir, '.gradle-test-kit'))
 				.withPluginClasspath()
-				.withArguments('printAssetsClasspathInfo', '-q', '--stacktrace')
+				.withArguments('printMergedBinaryInfo', '-q', '--stacktrace')
 				.build()
 
 		then:
-		result.output.contains('COMPILE_ONLY_EXTENDS_HYTALE_ASSETS=true')
-		result.output.contains('HYTALE_ASSETS_DEP_COUNT=1')
+		result.output.contains('MERGED_SERVER_BINARY_EXISTS=true')
+		result.output.contains('HAS_ORIGINAL_ENTRY=true')
+		result.output.contains('HAS_ASSET_ENTRY=true')
 
 		def classpathLine = result.output.readLines().find { it.startsWith('COMPILE_CLASSPATH_FILES=') }
 		assert classpathLine != null
-		assert classpathLine.contains('release-1.0.0-Assets.zip')
+		assert !classpathLine.contains('release-1.0.0-Assets.zip')
 	}
 
 	def "does not auto inject when user explicitly declares vineServerJar"() {
