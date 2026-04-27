@@ -28,8 +28,10 @@ plugins {
 }
 
 hytaleTools {
-    hytaleVersion = '1.0.0'
+    hytaleVersion = '2026.+'
     manifestGroup = 'com.example.mods'
+    modCredits = 'yourname'
+    patchline = 'release'
     modId = 'examplemod'
     mainClass = 'com.example.mods.ExampleMod'
 }
@@ -115,7 +117,7 @@ hytaleWorkspace {
     // Optional shared defaults propagated to child `hytaleTools` projects
     // when those projects apply the plugin, unless overridden locally
     manifestGroup = 'com.example.mods'
-    hytaleVersion = '1.0.0'
+    hytaleVersion = '2026.+'
     patchline = 'release'
 }
 ```
@@ -393,7 +395,7 @@ You can customize the server launch arguments, JVM arguments, debug mode, and ho
 
 ```gradle
 hytaleTools {
-    hytaleVersion = '1.0.0'
+    hytaleVersion = '2026.+'
 
     serverArgs = [
         '--allow-op',
@@ -705,7 +707,7 @@ The plugin automatically adds the Hytale server dependency based on:
 
 ```groovy
 hytaleTools {
-    hytaleVersion = '1.0.0'
+    hytaleVersion = '2026.+'
 }
 ```
 
