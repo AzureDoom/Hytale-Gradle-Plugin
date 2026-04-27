@@ -733,7 +733,6 @@ Supported selectors:
 
 - `2026.+` — latest version starting with `2026.`
 - `2026.1.+` — latest version starting with `2026.1.`
-- `+` — absolute latest version
 - `latest.release` — same as `+` 
 
 The generated `manifest.json` always contains the **resolved concrete version** (e.g. `2026.1.22-6f8bdbdc4`), not the selector, so your built mod jar remains reproducible and pins to a specific server version.
