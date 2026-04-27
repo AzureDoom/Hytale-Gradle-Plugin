@@ -6,6 +6,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
@@ -22,6 +23,7 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 	@Input abstract Property<String> getModCredits()
 	@Input abstract Property<String> getModUrl()
 	@Input abstract Property<String> getHytaleVersion()
+	@Input @Optional abstract Property<String> getResolvedServerVersion()
 	@Input abstract Property<String> getManifestDependencies()
 	@Input abstract Property<String> getManifestOptionalDependencies()
 	@Input abstract Property<Boolean> getDisabledByDefault()
@@ -40,7 +42,7 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 		manifestJson.Description = modDescription.get()
 		manifestJson.Authors = ManifestUtils.parseAuthors(modCredits.orNull)
 		manifestJson.Website = modUrl.get()
-		manifestJson.ServerVersion = hytaleVersion.get()
+		manifestJson.ServerVersion = resolvedServerVersion.getOrElse(hytaleVersion.get())
 		manifestJson.Dependencies = ManifestUtils.parseDepMap(manifestDependencies.orNull)
 		manifestJson.OptionalDependencies = ManifestUtils.parseDepMap(manifestOptionalDependencies.orNull)
 		manifestJson.DisabledByDefault = disabledByDefault.get()

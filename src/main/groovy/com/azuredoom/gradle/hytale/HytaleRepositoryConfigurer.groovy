@@ -8,7 +8,18 @@ import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 final class HytaleRepositoryConfigurer {
 	private HytaleRepositoryConfigurer() {}
 
+	static final String HYTALE_GROUP = 'com.hypixel.hytale'
+	static final String RELEASE_REPO_URL = 'https://maven.hytale.com/release'
+	static final String PRE_RELEASE_REPO_URL = 'https://maven.hytale.com/pre-release'
+
 	static void configure(Project project, Provider<?> generatedSourcesMavenRepoDir, Provider<?> generatedSourcesIvyRepoDir) {
+		configure(project, generatedSourcesMavenRepoDir, generatedSourcesIvyRepoDir, null)
+	}
+
+	static void configure(Project project,
+			Provider<?> generatedSourcesMavenRepoDir,
+			Provider<?> generatedSourcesIvyRepoDir,
+			Provider<String> patchlineProvider) {
 		project.repositories.mavenCentral()
 
 		project.repositories.maven { MavenArtifactRepository repo ->
@@ -29,8 +40,8 @@ final class HytaleRepositoryConfigurer {
 			}
 		}
 
-		addMavenRepo(project, 'Hytale Server Release', 'https://maven.hytale.com/release')
-		addMavenRepo(project, 'Hytale Server Pre-Release', 'https://maven.hytale.com/pre-release')
+		addHytaleServerRepos(project, patchlineProvider)
+
 		addMavenRepo(project, 'Hytale-Mods.info Maven', 'https://maven.hytale-mods.dev/releases')
 		addMavenRepo(project, 'PlaceholderAPI', 'https://repo.helpch.at/releases/')
 		addMavenRepo(project, 'CurseMaven', 'https://cursemaven.com')
@@ -52,6 +63,43 @@ final class HytaleRepositoryConfigurer {
 			}
 			spec.filter { filter ->
 				filter.includeGroup('modtale')
+			}
+		}
+	}
+
+	private static String resolveActivePatchline(Provider<String> patchlineProvider) {
+		if (patchlineProvider == null) {
+			return 'release'
+		}
+		def value = patchlineProvider.getOrNull()
+		if (value == null || value.trim().isEmpty()) {
+			return 'release'
+		}
+		return value.trim()
+	}
+
+	private static void addHytaleServerRepos(Project project, Provider<String> patchlineProvider) {
+		project.repositories.maven { MavenArtifactRepository repo ->
+			repo.name = 'Hytale Server Release'
+			repo.url = project.uri(RELEASE_REPO_URL)
+		}
+		project.repositories.maven { MavenArtifactRepository repo ->
+			repo.name = 'Hytale Server Pre-Release'
+			repo.url = project.uri(PRE_RELEASE_REPO_URL)
+		}
+
+		project.afterEvaluate {
+			String active = resolveActivePatchline(patchlineProvider)
+			boolean wantPreRelease = active.equalsIgnoreCase('pre-release') ||
+					active.equalsIgnoreCase('prerelease')
+
+			String inactiveRepoName = wantPreRelease ?
+					'Hytale Server Release' : 'Hytale Server Pre-Release'
+
+			project.repositories.named(inactiveRepoName).configure { repo ->
+				repo.content { content ->
+					content.excludeGroup(HYTALE_GROUP)
+				}
 			}
 		}
 	}

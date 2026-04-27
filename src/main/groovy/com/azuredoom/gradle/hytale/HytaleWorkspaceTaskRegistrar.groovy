@@ -20,10 +20,16 @@ final class HytaleWorkspaceTaskRegistrar {
 
 			def hostProject = project.project(hostPath)
 			def hostExt = hostProject.extensions.getByType(HytaleExtension)
+			def hostVineServerJar = hostProject.configurations.named('vineServerJar')
+			def hostResolvedVersion = HytaleVersionResolver.resolvedServerVersion(
+					hostProject,
+					hostExt.hytaleVersion,
+					hostVineServerJar
+					)
 
 			File assetsZipFile = new File(
 					project.gradle.gradleUserHomeDir,
-					"caches/hytale-assets/${hostExt.patchline.get()}-${hostExt.hytaleVersion.get()}-Assets.zip"
+					"caches/hytale-assets/${hostExt.patchline.get()}-${hostResolvedVersion.getOrElse(hostExt.hytaleVersion.get())}-Assets.zip"
 					)
 
 			project.tasks.register('updateAllPluginManifests') { t ->

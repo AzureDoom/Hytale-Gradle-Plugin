@@ -7,6 +7,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -30,6 +31,10 @@ abstract class ValidateManifestTask extends DefaultTask {
 
 	@Input
 	abstract Property<String> getHytaleVersion()
+
+	@Input
+	@Optional
+	abstract Property<String> getResolvedServerVersion()
 
 	@Input
 	abstract Property<String> getManifestDependencies()
@@ -70,8 +75,9 @@ abstract class ValidateManifestTask extends DefaultTask {
 			errors << "Manifest Name '${json.Name}' does not match configured modId '${modId.get()}'."
 		}
 
-		if (json.ServerVersion != hytaleVersion.get()) {
-			errors << "Manifest ServerVersion '${json.ServerVersion}' does not match configured hytaleVersion '${hytaleVersion.get()}'."
+		def expectedServerVersion = resolvedServerVersion.getOrElse(hytaleVersion.get())
+		if (json.ServerVersion != expectedServerVersion) {
+			errors << "Manifest ServerVersion '${json.ServerVersion}' does not match resolved server version '${expectedServerVersion}'."
 		}
 
 		if ((json.Main ?: '').toString().trim() != (mainClass.get() ?: '').trim()) {

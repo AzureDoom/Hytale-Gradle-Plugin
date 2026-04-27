@@ -287,8 +287,6 @@ At a high level:
 - `vineDecompileTargets` controls which dependencies get source attachment
 - Hytale `Assets.zip` (for IDE asset browsing)
 
-### Assets.zip in IDEs
-
 ### Assets in IDEs
 
 The plugin merges the resolved Hytale `Assets.zip` directly into a generated server jar used for IDE dependency resolution.
@@ -465,7 +463,7 @@ Prints JVM diagnostics relevant to debugging and hot swap, including:
 - HotswapAgent mode support
 - bundled HotswapAgent availability
 
-This is useful when validating a local JetBrains Runtime setup before using hot swap. 
+This is useful when validating a local JetBrains Runtime setup before using hot swap.
 
 Runtime resolution uses `jbrHome` first, then known JetBrains Runtime environment variables (`JBR_HOME`, etc.), and finally falls back to the current JVM.
 
@@ -504,7 +502,7 @@ Because manifest generation and validation are wired into the build, most projec
 | Property                       | Type           |                              Default | Required | Purpose                                                                                |
 |--------------------------------|----------------|-------------------------------------:|----------|----------------------------------------------------------------------------------------|
 | `javaVersion`                  | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                            |
-| `hytaleVersion`                | `String`       |                                 none | Usually  | Hytale server version to resolve                                                       |
+| `hytaleVersion`                | `String`       |                                 none | Usually  | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)            |
 | `patchline`                    | `String`       |                            `release` | No       | Asset/server patchline                                                                 |
 | `oauthBaseUrl`                 | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                 |
 | `accountBaseUrl`               | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                              |
@@ -632,6 +630,9 @@ The plugin automatically adds these repositories:
 
 You do not need to declare them manually.
 
+> **Note on patchlines:**
+> Both Hytale server repos are registered, but `com.hypixel.hytale` artifacts are only served by the repo matching the configured `patchline`. The other repo is restricted with `excludeGroup('com.hypixel.hytale')` so dynamic selectors like `2026.+` never cross patchlines. Other artifacts that happen to live in either repo are unaffected.
+
 ## Configurations
 
 The plugin automatically creates:
@@ -714,6 +715,45 @@ vineServerJar "com.hypixel.hytale:Server:${hytaleVersion}"
 ```
 
 and makes it available on `compileOnly`. You **do not need to declare this manually**.
+
+### Dynamic versions
+
+`hytaleVersion` accepts Gradle's dynamic version selectors, which is the easiest way to track the latest server build for a patchline:
+
+```groovy
+hytaleTools {
+    hytaleVersion = '2026.+'   // latest 2026.x build on the configured patchline
+    patchline     = 'release'
+}
+```
+
+Supported selectors:
+
+- `2026.+` — latest version starting with `2026.`
+- `2026.1.+` — latest version starting with `2026.1.`
+- `+` — absolute latest version
+- `latest.release` — same as `+` 
+
+The generated `manifest.json` always contains the **resolved concrete version** (e.g. `2026.1.22-6f8bdbdc4`), not the selector, so your built mod jar remains reproducible and pins to a specific server version.
+
+#### Patchline scoping
+
+When using a dynamic selector, the plugin scopes resolution to the configured `patchline`:
+
+- `patchline = 'release'` resolves only against the Hytale Server Release repo
+- `patchline = 'pre-release'` resolves only against the Hytale Server Pre-Release repo
+
+This prevents `2026.+` from accidentally selecting a pre-release build when you're targeting release, or vice versa. Static versions are unaffected and continue to resolve from whichever repo serves them.
+
+#### Cache behavior
+
+Gradle caches dynamic version resolutions. The plugin configures the `vineServerJar` configuration with a 10-minute cache window, so a freshly published server build is picked up within that interval. To force an immediate refetch:
+
+```bash
+./gradlew runServer --refresh-dependencies
+```
+
+The Hytale server dependency is also marked as `changing = true`, so the same flag will refetch the artifact bytes if Hytale ever republishes a coordinate.
 
 ### Overriding the server dependency
 
@@ -890,6 +930,15 @@ hytaleTools {
     hytaleVersion = '...'
 }
 ```
+
+### Dynamic version not resolving the expected build
+
+If you're using a dynamic selector like `2026.+` and Gradle is picking the wrong version (or claims it can't find any matching version), check the following:
+
+- **Use `+`, not `*`.** Gradle's dynamic version syntax is `2026.+`, not `2026.*`. The `*` form is treated as a literal version string and will fail to resolve.
+- **Confirm `patchline` is set correctly.** Dynamic resolution is scoped to the active patchline. If you're tracking pre-release builds, set `patchline = 'pre-release'` (or `hytale_patchline=pre-release` in `gradle.properties`).
+- **Force a refresh.** Dynamic versions are cached for 10 minutes. Run `./gradlew --refresh-dependencies` to bypass the cache and refetch the latest version listing.
+- **Check `hytaleDoctor`.** The diagnostic task prints the configured patchline and the resolved server jar files so you can confirm what was actually picked.
 
 ### Sources are not attached in the IDE
 

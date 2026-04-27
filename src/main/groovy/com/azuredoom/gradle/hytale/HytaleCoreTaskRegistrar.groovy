@@ -4,6 +4,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
@@ -22,7 +23,8 @@ final class HytaleCoreTaskRegistrar {
 			NamedDomainObjectProvider<Configuration> vineImplementation,
 			NamedDomainObjectProvider<Configuration> vineCompileOnly,
 			NamedDomainObjectProvider<Configuration> vineDecompileTargets,
-			TaskProvider<? extends Task> prepareDecompiledSourcesForIde
+			TaskProvider<? extends Task> prepareDecompiledSourcesForIde,
+			Provider<String> resolvedServerVersionProvider
 	) {
 		project.tasks.register('createManifestIfMissing', CreateManifestIfMissingTask) {
 			group = 'hytale'
@@ -42,6 +44,7 @@ final class HytaleCoreTaskRegistrar {
 			modCredits.set(ext.modCredits)
 			modUrl.set(ext.modUrl)
 			hytaleVersion.set(ext.hytaleVersion)
+			resolvedServerVersion.set(resolvedServerVersionProvider)
 			manifestDependencies.set(ext.manifestDependencies)
 			manifestOptionalDependencies.set(ext.manifestOptionalDependencies)
 			disabledByDefault.set(ext.disabledByDefault)
@@ -63,6 +66,7 @@ final class HytaleCoreTaskRegistrar {
 			modId.set(ext.modId)
 			mainClass.set(ext.mainClass)
 			hytaleVersion.set(ext.hytaleVersion)
+			resolvedServerVersion.set(resolvedServerVersionProvider)
 			manifestDependencies.set(ext.manifestDependencies)
 			manifestOptionalDependencies.set(ext.manifestOptionalDependencies)
 			includesPack.set(ext.includesPack)
@@ -76,7 +80,7 @@ final class HytaleCoreTaskRegistrar {
 			group = 'hytale'
 			description = 'Downloads the authenticated Hytale asset wrapper and extracts the inner Assets.zip'
 
-			hytaleVersion.set(ext.hytaleVersion)
+			hytaleVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
 			patchline.set(ext.patchline)
 			oauthBaseUrl.set(ext.oauthBaseUrl)
 			accountBaseUrl.set(ext.accountBaseUrl)

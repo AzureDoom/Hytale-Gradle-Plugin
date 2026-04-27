@@ -19,7 +19,8 @@ class HytalePlugin implements Plugin<Project> {
 		HytaleRepositoryConfigurer.configure(
 				project,
 				generatedSourcesMavenRepoDir,
-				generatedSourcesIvyRepoDir
+				generatedSourcesIvyRepoDir,
+				ext.patchline
 				)
 		HytaleConfigurationConfigurer.configure(project)
 
@@ -37,9 +38,26 @@ class HytalePlugin implements Plugin<Project> {
 
 		vineServerJar.get().defaultDependencies { deps ->
 			if (ext.hytaleVersion.isPresent()) {
-				deps.add(project.dependencies.create("com.hypixel.hytale:Server:${ext.hytaleVersion.get()}"))
+				def serverDep = project.dependencies.create("com.hypixel.hytale:Server:${ext.hytaleVersion.get()}")
+				if (serverDep instanceof org.gradle.api.artifacts.ExternalModuleDependency) {
+					serverDep.changing = true
+				}
+				deps.add(serverDep)
 			}
 		}
+
+		vineServerJar.configure { config ->
+			config.resolutionStrategy { strategy ->
+				strategy.cacheDynamicVersionsFor(10, 'minutes')
+				strategy.cacheChangingModulesFor(10, 'minutes')
+			}
+		}
+
+		def resolvedServerVersionProvider = HytaleVersionResolver.resolvedServerVersion(
+				project,
+				ext.hytaleVersion,
+				vineServerJar
+				)
 
 		hytaleBundledRuntime.get().defaultDependencies { deps ->
 			deps.add(project.dependencies.create(
@@ -64,10 +82,12 @@ class HytalePlugin implements Plugin<Project> {
 		def authCacheDir = new File(project.gradle.gradleUserHomeDir, 'caches/hytale-auth')
 
 		def wrapperFileProvider = project.providers.provider {
-			new File(assetsCacheDir, "${ext.patchline.get()}-${ext.hytaleVersion.get()}.jar")
+			def version = resolvedServerVersionProvider.getOrElse(ext.hytaleVersion.get())
+			new File(assetsCacheDir, "${ext.patchline.get()}-${version}.jar")
 		}
 		def assetsZipFileProvider = project.providers.provider {
-			new File(assetsCacheDir, "${ext.patchline.get()}-${ext.hytaleVersion.get()}-Assets.zip")
+			def version = resolvedServerVersionProvider.getOrElse(ext.hytaleVersion.get())
+			new File(assetsCacheDir, "${ext.patchline.get()}-${version}-Assets.zip")
 		}
 		def tokenFileProvider = project.providers.provider {
 			new File(authCacheDir, 'tokens.json')
@@ -98,7 +118,8 @@ class HytalePlugin implements Plugin<Project> {
 				vineImplementation,
 				vineCompileOnly,
 				vineDecompileTargets,
-				prepareDecompiledSourcesForIde
+				prepareDecompiledSourcesForIde,
+				resolvedServerVersionProvider
 				)
 
 		HytaleRunTaskRegistrar.register(
