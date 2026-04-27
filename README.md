@@ -150,12 +150,21 @@ hytaleTools {
     // Override workspace default
     manifestGroup = 'com.example.custom'
     
+    modCredits = 'yourname'
     modId = 'moda'
     mainClass = 'com.example.mods.moda.ModA'
 }
 ```
 
 Repeat for additional mod projects (e.g. `modB`).
+
+**Note for Kotlin users, please ensure you are also adding:
+```gradle
+repositories {
+	mavenCentral()
+}
+```
+to any build.gradle that is calling the kotlin plugin.
 
 ---
 
