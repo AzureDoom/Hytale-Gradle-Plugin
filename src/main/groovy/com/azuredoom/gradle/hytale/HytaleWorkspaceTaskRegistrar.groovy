@@ -27,10 +27,12 @@ final class HytaleWorkspaceTaskRegistrar {
 					hostVineServerJar
 					)
 
-			File assetsZipFile = new File(
-					project.gradle.gradleUserHomeDir,
-					"caches/hytale-assets/${hostExt.patchline.get()}-${hostResolvedVersion.getOrElse(hostExt.hytaleVersion.get())}-Assets.zip"
-					)
+			def assetsZipFileProvider = hostResolvedVersion.map { resolvedVersion ->
+				new File(
+						project.gradle.gradleUserHomeDir,
+						"caches/hytale-assets/${hostExt.patchline.get()}-${resolvedVersion}-Assets.zip"
+						)
+			}
 
 			project.tasks.register('updateAllPluginManifests') { t ->
 				t.group = 'hytale'
@@ -77,7 +79,9 @@ final class HytaleWorkspaceTaskRegistrar {
 				t.expectedPatchline.set(metadata.expectedPatchline)
 				t.hostProjectPath.set(hostPath)
 				t.runDirectory.set(project.layout.projectDirectory.dir('run'))
-				t.assetsZip.set(assetsZipFile)
+				t.assetsZip.set(project.layout.file(project.provider {
+					assetsZipFileProvider.get()
+				}))
 
 				t.mainClass.set('com.hypixel.hytale.Main')
 				t.jvmArgs('--enable-native-access=ALL-UNNAMED')
@@ -91,11 +95,15 @@ final class HytaleWorkspaceTaskRegistrar {
 
 				t.classpath(hostProject.configurations.named('vineServerJar').get())
 
-				t.args(
-						"--assets=${assetsZipFile.absolutePath}",
-						'--allow-op',
-						'--disable-sentry'
-						)
+				t.doFirst {
+					def assetsZipFile = assetsZipFileProvider.get()
+
+					t.args(
+							"--assets=${assetsZipFile.absolutePath}",
+							'--allow-op',
+							'--disable-sentry'
+							)
+				}
 			}
 		}
 	}
