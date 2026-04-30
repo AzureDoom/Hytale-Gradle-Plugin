@@ -108,6 +108,14 @@ plugins {
     id 'com.azuredoom.hytale-workspace' version '1.0.25'
 }
 
+// If you are getting an issue with Task 'prepareKotlinBuildScriptModel' not found in project ':modX'. 
+// Add this
+subprojects {
+    tasks.register('prepareKotlinBuildScriptModel') {
+        dependsOn(rootProject.tasks.named('prepareKotlinBuildScriptModel'))
+    }
+}
+
 hytaleWorkspace {
     modProjects = [':modA', ':modB']
 
