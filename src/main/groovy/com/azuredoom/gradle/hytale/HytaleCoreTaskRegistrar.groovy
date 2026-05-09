@@ -51,6 +51,7 @@ final class HytaleCoreTaskRegistrar {
 			mainClass.set(ext.mainClass)
 			includesPack.set(ext.includesPack)
 			curseforgeId.set(ext.curseforgeId)
+			subPlugins.set(ext.subPlugins)
 		}
 
 		project.tasks.named('updatePluginManifest').configure {

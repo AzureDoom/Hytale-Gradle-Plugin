@@ -1,5 +1,7 @@
 package com.azuredoom.gradle.hytale
 
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
@@ -24,6 +26,34 @@ abstract class HytaleExtension {
 	abstract Property<Boolean> getDisabledByDefault()
 	abstract Property<Boolean> getIncludesPack()
 	abstract Property<Boolean> getBundleAssetEditorRuntime()
+
+	abstract Property<String> getSubPlugins()
+
+	/**
+	 * Declares a sub-plugin bundled with this mod.
+	 *
+	 * @param name             Sub-plugin name (manifest Name field)
+	 * @param main             Fully-qualified entry point class (manifest Main field)
+	 * @param disabledByDefault Whether this sub-plugin is disabled by default (default: false)
+	 * @param includesAssetPack Whether this sub-plugin includes an asset pack (default: false)
+	 * @param serverVersion    Optional server version override for this sub-plugin.
+	 *                         When null, the parent mod's resolved server version is used.
+	 */
+	void subPlugin(String name, String main, boolean disabledByDefault = false, boolean includesAssetPack = false, String serverVersion = null) {
+		def current = getSubPlugins().getOrElse('[]')
+		def list = new JsonSlurper().parseText(current) as List
+		def entry = [
+			Name              : name,
+			Main              : main,
+			DisabledByDefault : disabledByDefault,
+			IncludesAssetPack : includesAssetPack
+		]
+		if (serverVersion != null) {
+			entry.ServerVersion = serverVersion
+		}
+		list << entry
+		getSubPlugins().set(JsonOutput.toJson(list))
+	}
 
 	abstract ListProperty<String> getServerArgs()
 	abstract ListProperty<String> getServerJvmArgs()

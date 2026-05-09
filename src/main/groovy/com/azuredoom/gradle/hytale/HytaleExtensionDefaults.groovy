@@ -31,6 +31,7 @@ final class HytaleExtensionDefaults {
 					ext.runDirectory.get().dir("mods/${ext.manifestGroup.get().replace('.', '_')}_${ext.modId.get()}")
 				}
 				)
+		ext.subPlugins.convention('[]')
 		ext.bundleAssetEditorRuntime.convention(true)
 		ext.serverArgs.convention([
 			'--allow-op',

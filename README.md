@@ -34,6 +34,9 @@ hytaleTools {
     patchline = 'release'
     modId = 'examplemod'
     mainClass = 'com.example.mods.ExampleMod'
+    
+    // Optional: declare sub-plugins bundled with this mod
+    subPlugin('MyFeature', 'com.example.mods.feature.MyFeaturePlugin')
 }
 ```
 
@@ -542,6 +545,58 @@ Because manifest generation and validation are wired into the build, most projec
 | `requireDcevm`                 | `Boolean`      |                              `false` | No       | Fails launch if enhanced class redefinition support is unavailable                     |
 | `useHotswapAgent`              | `Boolean`      |                               `true` | No       | Enables bundled HotswapAgent integration when available                                |
 | `jbrHome`                      | `String`       |                                empty | No       | Optional path to a JetBrains Runtime installation                                      |
+| `subPlugins`                   | `List<Map>`    |                                 `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                      |
+
+## SubPlugins
+
+The plugin supports declaring sub-plugins that are bundled within your main mod. Sub-plugins appear in `manifest.json` as a `SubPlugins` array and are loaded by the server alongside the parent mod.
+
+Use the `subPlugin(...)` DSL method in your `hytaleTools` block:
+
+```gradle
+hytaleTools {
+    modId = 'mymod'
+    mainClass = 'com.example.mods.MyMod'
+ 
+    subPlugin('Forestry', 'com.example.mods.forestry.ForestryPlugin')
+    subPlugin('Economy', 'com.example.mods.economy.EconomyPlugin', true, false)
+    // Pin a specific server version for this sub-plugin instead of inheriting the parent's:
+    subPlugin('Legacy', 'com.example.mods.legacy.LegacyPlugin', false, false, '2026.03.15-aabbccdd1')
+}
+```
+
+### `subPlugin` parameters
+
+| Parameter           | Type      | Default | Description                                                                                      |
+|---------------------|-----------|---------|--------------------------------------------------------------------------------------------------|
+| `name`              | `String`  | —       | Sub-plugin name (maps to `Name` in the manifest)                                                 |
+| `main`              | `String`  | —       | Fully-qualified entry point class (maps to `Main`)                                               |
+| `disabledByDefault` | `boolean` | `false` | Whether this sub-plugin is disabled by default                                                   |
+| `includesAssetPack` | `boolean` | `false` | Whether this sub-plugin includes an asset pack                                                   |
+| `serverVersion`     | `String`  | `null`  | Optional server version override. When omitted, the parent mod's resolved server version is used |
+
+Each declared sub-plugin is written into `manifest.json` with the resolved server version automatically applied:
+
+```json
+"SubPlugins": [
+  {
+    "Name": "Forestry",
+    "Main": "com.example.mods.forestry.ForestryPlugin",
+    "ServerVersion": "2026.04.30-b4f6a911e",
+    "DisabledByDefault": false,
+    "IncludesAssetPack": false
+  },
+  {
+    "Name": "Economy",
+    "Main": "com.example.mods.economy.EconomyPlugin",
+    "ServerVersion": "2026.03.15-aabbccdd1",
+    "DisabledByDefault": true,
+    "IncludesAssetPack": false
+  }
+]
+```
+
+If no sub-plugins are declared, the `SubPlugins` key is omitted from the manifest entirely.
 
 ## Task Reference
 
@@ -841,6 +896,10 @@ hytaleTools {
 
     disabledByDefault = project.disabled_by_default.toString().toBoolean()
     includesPack = project.includes_pack.toString().toBoolean()
+    
+    // Optional: declare sub-plugins
+    subPlugin('Forestry', 'com.example.mods.forestry.ForestryPlugin')
+    // subPlugin(name, main, disabledByDefault, includesAssetPack, serverVersion)
     
     serverArgs = ['--allow-op', '--disable-sentry']
     serverJvmArgs = ['-Xms1G', '-Xmx2G']
