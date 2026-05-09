@@ -512,7 +512,7 @@ Because manifest generation and validation are wired into the build, most projec
 | Property                       | Type           |                              Default | Required | Purpose                                                                                |
 |--------------------------------|----------------|-------------------------------------:|----------|----------------------------------------------------------------------------------------|
 | `javaVersion`                  | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                            |
-| `hytaleVersion`                | `String`       |                             '2026.+' | Usually  | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)            |
+| `hytaleVersion`                | `String`       |                             '2026.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)            |
 | `patchline`                    | `String`       |                            `release` | No       | Asset/server patchline                                                                 |
 | `oauthBaseUrl`                 | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                 |
 | `accountBaseUrl`               | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                              |
@@ -520,7 +520,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `modId`                        | `String`       |                       `project.name` | Yes      | Manifest mod id                                                                        |
 | `modDescription`               | `String`       |                                empty | No       | Manifest description                                                                   |
 | `modUrl`                       | `String`       |                                empty | No       | Manifest project URL                                                                   |
-| `mainClass`                    | `String`       |                                empty | Usually  | Plugin entrypoint                                                                      |
+| `mainClass`                    | `String`       |                                empty | Yes      | Plugin entrypoint                                                                      |
 | `modCredits`                   | `String`       |                         'replace_me' | No       | Manifest credits                                                                       |
 | `manifestDependencies`         | `String`       |                                empty | No       | Required manifest deps                                                                 |
 | `manifestOptionalDependencies` | `String`       |                                empty | No       | Optional manifest deps                                                                 |
