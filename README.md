@@ -24,7 +24,7 @@ This plugin replaces manual setup tasks such as:
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.25'
+    id 'com.azuredoom.hytale-tools' version '1.0.26'
 }
 
 hytaleTools {
@@ -108,7 +108,7 @@ include("common", "modA", "modB")
 ```gradle
 // root build.gradle
 plugins {
-    id 'com.azuredoom.hytale-workspace' version '1.0.25'
+    id 'com.azuredoom.hytale-workspace' version '1.0.26'
 }
 
 // If you are getting an issue with Task 'prepareKotlinBuildScriptModel' not found in project ':modX'. 
@@ -746,7 +746,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.25'
+    id 'com.azuredoom.hytale-tools' version '1.0.26'
 }
 ```
 
