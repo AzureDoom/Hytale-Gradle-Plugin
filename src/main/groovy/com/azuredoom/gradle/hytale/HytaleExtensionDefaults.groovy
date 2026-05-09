@@ -17,7 +17,7 @@ final class HytaleExtensionDefaults {
 		ext.modDescription.convention(project.providers.gradleProperty('mod_description').orElse(''))
 		ext.modUrl.convention(project.providers.gradleProperty('mod_url').orElse(''))
 		ext.mainClass.convention(project.providers.gradleProperty('main_class').orElse(''))
-		ext.modCredits.convention(project.providers.gradleProperty('mod_credits').orElse(''))
+		ext.modCredits.convention(project.providers.gradleProperty('mod_credits').orElse('replace_me'))
 		ext.manifestDependencies.convention(project.providers.gradleProperty('manifest_dependencies').orElse(''))
 		ext.manifestOptionalDependencies.convention(project.providers.gradleProperty('manifest_opt_dependencies').orElse(''))
 		ext.curseforgeId.convention(project.providers.gradleProperty('curseforgeID').orElse(''))

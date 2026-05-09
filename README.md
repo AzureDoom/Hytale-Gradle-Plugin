@@ -521,7 +521,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `modDescription`               | `String`       |                                empty | No       | Manifest description                                                                   |
 | `modUrl`                       | `String`       |                                empty | No       | Manifest project URL                                                                   |
 | `mainClass`                    | `String`       |                                empty | Usually  | Plugin entrypoint                                                                      |
-| `modCredits`                   | `String`       |                                empty | No       | Manifest credits                                                                       |
+| `modCredits`                   | `String`       |                         'replace_me' | No       | Manifest credits                                                                       |
 | `manifestDependencies`         | `String`       |                                empty | No       | Required manifest deps                                                                 |
 | `manifestOptionalDependencies` | `String`       |                                empty | No       | Optional manifest deps                                                                 |
 | `curseforgeId`                 | `String`       |                                empty | No       | CurseForge project id                                                                  |
