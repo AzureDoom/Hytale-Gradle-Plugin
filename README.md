@@ -512,7 +512,7 @@ Because manifest generation and validation are wired into the build, most projec
 | Property                       | Type           |                              Default | Required | Purpose                                                                                |
 |--------------------------------|----------------|-------------------------------------:|----------|----------------------------------------------------------------------------------------|
 | `javaVersion`                  | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                            |
-| `hytaleVersion`                | `String`       |                                 none | Usually  | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)            |
+| `hytaleVersion`                | `String`       |                             '2026.+' | Usually  | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)            |
 | `patchline`                    | `String`       |                            `release` | No       | Asset/server patchline                                                                 |
 | `oauthBaseUrl`                 | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                 |
 | `accountBaseUrl`               | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                              |
