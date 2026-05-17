@@ -73,6 +73,9 @@ abstract class HytaleExtension {
 	abstract DirectoryProperty getAssetPackSourceDirectory()
 	abstract DirectoryProperty getAssetPackRunDirectory()
 
+	abstract Property<String> getServerJavadocsUrl()
+	abstract Property<Boolean> getInjectServerJavadocsIntoSources()
+
 	void javaVersion(int v) {
 		getJavaVersion().set(v)
 	}
@@ -177,5 +180,13 @@ abstract class HytaleExtension {
 	}
 	void assetPackRunDirectory(Object v) {
 		getAssetPackRunDirectory().set(v)
+	}
+
+	void serverJavadocsUrl(String v) {
+		getServerJavadocsUrl().set(v)
+	}
+
+	void injectServerJavadocsIntoSources(boolean v) {
+		getInjectServerJavadocsIntoSources().set(v)
 	}
 }

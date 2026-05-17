@@ -3,6 +3,8 @@ package com.azuredoom.gradle.hytale
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.tasks.javadoc.Javadoc
+import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.jvm.tasks.Jar
 
 class HytalePlugin implements Plugin<Project> {
@@ -128,5 +130,88 @@ class HytalePlugin implements Plugin<Project> {
 				assetsZipFileProvider,
 				vineServerJar
 				)
+
+		configureJavadocs(project, ext)
+		configureIdeaJavadocs(project, ext)
+	}
+
+	private static void configureJavadocs(Project project, HytaleExtension ext) {
+		project.plugins.withId('java') {
+			project.tasks.withType(Javadoc).configureEach { Javadoc task ->
+				task.doFirst {
+					if (task.options instanceof StandardJavadocDocletOptions) {
+						task.options.links(ext.serverJavadocsUrl.get())
+					}
+				}
+			}
+		}
+	}
+
+	private static void configureIdeaJavadocs(Project project, HytaleExtension ext) {
+		project.plugins.withId('idea') {
+			project.idea {
+				module {
+					iml.withXml { provider ->
+						def root = provider.asNode()
+
+						def component = root.children().find {
+							it.name() == 'component' && it.attribute('name') == 'NewModuleRootManager'
+						}
+
+						if (component == null) {
+							return
+						}
+
+						component.children().findAll {
+							it.name() == 'orderEntry' && it.attribute('type') == 'module-library'
+						}.each { orderEntry ->
+							def library = orderEntry.children().find {
+								it.name() == 'library'
+							}
+
+							if (library == null) {
+								return
+							}
+
+							def classes = library.children().find {
+								it.name() == 'CLASSES'
+							}
+
+							def classUrls = classes == null
+									? []
+									: classes.children()
+									.findAll { it.name() == 'root' }
+									.collect { it.attribute('url')?.toString() }
+
+							boolean isHytaleServerLibrary = classUrls.any {
+								it != null && (
+										it.contains('com.hypixel.hytale') ||
+										it.contains('/Server/') ||
+										it.contains('\\Server\\') ||
+										it.contains('Server-')
+										)
+							}
+
+							if (!isHytaleServerLibrary) {
+								return
+							}
+
+							def javadocs = library.children().find {
+								it.name() == 'JAVADOC'
+							}
+
+							if (javadocs == null) {
+								javadocs = library.appendNode('JAVADOC')
+							}
+
+							javadocs.children().clear()
+							javadocs.appendNode('root', [
+								url: ext.serverJavadocsUrl.get()
+							])
+						}
+					}
+				}
+			}
+		}
 	}
 }

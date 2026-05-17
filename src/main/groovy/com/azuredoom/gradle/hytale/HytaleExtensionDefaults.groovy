@@ -61,5 +61,24 @@ final class HytaleExtensionDefaults {
 				.orElse(project.providers.environmentVariable('JBR_HOME'))
 				.orElse('')
 				)
+
+		ext.serverJavadocsUrl.convention(
+				ext.patchline.map { String patchline ->
+					hytaleServerDocsUrl(patchline) as String
+				}
+				)
+		ext.injectServerJavadocsIntoSources.convention(true)
+	}
+
+	private static String hytaleServerDocsUrl(String patchline) {
+		String value = patchline == null ? 'release' : patchline.trim()
+
+		boolean prerelease =
+				value.equalsIgnoreCase('pre-release') ||
+				value.equalsIgnoreCase('prerelease')
+
+		return prerelease
+				? 'https://prerelease.server.docs.hytale.com/'
+				: 'https://release.server.docs.hytale.com/'
 	}
 }

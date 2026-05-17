@@ -5,7 +5,7 @@
 [![Hytale](https://img.shields.io/badge/Hytale-Release/Pre-green)]()
 
 A Gradle plugin for Hytale mod development that standardizes project setup, manifest generation,
-validation, local server runs, and IDE-friendly decompiled source attachment.
+validation, local server runs, IDE-friendly decompiled source attachment, and optional hosted Hytale Javadoc injection into generated server sources.
 
 ---
 
@@ -16,6 +16,7 @@ This plugin replaces manual setup tasks such as:
 - manual server setup
 - manual dependency decompilation
 - manual IDE source attachment setup
+- manually cross-referencing hosted Hytale server Javadocs while browsing decompiled sources
 
 ---
 
@@ -37,6 +38,10 @@ hytaleTools {
     
     // Optional: declare sub-plugins bundled with this mod
     subPlugin('MyFeature', 'com.example.mods.feature.MyFeaturePlugin')
+
+    // Optional: enabled by default. Injects hosted Hytale API docs into
+    // generated Vineflower server sources for easier IDE browsing.
+    injectServerJavadocsIntoSources = true
 }
 ```
 
@@ -279,7 +284,7 @@ If you are using VS Code, run:
 ./gradlew prepareDecompiledSourcesForIde
 ```
 
-Then reload the workspace to enable source attachment.
+Then reload the workspace to enable source attachment. The generated Hytale server sources include injected hosted API Javadocs by default, so class and method documentation can appear directly in the source view where matching hosted docs are available.
 
 ## Dependency Flow
 
@@ -365,6 +370,8 @@ Recommended CI flags:
 - Runs a local Hytale server for development
 - Supports debug mode and hot swap capable JVM runtime setup
 - Generates decompiled sources and attaches them in IDEs
+- Injects hosted Hytale Server API Javadocs into generated Vineflower server sources by default
+- Adds external Hytale Server Javadoc links to generated Gradle Javadoc output and IDEA metadata when the `idea` plugin is present
 
 ## Included Tasks
 
@@ -486,7 +493,7 @@ The plugin can automatically detect JetBrains Runtime installations from common 
 
 Decompiles the server jar and all dependencies declared in `vineImplementation`, `vineCompileOnly`, or `vineDecompileTargets` into `build/generated-sources-m2` and `build/generated-sources-ivy`.
 
-This is useful for IDE source attachment.
+This is useful for IDE source attachment. For the Hytale server jar, the plugin also injects hosted Hytale Server API Javadocs into the generated Vineflower sources by default, so documentation can appear directly in IDE source views instead of only through external Javadoc lookup.
 
 ## Development Workflow
 
@@ -512,40 +519,42 @@ Because manifest generation and validation are wired into the build, most projec
 
 ## Extension Reference
 
-| Property                       | Type           |                              Default | Required | Purpose                                                                                |
-|--------------------------------|----------------|-------------------------------------:|----------|----------------------------------------------------------------------------------------|
-| `javaVersion`                  | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                            |
-| `hytaleVersion`                | `String`       |                             '2026.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)            |
-| `patchline`                    | `String`       |                            `release` | No       | Asset/server patchline                                                                 |
-| `oauthBaseUrl`                 | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                 |
-| `accountBaseUrl`               | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                              |
-| `manifestGroup`                | `String`       |                      `project.group` | Yes      | Manifest group / namespace                                                             |
-| `modId`                        | `String`       |                       `project.name` | Yes      | Manifest mod id                                                                        |
-| `modDescription`               | `String`       |                                empty | No       | Manifest description                                                                   |
-| `modUrl`                       | `String`       |                                empty | No       | Manifest project URL                                                                   |
-| `mainClass`                    | `String`       |                                empty | Yes      | Plugin entrypoint                                                                      |
-| `modCredits`                   | `String`       |                         'replace_me' | No       | Manifest credits                                                                       |
-| `manifestDependencies`         | `String`       |                                empty | No       | Required manifest deps                                                                 |
-| `manifestOptionalDependencies` | `String`       |                                empty | No       | Optional manifest deps                                                                 |
-| `curseforgeId`                 | `String`       |                                empty | No       | CurseForge project id                                                                  |
-| `disabledByDefault`            | `Boolean`      |                              `false` | No       | Manifest flag                                                                          |
-| `includesPack`                 | `Boolean`      |                              `false` | No       | Manifest flag                                                                          |
-| `manifestFile`                 | `RegularFile`  |   `src/main/resources/manifest.json` | No       | Manifest location                                                                      |
-| `runDirectory`                 | `Directory`    |                               `run/` | No       | Local server run dir                                                                   |
-| `assetPackSourceDirectory`     | `Directory`    |                 `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`                     |
-| `assetPackRunDirectory`        | `Directory`    |        computed under `run/mods/...` | No       | Assets target dir                                                                      |
-| `bundleAssetEditorRuntime`     | `Boolean`      |                               `true` | No       | Controls whether AssetBridge is bundled into the final jar                             |
-| `serverArgs`                   | `List<String>` | `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument |
-| `serverJvmArgs`                | `List<String>` |                                 `[]` | No       | Extra JVM arguments for `runServer`                                                    |
-| `preRunTask`                   | `String`       |                                empty | No       | Task name to run before `runServer`                                                    |
-| `debugEnabled`                 | `Boolean`      |                              `false` | No       | Enables JDWP debugging for `runServer`                                                 |
-| `debugPort`                    | `Integer`      |                               `5005` | No       | Debug port used when `debugEnabled` is true                                            |
-| `debugSuspend`                 | `Boolean`      |                              `false` | No       | Whether the JVM waits for a debugger before starting                                   |
-| `hotSwapEnabled`               | `Boolean`      |                              `false` | No       | Enables hot swap capability detection and runtime setup                                |
-| `requireDcevm`                 | `Boolean`      |                              `false` | No       | Fails launch if enhanced class redefinition support is unavailable                     |
-| `useHotswapAgent`              | `Boolean`      |                               `true` | No       | Enables bundled HotswapAgent integration when available                                |
-| `jbrHome`                      | `String`       |                                empty | No       | Optional path to a JetBrains Runtime installation                                      |
-| `subPlugins`                   | `List<Map>`    |                                 `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                      |
+| Property                          | Type           |                              Default | Required | Purpose                                                                                             |
+|-----------------------------------|----------------|-------------------------------------:|----------|-----------------------------------------------------------------------------------------------------|
+| `javaVersion`                     | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                                         |
+| `hytaleVersion`                   | `String`       |                             '2026.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)                         |
+| `patchline`                       | `String`       |                            `release` | No       | Asset/server patchline                                                                              |
+| `serverJavadocsUrl`               | `String`       |       computed from active patchline | No       | Hosted Hytale Server API Javadocs URL used for Gradle Javadocs, IDEA metadata, and source injection |
+| `injectServerJavadocsIntoSources` | `Boolean`      |                               `true` | No       | Injects hosted Hytale API docs into generated Vineflower server sources for IDE browsing            |
+| `oauthBaseUrl`                    | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                              |
+| `accountBaseUrl`                  | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                                           |
+| `manifestGroup`                   | `String`       |                      `project.group` | Yes      | Manifest group / namespace                                                                          |
+| `modId`                           | `String`       |                       `project.name` | Yes      | Manifest mod id                                                                                     |
+| `modDescription`                  | `String`       |                                empty | No       | Manifest description                                                                                |
+| `modUrl`                          | `String`       |                                empty | No       | Manifest project URL                                                                                |
+| `mainClass`                       | `String`       |                                empty | Yes      | Plugin entrypoint                                                                                   |
+| `modCredits`                      | `String`       |                         'replace_me' | No       | Manifest credits                                                                                    |
+| `manifestDependencies`            | `String`       |                                empty | No       | Required manifest deps                                                                              |
+| `manifestOptionalDependencies`    | `String`       |                                empty | No       | Optional manifest deps                                                                              |
+| `curseforgeId`                    | `String`       |                                empty | No       | CurseForge project id                                                                               |
+| `disabledByDefault`               | `Boolean`      |                              `false` | No       | Manifest flag                                                                                       |
+| `includesPack`                    | `Boolean`      |                              `false` | No       | Manifest flag                                                                                       |
+| `manifestFile`                    | `RegularFile`  |   `src/main/resources/manifest.json` | No       | Manifest location                                                                                   |
+| `runDirectory`                    | `Directory`    |                               `run/` | No       | Local server run dir                                                                                |
+| `assetPackSourceDirectory`        | `Directory`    |                 `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`                                  |
+| `assetPackRunDirectory`           | `Directory`    |        computed under `run/mods/...` | No       | Assets target dir                                                                                   |
+| `bundleAssetEditorRuntime`        | `Boolean`      |                               `true` | No       | Controls whether AssetBridge is bundled into the final jar                                          |
+| `serverArgs`                      | `List<String>` | `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument              |
+| `serverJvmArgs`                   | `List<String>` |                                 `[]` | No       | Extra JVM arguments for `runServer`                                                                 |
+| `preRunTask`                      | `String`       |                                empty | No       | Task name to run before `runServer`                                                                 |
+| `debugEnabled`                    | `Boolean`      |                              `false` | No       | Enables JDWP debugging for `runServer`                                                              |
+| `debugPort`                       | `Integer`      |                               `5005` | No       | Debug port used when `debugEnabled` is true                                                         |
+| `debugSuspend`                    | `Boolean`      |                              `false` | No       | Whether the JVM waits for a debugger before starting                                                |
+| `hotSwapEnabled`                  | `Boolean`      |                              `false` | No       | Enables hot swap capability detection and runtime setup                                             |
+| `requireDcevm`                    | `Boolean`      |                              `false` | No       | Fails launch if enhanced class redefinition support is unavailable                                  |
+| `useHotswapAgent`                 | `Boolean`      |                               `true` | No       | Enables bundled HotswapAgent integration when available                                             |
+| `jbrHome`                         | `String`       |                                empty | No       | Optional path to a JetBrains Runtime installation                                                   |
+| `subPlugins`                      | `List<Map>`    |                                 `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                   |
 
 ## SubPlugins
 
@@ -600,23 +609,24 @@ If no sub-plugins are declared, the `SubPlugins` key is omitted from the manifes
 
 ## Task Reference
 
-| Task                             | Group    | Purpose                                                         | Typical Use                        |
-|----------------------------------|----------|-----------------------------------------------------------------|------------------------------------|
-| `createManifestIfMissing`        | `hytale` | Creates a starter manifest if missing                           | First setup                        |
-| `updatePluginManifest`           | `hytale` | Rewrites manifest from Gradle config                            | Normal dev/build                   |
-| `updateAllPluginManifests`       | `hytale` | Rewrites manifests for all Hytale subprojects                   | Multi-project manifest sync        |
-| `downloadAssetsZip`              | `hytale` | Authenticates and fetches assets                                | Before first run / troubleshooting |
-| `hytaleDoctor`                   | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics      | Troubleshooting                    |
-| `runServer`                      | `hytale` | Launches local Hytale server                                    | Single-project dev loop            |
-| `runAllMods`                     | `hytale` | Launches one shared server with all mod subprojects             | Multi-project dev loop             |
-| `stageAllModAssets`              | `hytale` | Stages each mod's asset pack into the root `run/mods` directory | Multi-project run preparation      |
-| `prepareDecompiledSourcesForIde` | `hytale` | Generates source jars for IDE attachment                        | IDE setup                          |
-| `validateManifest`               | internal | Verifies generated manifest values                              | Runs automatically                 |
-| `validateAllManifests`           | `hytale` | Verifies manifests for all Hytale subprojects                   | Multi-project validation           |
-| `prepareRunServer`               | internal | Sets up run directory and mod assets                            | Runs automatically                 |
-| `decompileServerJar`             | internal | Decompiles Hytale server sources                                | Internal source pipeline           |
-| `setupHytaleDev`                 | `hytale` | Prepares IDE sources and downloads assets                       | First-time setup                   |
-| `hytaleJvmDoctor`                | `hytale` | Prints JVM debug / hot swap diagnostics                         | Debugging hot swap setup           |
+| Task                                        | Group    | Purpose                                                         | Typical Use                        |
+|---------------------------------------------|----------|-----------------------------------------------------------------|------------------------------------|
+| `createManifestIfMissing`                   | `hytale` | Creates a starter manifest if missing                           | First setup                        |
+| `updatePluginManifest`                      | `hytale` | Rewrites manifest from Gradle config                            | Normal dev/build                   |
+| `updateAllPluginManifests`                  | `hytale` | Rewrites manifests for all Hytale subprojects                   | Multi-project manifest sync        |
+| `downloadAssetsZip`                         | `hytale` | Authenticates and fetches assets                                | Before first run / troubleshooting |
+| `hytaleDoctor`                              | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics      | Troubleshooting                    |
+| `runServer`                                 | `hytale` | Launches local Hytale server                                    | Single-project dev loop            |
+| `runAllMods`                                | `hytale` | Launches one shared server with all mod subprojects             | Multi-project dev loop             |
+| `stageAllModAssets`                         | `hytale` | Stages each mod's asset pack into the root `run/mods` directory | Multi-project run preparation      |
+| `prepareDecompiledSourcesForIde`            | `hytale` | Generates source jars for IDE attachment                        | IDE setup                          |
+| `validateManifest`                          | internal | Verifies generated manifest values                              | Runs automatically                 |
+| `validateAllManifests`                      | `hytale` | Verifies manifests for all Hytale subprojects                   | Multi-project validation           |
+| `prepareRunServer`                          | internal | Sets up run directory and mod assets                            | Runs automatically                 |
+| `decompileServerJar`                        | internal | Decompiles Hytale server sources                                | Internal source pipeline           |
+| `injectServerJavadocsIntoDecompiledSources` | internal | Injects hosted Hytale API docs into decompiled server sources   | Internal source pipeline           |
+| `setupHytaleDev`                            | `hytale` | Prepares IDE sources and downloads assets                       | First-time setup                   |
+| `hytaleJvmDoctor`                           | `hytale` | Prints JVM debug / hot swap diagnostics                         | Debugging hot swap setup           |
 
 ## IDE Source Attachment
 
@@ -678,6 +688,44 @@ dependencies {
     vineDecompileTargets 'com.buuz135:MultipleHUD:1.0.6'
 }
 ```
+
+### Hosted Hytale Javadocs in generated sources
+
+The Hytale server jar does not contain source-level Javadocs, so Vineflower cannot recover comments from bytecode by itself. To make API documentation visible while browsing generated sources, the plugin fetches the hosted Hytale Server API Javadocs and injects matching class, constructor, and method documentation into the generated server source jar.
+
+By default, the Javadocs URL is selected from the configured `patchline`:
+
+| Patchline                    | Default Javadocs URL                         |
+|------------------------------|----------------------------------------------|
+| `release`                    | `https://release.server.docs.hytale.com/`    |
+| `pre-release` / `prerelease` | `https://prerelease.server.docs.hytale.com/` |
+
+You can override the URL or disable source injection:
+
+```gradle
+hytaleTools {
+    // Optional override; normally computed from patchline
+    serverJavadocsUrl = 'https://release.server.docs.hytale.com/'
+
+    // Enabled by default
+    injectServerJavadocsIntoSources = true
+}
+```
+
+The injector caches downloaded pages and missing pages under Gradle user home:
+
+```text
+~/.gradle/caches/hytale-javadocs/<patchline>/
+```
+
+The first run may take longer while pages are fetched. Later runs are faster because successful pages and missing-page lookups are cached. If hosted docs change, and you need a fresh injection pass, delete the relevant cache directory and rerun:
+
+```bash
+rm -rf ~/.gradle/caches/hytale-javadocs/release
+./gradlew prepareDecompiledSourcesForIde --rerun-tasks
+```
+
+The plugin also adds the hosted Javadocs URL to Gradle `javadoc` tasks. If the `idea` plugin is applied, the generated IDEA metadata also receives the external Javadocs URL, but the plugin does not apply `idea` automatically.
 
 ## Repositories
 
@@ -796,7 +844,7 @@ Supported selectors:
 
 - `2026.+` — latest version starting with `2026.`
 - `2026.1.+` — latest version starting with `2026.1.`
-- `latest.release` — same as `+` 
+- `latest.release` — same as `+`
 
 The generated `manifest.json` always contains the **resolved concrete version** (e.g. `2026.1.22-6f8bdbdc4`), not the selector, so your built mod jar remains reproducible and pins to a specific server version.
 
@@ -915,6 +963,12 @@ hytaleTools {
 
     // Optional
     // jbrHome = '/path/to/jbr'
+
+    // Optional: defaults to the release/prerelease docs URL based on patchline
+    // serverJavadocsUrl = 'https://release.server.docs.hytale.com/'
+
+    // Optional: enabled by default
+    injectServerJavadocsIntoSources = true
 }
 ```
 
@@ -1022,6 +1076,25 @@ Then refresh or reimport the Gradle project in your IDE.
 
 Also verify the dependency is listed in `vineDecompileTargets` if you expect decompiled dependency sources.
 
+### Hytale API comments are not showing in generated server sources
+
+The plugin injects hosted Hytale API docs into generated server sources during `prepareDecompiledSourcesForIde`. If source comments are missing:
+
+1. Confirm `injectServerJavadocsIntoSources` is not disabled.
+2. Confirm `serverJavadocsUrl` points at the correct release or pre-release docs site.
+3. Delete the generated source jars and Javadoc cache, then regenerate sources.
+
+```bash
+rm -rf build/vineflower/hytale-server
+rm -rf build/generated-sources-jars/server
+rm -rf build/generated-sources-m2
+rm -rf build/generated-sources-ivy
+rm -rf ~/.gradle/caches/hytale-javadocs/release
+./gradlew prepareDecompiledSourcesForIde --rerun-tasks
+```
+
+The injector only adds comments where a matching hosted Javadoc page and member documentation can be found.
+
 ### `runServer` fails because assets are missing
 
 Run:
@@ -1099,3 +1172,4 @@ If hot swap is not working as expected, this should be the first check.
 - The plugin does not apply the `idea` plugin automatically
 - If the `idea` plugin is present, IDEA integration is wired automatically
 - You can always run `prepareDecompiledSourcesForIde` directly for source generation
+- Hosted Hytale Javadoc injection is enabled by default for generated server sources and uses a Gradle-user-home cache

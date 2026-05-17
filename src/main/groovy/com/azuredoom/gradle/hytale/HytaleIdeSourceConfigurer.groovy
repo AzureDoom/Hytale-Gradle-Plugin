@@ -46,6 +46,26 @@ final class HytaleIdeSourceConfigurer {
 			javaVersion.set(ext.javaVersion)
 		}
 
+		def injectServerJavadocsIntoDecompiledSources = project.tasks.register('injectServerJavadocsIntoDecompiledSources') {
+			group = null
+			description = 'Injects hosted Hytale Server API Javadocs into the Vineflower-generated server sources.'
+
+			dependsOn('decompileServerJar')
+
+			inputs.dir(decompiledServerDir)
+			inputs.property('serverJavadocsUrl', ext.serverJavadocsUrl)
+			outputs.dir(decompiledServerDir)
+
+			doLast {
+				HytaleSourceJavadocInjector.inject(
+						decompiledServerDir.get().asFile,
+						ext.serverJavadocsUrl.get(),
+						new File(project.gradle.gradleUserHomeDir, "caches/hytale-javadocs/${ext.patchline.get()}"),
+						project.logger
+						)
+			}
+		}
+
 		def mergeServerBinaryAndAssets = project.tasks.register('mergeServerBinaryAndAssets', MergeServerBinaryAndAssetsTask) {
 			group = null
 			description = 'Merge resolved Hytale server jar with Assets.zip for IDE library browsing.'
@@ -68,7 +88,7 @@ final class HytaleIdeSourceConfigurer {
 			group = null
 			description = 'Packages decompiled Hytale server sources as a sources jar.'
 
-			dependsOn('decompileServerJar')
+			dependsOn(injectServerJavadocsIntoDecompiledSources)
 
 			archiveBaseName.set('hytale-server-decompiled')
 			archiveVersion.set(project.provider { project.version.toString() })
