@@ -7,6 +7,7 @@ final class HytaleExtensionDefaults {
 
 	static void apply(Project project, HytaleExtension ext) {
 		ext.javaVersion.convention(project.providers.gradleProperty('java_version').map { (it ?: '25') as Integer }.orElse(25))
+		// TODO: Make default '0.+' instead of '2026.+' after next update
 		ext.hytaleVersion.convention(project.providers.gradleProperty('hytale_version').orElse('2026.+'))
 		ext.patchline.convention(project.providers.gradleProperty('hytale_patchline').orElse('release'))
 		ext.oauthBaseUrl.convention(project.providers.gradleProperty('hytools.hytale.oauth.base').orElse('https://oauth.accounts.hytale.com'))
