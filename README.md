@@ -534,7 +534,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `modUrl`                          | `String`       |                                empty | No       | Manifest project URL                                                                                |
 | `mainClass`                       | `String`       |                                empty | Yes      | Plugin entrypoint                                                                                   |
 | `modCredits`                      | `String`       |                         'replace_me' | No       | Manifest credits                                                                                    |
-| `manifestDependencies`            | `String`       |                                empty | No       | Required manifest deps                                                                              |
+| `manifestDependencies`            | `String`       |               `Hytale:AssetModule=*` | No       | Required manifest deps                                                                              |
 | `manifestOptionalDependencies`    | `String`       |                                empty | No       | Optional manifest deps                                                                              |
 | `curseforgeId`                    | `String`       |                                empty | No       | CurseForge project id                                                                               |
 | `disabledByDefault`               | `Boolean`      |                              `false` | No       | Manifest flag                                                                                       |
