@@ -4,20 +4,28 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
+import java.net.http.HttpResponse.BodyHandler
+import java.net.http.HttpResponse.BodySubscriber
+import java.net.http.HttpResponse.ResponseInfo
+import java.nio.ByteBuffer
+import java.nio.channels.Channels
+import java.nio.channels.WritableByteChannel
+import java.nio.file.StandardOpenOption
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.Flow
 
-import javax.inject.Inject
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
+import org.gradle.api.logging.Logger
 import java.util.zip.ZipFile
 
 @DisableCachingByDefault(because = "Downloads authenticated remote assets and may fall back to machine-local installs")
@@ -34,12 +42,6 @@ abstract class DownloadAssetsZipTask extends DefaultTask {
 	@OutputFile abstract RegularFileProperty getResolvedAssetsZip()
 	@OutputFile abstract RegularFileProperty getResolvedAssetsWrapper()
 	@OutputFile abstract RegularFileProperty getTokenCacheFile()
-
-	@Inject
-	protected abstract FileSystemOperations getFs()
-
-	@Inject
-	protected abstract ProviderFactory getProviders()
 
 	@Internal
 	transient Closure<HttpClient> createHttpClientOverride
@@ -263,6 +265,8 @@ Code: ${userCode}
 		def assetsZip = resolvedAssetsZip.get().asFile
 		def tokenFile = tokenCacheFile.get().asFile
 
+		logger.lifecycle("Resolving Hytale assets for version ${version} on patchline ${patch}")
+
 		wrapper.parentFile.mkdirs()
 		assetsZip.parentFile.mkdirs()
 		tokenFile.parentFile.mkdirs()
@@ -281,6 +285,7 @@ Code: ${userCode}
 
 			if (tokens?.refresh_token) {
 				try {
+					logger.lifecycle('Refreshing cached Hytale OAuth token...')
 					activeTokens = refreshToken(client, json, oauth, tokens)
 					logger.lifecycle('Refreshed cached Hytale OAuth tokens')
 				} catch (Exception e) {
@@ -289,7 +294,9 @@ Code: ${userCode}
 			}
 
 			if (activeTokens == null) {
+				logger.lifecycle('Starting Hytale OAuth authentication...')
 				activeTokens = startDeviceFlow(client, json, oauth)
+				logger.lifecycle('Completed Hytale OAuth authentication')
 			}
 
 			if (!activeTokens?.access_token) {
@@ -303,6 +310,10 @@ Code: ${userCode}
 			Exception remoteFailure = null
 			try {
 				def assetLookupUrl = "${account}/game-assets/builds/${patch}/${version}.zip"
+
+				logger.lifecycle("Looking up Hytale asset bundle...")
+				logger.info("Asset lookup URL: ${assetLookupUrl}")
+
 				def assetLookupResp = getJson(client, assetLookupUrl, activeTokens.access_token as String)
 				if (assetLookupResp.statusCode() < 200 || assetLookupResp.statusCode() >= 300) {
 					throw new GradleException("Asset bundle lookup failed with HTTP ${assetLookupResp.statusCode()} from ${assetLookupUrl}")
@@ -315,20 +326,30 @@ Code: ${userCode}
 				}
 
 				def tmpWrapper = new File(wrapper.parentFile, wrapper.name + '.part')
-				client.send(
+
+				logger.lifecycle("Downloading Hytale asset wrapper zip. This may take a while...")
+				def downloadResp = client.send(
 						HttpRequest.newBuilder()
 						.uri(URI.create(bundleUrl))
 						.timeout(Duration.ofMinutes(30))
 						.GET()
 						.build(),
-						HttpResponse.BodyHandlers.ofFile(tmpWrapper.toPath())
+						progressFileBodyHandler(tmpWrapper, 'Downloading Hytale asset wrapper zip', 5000L)
 						)
+
+				if (downloadResp.statusCode() < 200 || downloadResp.statusCode() >= 300) {
+					throw new GradleException("Asset wrapper download failed with HTTP ${downloadResp.statusCode()}")
+				}
 
 				if (!tmpWrapper.exists() || tmpWrapper.length() == 0) {
 					throw new GradleException('Downloaded asset wrapper is empty')
 				}
 
+				logger.lifecycle("Downloaded Hytale asset wrapper zip: ${formatBytes(tmpWrapper.length())}")
+
 				atomicCopy(tmpWrapper, wrapper)
+
+				logger.lifecycle("Extracting Assets.zip from downloaded wrapper...")
 
 				def zipFile = new ZipFile(wrapper)
 				try {
@@ -342,21 +363,27 @@ Code: ${userCode}
 					tmpAssetsZip.withOutputStream { os ->
 						zipFile.getInputStream(innerEntry).withStream { ins -> os << ins }
 					}
+
+					logger.lifecycle("Validating extracted Assets.zip...")
 					validateZipFile(tmpAssetsZip, 'Extracted Assets.zip')
+
 					atomicCopy(tmpAssetsZip, assetsZip)
 				} finally {
 					zipFile.close()
 				}
 
-				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
+				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip} (${formatBytes(assetsZip.length())})")
 				return
 			} catch (Exception e) {
 				remoteFailure = e
 				logger.warn("Failed to download remote Hytale assets, trying local install fallback: ${e.message}")
 			}
 
+			logger.lifecycle("Searching local Hytale install for Assets.zip fallback...")
+
 			def localAssetsZip = resolveLocalAssetsZip(patch)
 			if (localAssetsZip != null) {
+				logger.lifecycle("Found local Hytale Assets.zip fallback: ${localAssetsZip} (${formatBytes(localAssetsZip.length())})")
 				validateZipFile(localAssetsZip, "Copied Assets.zip from ${localAssetsZip}")
 				atomicCopy(localAssetsZip, assetsZip)
 				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
@@ -369,6 +396,146 @@ Code: ${userCode}
 			)
 		} finally {
 			client.close()
+		}
+	}
+
+	protected static String formatBytes(long bytes) {
+		if (bytes < 1024L) return "${bytes} B"
+		def units = ['KiB', 'MiB', 'GiB', 'TiB']
+		double value = bytes
+		int unitIndex = -1
+		while (value >= 1024D && unitIndex < units.size() - 1) {
+			value /= 1024D
+			unitIndex++
+		}
+		String.format(Locale.ROOT, '%.1f %s', value, units[unitIndex])
+	}
+
+	protected BodyHandler<File> progressFileBodyHandler(File destination, String label, long logIntervalMillis = 7500L) {
+		return { ResponseInfo responseInfo ->
+			OptionalLong contentLength = responseInfo.headers().firstValueAsLong('Content-Length')
+			new ProgressFileBodySubscriber(destination, label, contentLength, logIntervalMillis, logger)
+		} as BodyHandler<File>
+	}
+
+	protected static class ProgressFileBodySubscriber implements BodySubscriber<File> {
+		private final File destination
+		private final String label
+		private final OptionalLong contentLength
+		private final long logIntervalMillis
+		private final Logger logger
+		private final CompletableFuture<File> result = new CompletableFuture<>()
+
+		private Flow.Subscription subscription
+		private WritableByteChannel channel
+		private long downloadedBytes = 0L
+		private long lastLogMillis = 0L
+		private long startedMillis = System.currentTimeMillis()
+
+		ProgressFileBodySubscriber(
+		File destination,
+		String label,
+		OptionalLong contentLength,
+		long logIntervalMillis,
+		Logger logger
+		) {
+			this.destination = destination
+			this.label = label
+			this.contentLength = contentLength
+			this.logIntervalMillis = logIntervalMillis
+			this.logger = logger
+		}
+
+		@Override
+		CompletionStage<File> getBody() {
+			return result
+		}
+
+		@Override
+		void onSubscribe(Flow.Subscription subscription) {
+			this.subscription = subscription
+			Files.createDirectories(destination.parentFile.toPath())
+			channel = Channels.newChannel(Files.newOutputStream(
+					destination.toPath(),
+					StandardOpenOption.CREATE,
+					StandardOpenOption.TRUNCATE_EXISTING,
+					StandardOpenOption.WRITE
+					))
+
+			if (contentLength.present) {
+				logger.lifecycle("${label}: starting download (${formatBytes(contentLength.asLong)})")
+			} else {
+				logger.lifecycle("${label}: starting download")
+			}
+
+			lastLogMillis = System.currentTimeMillis()
+			subscription.request(1)
+		}
+
+		@Override
+		void onNext(List<ByteBuffer> items) {
+			try {
+				for (ByteBuffer item : items) {
+					downloadedBytes += item.remaining()
+					while (item.hasRemaining()) {
+						channel.write(item)
+					}
+				}
+
+				logProgress(false)
+				subscription.request(1)
+			} catch (Throwable t) {
+				closeQuietly()
+				result.completeExceptionally(t)
+				subscription.cancel()
+			}
+		}
+
+		@Override
+		void onError(Throwable throwable) {
+			closeQuietly()
+			result.completeExceptionally(throwable)
+		}
+
+		@Override
+		void onComplete() {
+			closeQuietly()
+			logProgress(true)
+			result.complete(destination)
+		}
+
+		private void logProgress(boolean force) {
+			long now = System.currentTimeMillis()
+			if (!force && now - lastLogMillis < logIntervalMillis) {
+				return
+			}
+
+			lastLogMillis = now
+
+			if (contentLength.present && contentLength.asLong > 0L) {
+				long totalBytes = contentLength.asLong
+				double percent = (downloadedBytes * 100D) / totalBytes
+				logger.lifecycle(
+						"${label}: downloaded ${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)} " +
+						String.format(Locale.ROOT, '(%.1f%%)', percent)
+						)
+			} else {
+				long elapsedMillis = now - startedMillis
+				long elapsedSeconds = Math.max(1L, elapsedMillis.intdiv(1000L) as long)
+				long bytesPerSecond = downloadedBytes.intdiv(elapsedSeconds) as long
+
+				logger.lifecycle(
+						"${label}: downloaded ${formatBytes(downloadedBytes)} " +
+						"(${formatBytes(bytesPerSecond)}/s)"
+						)
+			}
+		}
+
+		private void closeQuietly() {
+			try {
+				channel?.close()
+			} catch (Exception ignored) {
+			}
 		}
 	}
 }
