@@ -558,6 +558,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
     hotSwapEnabled.set(hytaleTools.hotSwapEnabled)
     requireDcevm.set(hytaleTools.requireDcevm)
     useHotswapAgent.set(hytaleTools.useHotswapAgent)
+    hotswapAgentPath.set(hytaleTools.hotswapAgentPath)
     jbrHome.set(hytaleTools.jbrHome)
 
 	mainClass.set('com.example.DoesNotMatter')
