@@ -66,6 +66,7 @@ abstract class HytaleExtension {
 	abstract Property<Boolean> getHotSwapEnabled()
 	abstract Property<Boolean> getRequireDcevm()
 	abstract Property<Boolean> getUseHotswapAgent()
+	abstract Property<String> getHotswapAgentPath()
 	abstract Property<String> getJbrHome()
 
 	abstract RegularFileProperty getManifestFile()
@@ -147,6 +148,9 @@ abstract class HytaleExtension {
 	}
 	void useHotswapAgent(boolean v) {
 		getUseHotswapAgent().set(v)
+	}
+	void hotswapAgentPath(String v) {
+		getHotswapAgentPath().set(v)
 	}
 	void jbrHome(String v) {
 		getJbrHome().set(v)

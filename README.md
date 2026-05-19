@@ -66,14 +66,33 @@ To enable debugging and hot swap:
 
 For best results:
 
-- Install JetBrains Runtime (JBR)
-- Let the plugin auto-detect it or set `jbrHome`
+- Use JetBrains Runtime (JBR) for enhanced class redefinition support.
+- Let the plugin resolve the Java toolchain automatically, or set `jbrHome` if you need a specific JBR installation.
+- Optionally configure `hotswapAgentPath` if you want to use an external HotswapAgent jar.
 
-Verify your setup:
+Example with an external HotswapAgent jar:
+
+```gradle
+hytaleTools {
+    hotSwapEnabled = true
+    useHotswapAgent = true
+    hotswapAgentPath = '/path/to/hotswap-agent.jar'
+}
+```
+
+Or via gradle.properties:
+
+```properties
+./gradlew runServer -Ddebug=true -Dhotswap=true
+```
+
+Verify your JVM and hot swap setup:
 
 ```bash
 ./gradlew hytaleJvmDoctor
 ```
+
+When launching from IntelliJ using Debug, IntelliJ may provide its own debugger agent. The plugin detects an existing JDWP debugger argument and avoids adding a duplicate one.
 
 ---
 
@@ -368,7 +387,7 @@ Recommended CI flags:
 - Generates, updates, and validates `manifest.json`
 - Downloads authenticated Hytale assets
 - Runs a local Hytale server for development
-- Supports debug mode and hot swap capable JVM runtime setup
+- Supports debug mode, IntelliJ-friendly JDWP handling, enhanced hot swap setup, and optional external HotswapAgent integration
 - Generates decompiled sources and attaches them in IDEs
 - Injects hosted Hytale Server API Javadocs into generated Vineflower server sources by default
 - Adds external Hytale Server Javadoc links to generated Gradle Javadoc output and IDEA metadata when the `idea` plugin is present
@@ -436,7 +455,11 @@ hytaleTools {
     hotSwapEnabled = false
     requireDcevm = false
     useHotswapAgent = true
-
+    
+    // Optional external HotswapAgent jar.
+    // If unset, the plugin will try bundled JBR HotswapAgent support when available.
+    hotswapAgentPath = ''
+    
     // Optional explicit JetBrains Runtime location
     // jbrHome = '/path/to/jbr'
 }
@@ -461,6 +484,8 @@ Hot swap support depends on the selected JVM:
 - JetBrains Runtime (JBR): supports enhanced class redefinition
 - HotswapAgent (if available): improves runtime reload behavior
 
+When `hotSwapEnabled` is true, the plugin checks the selected JVM for enhanced class redefinition support. If enhanced redefinition is available, it adds `-XX:+AllowEnhancedClassRedefinition`. If `useHotswapAgent` is also true, the plugin either uses the configured external `hotswapAgentPath` jar or falls back to bundled JBR HotswapAgent support when available.
+
 For best results, use JetBrains Runtime with hot swap enabled.
 
 Notes:
@@ -470,7 +495,9 @@ Notes:
 - `debugEnabled` enables JDWP debugging for IDE attach
 - `hotSwapEnabled` enables runtime probing for enhanced class redefinition support
 - `requireDcevm` fails early if enhanced class redefinition is not available
-- `useHotswapAgent` enables bundled HotswapAgent support when available in the selected runtime
+- `useHotswapAgent` enables HotswapAgent integration when hot swap is enabled
+- `hotswapAgentPath` points to an external HotswapAgent jar; when set, it is used as `-javaagent:<path>=autoHotswap=true`
+- If `hotswapAgentPath` is empty, the plugin attempts to use bundled JBR HotswapAgent support when available
 - `jbrHome` can be used to point the plugin at a specific JetBrains Runtime installation
 
 ### `hytaleJvmDoctor`
@@ -519,42 +546,43 @@ Because manifest generation and validation are wired into the build, most projec
 
 ## Extension Reference
 
-| Property                          | Type           |                              Default | Required | Purpose                                                                                             |
-|-----------------------------------|----------------|-------------------------------------:|----------|-----------------------------------------------------------------------------------------------------|
-| `javaVersion`                     | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                                         |
-| `hytaleVersion`                   | `String`       |                             '2026.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)                         |
-| `patchline`                       | `String`       |                            `release` | No       | Asset/server patchline                                                                              |
-| `serverJavadocsUrl`               | `String`       |       computed from active patchline | No       | Hosted Hytale Server API Javadocs URL used for Gradle Javadocs, IDEA metadata, and source injection |
-| `injectServerJavadocsIntoSources` | `Boolean`      |                               `true` | No       | Injects hosted Hytale API docs into generated Vineflower server sources for IDE browsing            |
-| `oauthBaseUrl`                    | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                              |
-| `accountBaseUrl`                  | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                                           |
-| `manifestGroup`                   | `String`       |                      `project.group` | Yes      | Manifest group / namespace                                                                          |
-| `modId`                           | `String`       |                       `project.name` | Yes      | Manifest mod id                                                                                     |
-| `modDescription`                  | `String`       |                                empty | No       | Manifest description                                                                                |
-| `modUrl`                          | `String`       |                                empty | No       | Manifest project URL                                                                                |
-| `mainClass`                       | `String`       |                                empty | Yes      | Plugin entrypoint                                                                                   |
-| `modCredits`                      | `String`       |                         'replace_me' | No       | Manifest credits                                                                                    |
-| `manifestDependencies`            | `String`       |               `Hytale:AssetModule=*` | No       | Required manifest deps                                                                              |
-| `manifestOptionalDependencies`    | `String`       |                                empty | No       | Optional manifest deps                                                                              |
-| `curseforgeId`                    | `String`       |                                empty | No       | CurseForge project id                                                                               |
-| `disabledByDefault`               | `Boolean`      |                              `false` | No       | Manifest flag                                                                                       |
-| `includesPack`                    | `Boolean`      |                              `false` | No       | Manifest flag                                                                                       |
-| `manifestFile`                    | `RegularFile`  |   `src/main/resources/manifest.json` | No       | Manifest location                                                                                   |
-| `runDirectory`                    | `Directory`    |                               `run/` | No       | Local server run dir                                                                                |
-| `assetPackSourceDirectory`        | `Directory`    |                 `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`                                  |
-| `assetPackRunDirectory`           | `Directory`    |        computed under `run/mods/...` | No       | Assets target dir                                                                                   |
-| `bundleAssetEditorRuntime`        | `Boolean`      |                               `true` | No       | Controls whether AssetBridge is bundled into the final jar                                          |
-| `serverArgs`                      | `List<String>` | `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument              |
-| `serverJvmArgs`                   | `List<String>` |                                 `[]` | No       | Extra JVM arguments for `runServer`                                                                 |
-| `preRunTask`                      | `String`       |                                empty | No       | Task name to run before `runServer`                                                                 |
-| `debugEnabled`                    | `Boolean`      |                              `false` | No       | Enables JDWP debugging for `runServer`                                                              |
-| `debugPort`                       | `Integer`      |                               `5005` | No       | Debug port used when `debugEnabled` is true                                                         |
-| `debugSuspend`                    | `Boolean`      |                              `false` | No       | Whether the JVM waits for a debugger before starting                                                |
-| `hotSwapEnabled`                  | `Boolean`      |                              `false` | No       | Enables hot swap capability detection and runtime setup                                             |
-| `requireDcevm`                    | `Boolean`      |                              `false` | No       | Fails launch if enhanced class redefinition support is unavailable                                  |
-| `useHotswapAgent`                 | `Boolean`      |                               `true` | No       | Enables bundled HotswapAgent integration when available                                             |
-| `jbrHome`                         | `String`       |                                empty | No       | Optional path to a JetBrains Runtime installation                                                   |
-| `subPlugins`                      | `List<Map>`    |                                 `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                   |
+| Property                          | Type           |                              Default | Required | Purpose                                                                                                 |
+|-----------------------------------|----------------|-------------------------------------:|----------|---------------------------------------------------------------------------------------------------------|
+| `javaVersion`                     | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                                             |
+| `hytaleVersion`                   | `String`       |                             '2026.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)                             |
+| `patchline`                       | `String`       |                            `release` | No       | Asset/server patchline                                                                                  |
+| `serverJavadocsUrl`               | `String`       |       computed from active patchline | No       | Hosted Hytale Server API Javadocs URL used for Gradle Javadocs, IDEA metadata, and source injection     |
+| `injectServerJavadocsIntoSources` | `Boolean`      |                               `true` | No       | Injects hosted Hytale API docs into generated Vineflower server sources for IDE browsing                |
+| `oauthBaseUrl`                    | `String`       |                     Hytale OAuth URL | No       | Override auth endpoint                                                                                  |
+| `accountBaseUrl`                  | `String`       |              Hytale account-data URL | No       | Override account endpoint                                                                               |
+| `manifestGroup`                   | `String`       |                      `project.group` | Yes      | Manifest group / namespace                                                                              |
+| `modId`                           | `String`       |                       `project.name` | Yes      | Manifest mod id                                                                                         |
+| `modDescription`                  | `String`       |                                empty | No       | Manifest description                                                                                    |
+| `modUrl`                          | `String`       |                                empty | No       | Manifest project URL                                                                                    |
+| `mainClass`                       | `String`       |                                empty | Yes      | Plugin entrypoint                                                                                       |
+| `modCredits`                      | `String`       |                         'replace_me' | No       | Manifest credits                                                                                        |
+| `manifestDependencies`            | `String`       |               `Hytale:AssetModule=*` | No       | Required manifest deps                                                                                  |
+| `manifestOptionalDependencies`    | `String`       |                                empty | No       | Optional manifest deps                                                                                  |
+| `curseforgeId`                    | `String`       |                                empty | No       | CurseForge project id                                                                                   |
+| `disabledByDefault`               | `Boolean`      |                              `false` | No       | Manifest flag                                                                                           |
+| `includesPack`                    | `Boolean`      |                              `false` | No       | Manifest flag                                                                                           |
+| `manifestFile`                    | `RegularFile`  |   `src/main/resources/manifest.json` | No       | Manifest location                                                                                       |
+| `runDirectory`                    | `Directory`    |                               `run/` | No       | Local server run dir                                                                                    |
+| `assetPackSourceDirectory`        | `Directory`    |                 `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`                                      |
+| `assetPackRunDirectory`           | `Directory`    |        computed under `run/mods/...` | No       | Assets target dir                                                                                       |
+| `bundleAssetEditorRuntime`        | `Boolean`      |                               `true` | No       | Controls whether AssetBridge is bundled into the final jar                                              |
+| `serverArgs`                      | `List<String>` | `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument                  |
+| `serverJvmArgs`                   | `List<String>` |                                 `[]` | No       | Extra JVM arguments for `runServer`                                                                     |
+| `preRunTask`                      | `String`       |                                empty | No       | Task name to run before `runServer`                                                                     |
+| `debugEnabled`                    | `Boolean`      |                              `false` | No       | Enables JDWP debugging for `runServer`                                                                  |
+| `debugPort`                       | `Integer`      |                               `5005` | No       | Debug port used when `debugEnabled` is true                                                             |
+| `debugSuspend`                    | `Boolean`      |                              `false` | No       | Whether the JVM waits for a debugger before starting                                                    |
+| `hotSwapEnabled`                  | `Boolean`      |                              `false` | No       | Enables hot swap capability detection and runtime setup                                                 |
+| `requireDcevm`                    | `Boolean`      |                              `false` | No       | Fails launch if enhanced class redefinition support is unavailable                                      |
+| `useHotswapAgent`                 | `Boolean`      |                               `true` | No       | Enables bundled HotswapAgent integration when available                                                 |
+| `hotswapAgentPath`                | `String`       |                                empty | No       | Optional path to an external HotswapAgent jar used when `hotSwapEnabled` and `useHotswapAgent` are true |
+| `jbrHome`                         | `String`       |                                empty | No       | Optional path to a JetBrains Runtime installation                                                       |
+| `subPlugins`                      | `List<Map>`    |                                 `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                       |
 
 ## SubPlugins
 
@@ -960,8 +988,11 @@ hytaleTools {
     hotSwapEnabled = false
     requireDcevm = false
     useHotswapAgent = true
-
-    // Optional
+    
+    // Optional external HotswapAgent jar
+    hotswapAgentPath = ''
+    
+    // Optional JetBrains Runtime location
     // jbrHome = '/path/to/jbr'
 
     // Optional: defaults to the release/prerelease docs URL based on patchline
@@ -995,11 +1026,12 @@ The plugin also reads these Gradle properties automatically:
 - `hytools.debug.port`
 - `hytools.debug.suspend`
 - `hytools.jbr.home`
+- `hytools.hotswap.agent.path`
 
 The plugin also recognizes these system properties for dev runtime features:
 
-- `debug` → enables debug mode
-- `hotswap` → enables hot swap support
+- `debug` → enables JDWP debug mode
+- `hotswap` → enables hot swap runtime setup
 
 ## Support & Issues
 
@@ -1163,6 +1195,46 @@ Use it to verify:
 - whether bundled HotswapAgent support is available
 
 If hot swap is not working as expected, this should be the first check.
+
+### External HotswapAgent jar is not found
+
+If `hotswapAgentPath` or `hytools.hotswap.agent.path` is set, the file must exist and point directly to a HotswapAgent jar.
+
+Example:
+
+```gradle
+hytaleTools {
+    hotSwapEnabled = true
+    useHotswapAgent = true
+    hotswapAgentPath = '/absolute/path/to/hotswap-agent.jar'
+}
+```
+
+Or:
+
+```properties
+hytools.hotswap.agent.path=/absolute/path/to/hotswap-agent.jar
+```
+
+If the file does not exist, `runServer` fails early with a clear error instead of launching without the agent.
+
+### Duplicate JDWP debugger agent
+
+If you launch `runServer` from IntelliJ using **Debug**, IntelliJ may inject its own JDWP debugger agent.
+
+The plugin checks for an existing JDWP argument before adding its own debug agent. This prevents JVM startup errors such as:
+
+```text
+Cannot load this JVM TI agent twice, check your java command line for duplicate jdwp options.
+```
+
+For command-line debugging, use:
+
+```bash
+./gradlew runServer -Ddebug=true
+```
+
+For IntelliJ debugging, using the IDE's **Debug** action is usually enough. Avoid manually adding another `-agentlib:jdwp=...` entry in `serverJvmArgs` unless you know IntelliJ is not already providing one.
 
 ## Notes
 

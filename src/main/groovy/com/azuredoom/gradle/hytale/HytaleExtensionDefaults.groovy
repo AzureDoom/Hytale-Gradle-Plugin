@@ -54,6 +54,9 @@ final class HytaleExtensionDefaults {
 		ext.hotSwapEnabled.convention(
 				project.providers.systemProperty('hotswap').map { it.toBoolean() }.orElse(false)
 				)
+		ext.hotswapAgentPath.convention(
+				project.providers.gradleProperty('hytools.hotswap.agent.path').orElse('')
+				)
 		ext.requireDcevm.convention(false)
 		ext.useHotswapAgent.convention(true)
 

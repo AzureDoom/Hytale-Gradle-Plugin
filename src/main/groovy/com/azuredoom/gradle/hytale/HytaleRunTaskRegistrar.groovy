@@ -70,6 +70,7 @@ final class HytaleRunTaskRegistrar {
 				hotSwapEnabled.set(ext.hotSwapEnabled)
 				requireDcevm.set(ext.requireDcevm)
 				useHotswapAgent.set(ext.useHotswapAgent)
+				hotswapAgentPath.set(ext.hotswapAgentPath)
 				jbrHome.set(ext.jbrHome)
 
 				javaLauncher.convention(javaToolchains.launcherFor {

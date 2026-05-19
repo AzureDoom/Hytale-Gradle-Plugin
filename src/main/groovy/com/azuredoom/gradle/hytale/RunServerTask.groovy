@@ -43,6 +43,9 @@ abstract class RunServerTask extends JavaExec {
 	abstract Property<Boolean> getUseHotswapAgent()
 
 	@Input
+	abstract Property<String> getHotswapAgentPath()
+
+	@Input
 	abstract Property<String> getJbrHome()
 
 	RunServerTask() {
@@ -52,6 +55,23 @@ abstract class RunServerTask extends JavaExec {
 	protected List<String> buildResolvedJvmArgs(File javaExe) {
 		List<String> resolved = []
 		resolved.addAll(serverJvmArgs.getOrElse([]))
+
+		boolean alreadyHasJdwp =
+				resolved.any { it.startsWith('-agentlib:jdwp=') } ||
+				getJvmArgs().any { it.startsWith('-agentlib:jdwp=') }
+
+		if (alreadyHasJdwp) {
+			logger.lifecycle("JDWP debugger already configured; not adding plugin debug agent.")
+		}
+
+		if (debugEnabled.getOrElse(false) && !alreadyHasJdwp) {
+			int port = debugPort.getOrElse(5005)
+			boolean suspend = debugSuspend.getOrElse(false)
+
+			resolved.add(
+					"-agentlib:jdwp=transport=dt_socket,server=y,suspend=${suspend ? 'y' : 'n'},address=*:${port}"
+					)
+		}
 
 		if (hotSwapEnabled.getOrElse(false)) {
 			boolean isJbr = JvmDevRuntimeSupport.isJetBrainsRuntime(javaExe)
@@ -74,14 +94,27 @@ abstract class RunServerTask extends JavaExec {
 			}
 
 			if (useHotswapAgent.getOrElse(true)) {
-				boolean supportsHaMode = JvmDevRuntimeSupport.supportsHotswapAgentMode(javaExe)
-				File bundledAgent = JvmDevRuntimeSupport.resolveBundledHotswapAgent(javaExe)
+				String configuredAgentPath = hotswapAgentPath.getOrElse('').trim()
 
-				if (supportsHaMode && bundledAgent != null) {
-					resolved.add('-XX:HotswapAgent=fatjar')
-					logger.lifecycle("Using bundled HotswapAgent: ${bundledAgent}")
+				if (!configuredAgentPath.isEmpty()) {
+					File externalAgent = project.file(configuredAgentPath)
+
+					if (!externalAgent.exists() || !externalAgent.isFile()) {
+						throw new GradleException("Configured HotswapAgent jar does not exist: ${externalAgent}")
+					}
+
+					resolved.add("-javaagent:${externalAgent.absolutePath}=autoHotswap=true")
+					logger.lifecycle("Using external HotswapAgent: ${externalAgent}")
 				} else {
-					logger.lifecycle("HotswapAgent not enabled: expected lib/hotswap/hotswap-agent.jar in the selected JBR.")
+					boolean supportsHaMode = JvmDevRuntimeSupport.supportsHotswapAgentMode(javaExe)
+					File bundledAgent = JvmDevRuntimeSupport.resolveBundledHotswapAgent(javaExe)
+
+					if (supportsHaMode && bundledAgent != null) {
+						resolved.add('-XX:HotswapAgent=fatjar')
+						logger.lifecycle("Using bundled HotswapAgent: ${bundledAgent}")
+					} else {
+						logger.lifecycle("HotswapAgent not enabled: expected lib/hotswap/hotswap-agent.jar in the selected JBR, or configure hotswapAgentPath.")
+					}
 				}
 			}
 		}
@@ -118,15 +151,6 @@ abstract class RunServerTask extends JavaExec {
 		jvmArgs('--enable-native-access=ALL-UNNAMED')
 		jvmArgs(buildResolvedJvmArgs(javaExe))
 		args(buildResolvedArgs(resolvedAssetsZip))
-
-		if (!debug && debugEnabled.getOrElse(false)) {
-			debug = true
-			debugOptions {
-				port = debugPort.getOrElse(5005)
-				server = true
-				suspend = debugSuspend.getOrElse(false)
-			}
-		}
 
 		super.exec()
 	}
