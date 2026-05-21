@@ -46,6 +46,7 @@ class UpdatePluginManifestTaskTest extends Specification {
 		task.modCredits.set('Alice, Bob')
 		task.modUrl.set('https://example.com')
 		task.hytaleVersion.set('1.0.0')
+		task.manifestServerVersion.set('1.0.0')
 		task.manifestDependencies.set('core=1.0.0')
 		task.manifestOptionalDependencies.set('helper=2.0.0')
 		task.disabledByDefault.set(true)
