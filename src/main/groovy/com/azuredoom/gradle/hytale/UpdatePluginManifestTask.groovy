@@ -23,6 +23,7 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 	@Input abstract Property<String> getModCredits()
 	@Input abstract Property<String> getModUrl()
 	@Input abstract Property<String> getHytaleVersion()
+	@Input abstract Property<String> getManifestServerVersion()
 	@Input @Optional abstract Property<String> getResolvedServerVersion()
 	@Input abstract Property<String> getManifestDependencies()
 	@Input abstract Property<String> getManifestOptionalDependencies()
@@ -43,7 +44,7 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 		manifestJson.Description = modDescription.get()
 		manifestJson.Authors = ManifestUtils.parseAuthors(modCredits.orNull)
 		manifestJson.Website = modUrl.get()
-		manifestJson.ServerVersion = resolvedServerVersion.getOrElse(hytaleVersion.get())
+		manifestJson.ServerVersion = manifestServerVersion.get()
 		manifestJson.Dependencies = ManifestUtils.parseDepMap(manifestDependencies.orNull)
 		manifestJson.OptionalDependencies = ManifestUtils.parseDepMap(manifestOptionalDependencies.orNull)
 		manifestJson.DisabledByDefault = disabledByDefault.get()
@@ -53,7 +54,7 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 			CurseForge: curseforgeId.orNull
 		]
 
-		def resolvedVersion = resolvedServerVersion.getOrElse(hytaleVersion.get())
+		def resolvedVersion = manifestServerVersion.get()
 		def subPluginList = new JsonSlurper().parseText(subPlugins.getOrElse('[]')) as List
 		if (subPluginList) {
 			manifestJson.SubPlugins = subPluginList.collect { sp ->

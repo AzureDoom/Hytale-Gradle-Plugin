@@ -33,6 +33,9 @@ abstract class ValidateManifestTask extends DefaultTask {
 	abstract Property<String> getHytaleVersion()
 
 	@Input
+	abstract Property<String> getManifestServerVersion()
+
+	@Input
 	@Optional
 	abstract Property<String> getResolvedServerVersion()
 
@@ -75,9 +78,9 @@ abstract class ValidateManifestTask extends DefaultTask {
 			errors << "Manifest Name '${json.Name}' does not match configured modId '${modId.get()}'."
 		}
 
-		def expectedServerVersion = resolvedServerVersion.getOrElse(hytaleVersion.get())
+		def expectedServerVersion = manifestServerVersion.get()
 		if (json.ServerVersion != expectedServerVersion) {
-			errors << "Manifest ServerVersion '${json.ServerVersion}' does not match resolved server version '${expectedServerVersion}'."
+			errors << "Manifest ServerVersion '${json.ServerVersion}' does not match configured manifestServerVersion '${expectedServerVersion}'."
 		}
 
 		if ((json.Main ?: '').toString().trim() != (mainClass.get() ?: '').trim()) {

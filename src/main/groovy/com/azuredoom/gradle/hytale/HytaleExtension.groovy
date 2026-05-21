@@ -10,6 +10,7 @@ import org.gradle.api.provider.Property
 abstract class HytaleExtension {
 	abstract Property<Integer> getJavaVersion()
 	abstract Property<String> getHytaleVersion()
+	abstract Property<String> getManifestServerVersion()
 	abstract Property<String> getPatchline()
 	abstract Property<String> getOauthBaseUrl()
 	abstract Property<String> getAccountBaseUrl()
@@ -37,7 +38,7 @@ abstract class HytaleExtension {
 	 * @param disabledByDefault Whether this sub-plugin is disabled by default (default: false)
 	 * @param includesAssetPack Whether this sub-plugin includes an asset pack (default: false)
 	 * @param serverVersion    Optional server version override for this sub-plugin.
-	 *                         When null, the parent mod's resolved server version is used.
+	 *                         When null, the parent mod's manifest server version is used.
 	 */
 	void subPlugin(String name, String main, boolean disabledByDefault = false, boolean includesAssetPack = false, String serverVersion = null) {
 		def current = getSubPlugins().getOrElse('[]')
@@ -82,6 +83,9 @@ abstract class HytaleExtension {
 	}
 	void hytaleVersion(String v) {
 		getHytaleVersion().set(v)
+	}
+	void manifestServerVersion(String v) {
+		getManifestServerVersion().set(v)
 	}
 	void patchline(String v) {
 		getPatchline().set(v)

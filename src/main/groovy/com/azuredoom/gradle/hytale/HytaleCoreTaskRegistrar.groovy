@@ -44,6 +44,11 @@ final class HytaleCoreTaskRegistrar {
 			modCredits.set(ext.modCredits)
 			modUrl.set(ext.modUrl)
 			hytaleVersion.set(ext.hytaleVersion)
+			manifestServerVersion.set(
+					ext.manifestServerVersion
+					.orElse(resolvedServerVersionProvider)
+					.orElse(ext.hytaleVersion)
+					)
 			resolvedServerVersion.set(resolvedServerVersionProvider)
 			manifestDependencies.set(ext.manifestDependencies)
 			manifestOptionalDependencies.set(ext.manifestOptionalDependencies)
@@ -67,6 +72,11 @@ final class HytaleCoreTaskRegistrar {
 			modId.set(ext.modId)
 			mainClass.set(ext.mainClass)
 			hytaleVersion.set(ext.hytaleVersion)
+			manifestServerVersion.set(
+					ext.manifestServerVersion
+					.orElse(resolvedServerVersionProvider)
+					.orElse(ext.hytaleVersion)
+					)
 			resolvedServerVersion.set(resolvedServerVersionProvider)
 			manifestDependencies.set(ext.manifestDependencies)
 			manifestOptionalDependencies.set(ext.manifestOptionalDependencies)
