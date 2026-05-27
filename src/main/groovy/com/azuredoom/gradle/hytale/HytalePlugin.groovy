@@ -29,7 +29,7 @@ class HytalePlugin implements Plugin<Project> {
 		def vineflowerTool = project.configurations.maybeCreate('vineflowerTool')
 		vineflowerTool.canBeConsumed = false
 		vineflowerTool.canBeResolved = true
-		project.dependencies.add('vineflowerTool', 'org.vineflower:vineflower:1.11.2')
+		project.dependencies.add('vineflowerTool', 'org.vineflower:vineflower:1.12.0')
 
 		def vineServerJar = project.configurations.named('vineServerJar')
 		def vineDependencyJars = project.configurations.named('vineDependencyJars')
@@ -135,7 +135,7 @@ class HytalePlugin implements Plugin<Project> {
 				)
 
 		configureJavadocs(project, ext)
-		configureIdeaJavadocs(project, ext)
+		configureIdeaSourcesAndJavadocs(project, ext, generatedSourcesMavenRepoDir)
 	}
 
 	private static void configureJavadocs(Project project, HytaleExtension ext) {
@@ -150,7 +150,7 @@ class HytalePlugin implements Plugin<Project> {
 		}
 	}
 
-	private static void configureIdeaJavadocs(Project project, HytaleExtension ext) {
+	private static void configureIdeaSourcesAndJavadocs(Project project, HytaleExtension ext, def generatedSourcesMavenRepoDir) {
 		project.plugins.withId('idea') {
 			project.idea {
 				module {
@@ -199,14 +199,23 @@ class HytalePlugin implements Plugin<Project> {
 								return
 							}
 
-							def javadocs = library.children().find {
-								it.name() == 'JAVADOC'
+							def sourcesNode = library.children().find { it.name() == 'SOURCES' }
+							if (sourcesNode == null) {
+								sourcesNode = library.appendNode('SOURCES')
+							}
+							sourcesNode.children().clear()
+
+							def sourcesJarFile = findServerSourcesJar(classUrls, generatedSourcesMavenRepoDir.get().asFile)
+							if (sourcesJarFile != null && sourcesJarFile.exists()) {
+								sourcesNode.appendNode('root', [
+									url: "jar://${sourcesJarFile.absolutePath.replace('\\', '/')}!/"
+								])
 							}
 
+							def javadocs = library.children().find { it.name() == 'JAVADOC' }
 							if (javadocs == null) {
 								javadocs = library.appendNode('JAVADOC')
 							}
-
 							javadocs.children().clear()
 							javadocs.appendNode('root', [
 								url: ext.serverJavadocsUrl.get()
@@ -216,5 +225,45 @@ class HytalePlugin implements Plugin<Project> {
 				}
 			}
 		}
+	}
+
+	private static File findServerSourcesJar(List<String> classUrls, File mavenRepoDir) {
+		for (String url : classUrls) {
+			if (url == null) continue
+
+				String path = url
+			if (path.startsWith('jar://')) path = path.substring('jar://'.length())
+			if (path.endsWith('!/')) path = path.substring(0, path.length() - 2)
+
+			File binaryJar = new File(path)
+
+			if (!binaryJar.absolutePath.startsWith(mavenRepoDir.absolutePath)) {
+				continue
+			}
+
+			String name = binaryJar.name
+			if (!name.endsWith('.jar')) continue
+
+				String base = name.substring(0, name.length() - '.jar'.length())
+			File sourcesJar = new File(binaryJar.parentFile, "${base}-sources.jar")
+			if (sourcesJar.exists()) {
+				return sourcesJar
+			}
+		}
+
+		if (mavenRepoDir.exists()) {
+			File serverDir = new File(mavenRepoDir, 'com/hypixel/hytale/Server')
+			if (serverDir.isDirectory()) {
+				def found = null
+				serverDir.eachFileRecurse { f ->
+					if (f.name.endsWith('-sources.jar') && found == null) {
+						found = f
+					}
+				}
+				if (found != null) return found
+			}
+		}
+
+		return null
 	}
 }
