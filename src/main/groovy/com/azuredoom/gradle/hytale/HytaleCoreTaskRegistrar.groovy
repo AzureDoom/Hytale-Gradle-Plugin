@@ -73,8 +73,7 @@ final class HytaleCoreTaskRegistrar {
 			hytaleVersion.set(ext.hytaleVersion)
 			manifestServerVersion.set(
 					ext.manifestServerVersion
-					.orElse(resolvedServerVersionProvider)
-					.orElse(ext.hytaleVersion)
+					.orElse(resolvedServerVersionProvider.map { ">=${it}" })
 					)
 			resolvedServerVersion.set(resolvedServerVersionProvider)
 			manifestDependencies.set(ext.manifestDependencies)
