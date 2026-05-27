@@ -49,11 +49,15 @@ final class HytaleRunTaskRegistrar {
 				dependsOn('prepareRunServer', 'downloadAssetsZip')
 
 				def sourceSets = project.extensions.getByType(SourceSetContainer)
+				def main = sourceSets.named('main').get()
+
+				def runtimeWithoutMainOutput = main.runtimeClasspath - main.output
 
 				mainClass.set('com.hypixel.hytale.Main')
 				classpath.from(project.files(
-						sourceSets.named('main').get().output,
-						sourceSets.named('main').get().runtimeClasspath,
+						main.output.classesDirs,
+						main.resources.srcDirs,
+						runtimeWithoutMainOutput,
 						vineServerJar
 						))
 				doFirst {
