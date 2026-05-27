@@ -32,7 +32,8 @@ final class HytaleIdeSourceConfigurer {
 		def serverJarFile = project.layout.file(project.provider { vineServerJar.get().singleFile } as Provider<File>)
 		def decompiledServerDir = project.layout.buildDirectory.dir('vineflower/hytale-server')
 		def assetsZipFile = project.layout.file(project.provider { assetsZipFileProvider.get() } as Provider)
-		def mergedServerBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/server/hytale-server-merged.jar')
+		def serverBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/server/hytale-server.jar')
+		def assetsBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/assets/hytale-assets.jar')
 
 		project.tasks.register('decompileServerJar', DecompileServerJarTask) {
 			group = null
@@ -66,13 +67,32 @@ final class HytaleIdeSourceConfigurer {
 			}
 		}
 
-		def mergeServerBinaryAndAssets = project.tasks.register('mergeServerBinaryAndAssets', MergeServerBinaryAndAssetsTask) {
+		def copyServerBinary = project.tasks.register('copyServerBinary') {
 			group = null
-			description = 'Merge resolved Hytale server jar with Assets.zip for IDE library browsing.'
+			description = 'Copies the resolved Hytale server jar to the IDE binary output location.'
+
+			inputs.file(serverJarFile)
+			outputs.file(serverBinaryJar)
+
+			doLast {
+				def outFile = serverBinaryJar.get().asFile
+				outFile.parentFile.mkdirs()
+				project.delete(outFile)
+				project.copy {
+					from serverJarFile
+					into outFile.parentFile
+					rename { outFile.name }
+				}
+				logger.lifecycle("Copied server binary to ${outFile} (${formatBytes(outFile.length())})")
+			}
+		}
+
+		def generateAssetsBinary = project.tasks.register('generateAssetsBinary', GenerateAssetsBinaryTask) {
+			group = null
+			description = 'Packages Assets.zip into a dedicated hytale-assets.jar for IDE External Libraries.'
 			dependsOn('downloadAssetsZip')
-			serverJar.set(serverJarFile)
 			assetsZip.set(assetsZipFile)
-			outputJar.set(mergedServerBinaryJar)
+			outputJar.set(assetsBinaryJar)
 		}
 
 		Provider<Set<ResolvedArtifactResult>> serverArtifactsProvider = project.providers.provider {
@@ -100,12 +120,12 @@ final class HytaleIdeSourceConfigurer {
 
 		def installServerSourcesToRepo = project.tasks.register('installServerDecompiledSourcesToRepo') {
 			group = null
-			description = 'Installs generated server sources jar into local repos for IDE attachment.'
+			description = 'Installs generated server sources jar (and plain server binary) into local repos for IDE attachment.'
 
 			dependsOn(serverSourcesJar)
-			dependsOn(mergeServerBinaryAndAssets)
+			dependsOn(copyServerBinary)
 			inputs.file(serverSourcesJar.flatMap { it.archiveFile })
-			inputs.file(mergeServerBinaryAndAssets.flatMap { it.outputJar })
+			inputs.file(copyServerBinary.map { serverBinaryJar.get().asFile })
 
 			outputs.files(project.provider {
 				def artifacts = serverArtifactsProvider.get()
@@ -150,7 +170,7 @@ final class HytaleIdeSourceConfigurer {
 					return
 				}
 
-				def binaryJarFile = mergeServerBinaryAndAssets.get().outputJar.get().asFile
+				def binaryJarFile = serverBinaryJar.get().asFile
 				def sourcesJarFile = serverSourcesJar.get().archiveFile.get().asFile
 
 				HytaleDependencySupport.installModuleIntoMavenRepo(
@@ -215,6 +235,7 @@ final class HytaleIdeSourceConfigurer {
 			description = 'Builds and installs generated decompiled sources for IDE source attachment.'
 
 			dependsOn(installServerSourcesToRepo)
+			dependsOn(generateAssetsBinary)
 			dependsOn(installDependencySourcesToRepo)
 		}
 
@@ -327,5 +348,17 @@ final class HytaleIdeSourceConfigurer {
 		installDependencySourcesToRepo.configure {
 			dependsOn(installTask)
 		}
+	}
+
+	private static String formatBytes(long bytes) {
+		if (bytes < 1024L) return "${bytes} B"
+		def units = ['KiB', 'MiB', 'GiB', 'TiB']
+		double value = bytes
+		int unitIndex = -1
+		while (value >= 1024D && unitIndex < units.size() - 1) {
+			value /= 1024D
+			unitIndex++
+		}
+		String.format(Locale.ROOT, '%.1f %s', value, units[unitIndex])
 	}
 }

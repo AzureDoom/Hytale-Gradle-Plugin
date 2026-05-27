@@ -94,10 +94,12 @@ final class HytaleDependencySupport {
 			rename { "${module}-${version}.jar" }
 		}
 
-		project.copy {
-			from sourcesJarFile
-			into moduleDir
-			rename { "${module}-${version}-sources.jar" }
+		if (sourcesJarFile != null) {
+			project.copy {
+				from sourcesJarFile
+				into moduleDir
+				rename { "${module}-${version}-sources.jar" }
+			}
 		}
 	}
 
@@ -125,7 +127,8 @@ final class HytaleDependencySupport {
 		def moduleDir = prepareRepoModuleDir(files)
 		copyRepoArtifacts(project, moduleDir, module, version, binaryJarFile, sourcesJarFile)
 
-		files.descriptor.text = """<ivy-module version="2.0" xmlns:m="https://ant.apache.org/ivy/maven">
+		if (sourcesJarFile != null) {
+			files.descriptor.text = """<ivy-module version="2.0" xmlns:m="https://ant.apache.org/ivy/maven">
   <info organisation="${group}" module="${module}" revision="${version}"/>
   <configurations>
     <conf name="default"/>
@@ -137,5 +140,17 @@ final class HytaleDependencySupport {
   </publications>
 </ivy-module>
 """
+		} else {
+			files.descriptor.text = """<ivy-module version="2.0" xmlns:m="https://ant.apache.org/ivy/maven">
+  <info organisation="${group}" module="${module}" revision="${version}"/>
+  <configurations>
+    <conf name="default"/>
+  </configurations>
+  <publications>
+    <artifact name="${module}" type="jar" ext="jar" conf="default"/>
+  </publications>
+</ivy-module>
+"""
+		}
 	}
 }

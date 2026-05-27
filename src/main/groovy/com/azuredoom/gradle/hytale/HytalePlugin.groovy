@@ -109,6 +109,9 @@ class HytalePlugin implements Plugin<Project> {
 				assetsZipFileProvider
 				)
 
+		def assetsBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/assets/hytale-assets.jar')
+		project.dependencies.add('compileOnly', project.files(assetsBinaryJar))
+
 		HytaleCoreTaskRegistrar.register(
 				project,
 				ext,

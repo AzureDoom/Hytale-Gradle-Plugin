@@ -9,17 +9,12 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
-import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-@DisableCachingByDefault(because = "Builds a merged IDE binary jar from the resolved server jar plus Assets.zip")
-abstract class MergeServerBinaryAndAssetsTask extends DefaultTask {
-
-	@InputFile
-	@PathSensitive(PathSensitivity.NONE)
-	abstract RegularFileProperty getServerJar()
+@DisableCachingByDefault(because = "Builds a dedicated IDE binary jar from Assets.zip")
+abstract class GenerateAssetsBinaryTask extends DefaultTask {
 
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
@@ -29,13 +24,11 @@ abstract class MergeServerBinaryAndAssetsTask extends DefaultTask {
 	abstract RegularFileProperty getOutputJar()
 
 	@TaskAction
-	void merge() {
-		def serverJarFile = serverJar.get().asFile
+	void generate() {
 		def assetsZipFile = assetsZip.get().asFile
 		def outFile = outputJar.get().asFile
 
-		logger.lifecycle("Merging Hytale server jar with assets...")
-		logger.lifecycle("Server jar: ${serverJarFile} (${formatBytes(serverJarFile.length())})")
+		logger.lifecycle("Generating Hytale assets binary jar...")
 		logger.lifecycle("Assets zip: ${assetsZipFile} (${formatBytes(assetsZipFile.length())})")
 		logger.lifecycle("Output jar: ${outFile}")
 
@@ -43,38 +36,10 @@ abstract class MergeServerBinaryAndAssetsTask extends DefaultTask {
 		project.delete(outFile)
 
 		def seen = new LinkedHashSet<String>()
-		int serverEntriesWritten = 0
 		int assetEntriesWritten = 0
 		int duplicateEntriesSkipped = 0
 
 		new JarOutputStream(outFile.newOutputStream()).withCloseable { jos ->
-			logger.lifecycle("Copying server jar entries...")
-
-			new JarFile(serverJarFile).withCloseable { jar ->
-				def entries = jar.entries()
-				while (entries.hasMoreElements()) {
-					def entry = entries.nextElement()
-					if (entry.name == null || entry.name.trim().isEmpty()) {
-						continue
-					}
-					if (!seen.add(entry.name)) {
-						duplicateEntriesSkipped++
-						continue
-					}
-
-					def newEntry = new ZipEntry(entry.name)
-					newEntry.time = entry.time
-					jos.putNextEntry(newEntry)
-					if (!entry.isDirectory()) {
-						jar.getInputStream(entry).withCloseable { input ->
-							input.transferTo(jos)
-						}
-					}
-					jos.closeEntry()
-					serverEntriesWritten++
-				}
-			}
-
 			logger.lifecycle("Embedding asset entries under assets/...")
 
 			new ZipFile(assetsZipFile).withCloseable { zip ->
@@ -106,10 +71,9 @@ abstract class MergeServerBinaryAndAssetsTask extends DefaultTask {
 		}
 
 		logger.lifecycle(
-				"Merged server jar + assets into ${outFile} " +
+				"Generated assets binary jar at ${outFile} " +
 				"(${formatBytes(outFile.length())}; " +
-				"${serverEntriesWritten} server entries, " +
-				"${assetEntriesWritten} asset entries, " +
+				"${assetEntriesWritten} asset entries written, " +
 				"${duplicateEntriesSkipped} duplicates skipped)"
 				)
 	}
