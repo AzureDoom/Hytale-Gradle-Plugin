@@ -49,7 +49,6 @@ abstract class RunServerTask extends JavaExec {
 	abstract Property<String> getJbrHome()
 
 	RunServerTask() {
-		standardInput = System.in
 	}
 
 	protected List<String> buildResolvedJvmArgs(File javaExe) {
@@ -151,6 +150,8 @@ abstract class RunServerTask extends JavaExec {
 		jvmArgs('--enable-native-access=ALL-UNNAMED')
 		jvmArgs(buildResolvedJvmArgs(javaExe))
 		args(buildResolvedArgs(resolvedAssetsZip))
+
+		standardInput = InputStream.nullInputStream()
 
 		super.exec()
 	}
