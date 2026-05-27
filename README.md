@@ -911,7 +911,7 @@ hytaleTools {
 This writes a concrete resolved version, for example:
 
 ```json
-"ServerVersion": "0.5.0-pre.9"
+"ServerVersion": ">=0.5.0-pre.9"
 ```
 
 Set `manifestServerVersion` when you want the manifest itself to accept a semver range:
