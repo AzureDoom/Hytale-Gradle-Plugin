@@ -900,7 +900,7 @@ When `manifestServerVersion` is set, it only affects the manifest `ServerVersion
 
 `manifestServerVersion` controls the `ServerVersion` field written to `manifest.json`.
 
-Most projects do not need to set `manifestServerVersion`. If it is unset, the plugin preserves the previous behavior: dynamic selectors such as `0.+` or `2026.+` are resolved to the full concrete server version before being written to the manifest.
+If `manifestServerVersion` is unset, the plugin resolves the configured Hytale version selector, such as `0.+` or `2026.+`, to the full concrete server version and writes it to the manifest as a minimum supported version range.
 
 ```groovy
 hytaleTools {
