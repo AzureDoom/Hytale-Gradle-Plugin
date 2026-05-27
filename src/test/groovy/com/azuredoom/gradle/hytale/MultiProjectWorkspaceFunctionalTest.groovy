@@ -229,7 +229,7 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 		def manifest = new File(testProjectDir, "modA/src/main/resources/manifest.json")
 		manifest.exists()
 		manifest.text.contains('"Group": "com.example.mods"')
-		manifest.text.contains('"ServerVersion": "1.0.0"')
+		manifest.text.contains('"ServerVersion": ">=1.0.0"')
 		manifest.text.contains('"Main": "com.example.mods.moda.ModA"')
 	}
 
@@ -280,6 +280,6 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 		manifest.exists()
 		manifest.text.contains('"Group": "com.example.child"')
 		!manifest.text.contains('"Group": "com.example.root"')
-		manifest.text.contains('"ServerVersion": "1.0.0"')
+		manifest.text.contains('"ServerVersion": ">=1.0.0"')
 	}
 }
