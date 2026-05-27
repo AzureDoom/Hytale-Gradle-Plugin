@@ -156,7 +156,7 @@ hytaleWorkspace {
     // Optional shared defaults propagated to child `hytaleTools` projects
     // when those projects apply the plugin, unless overridden locally
     manifestGroup = 'com.example.mods'
-    hytaleVersion = '2026.+'
+    hytaleVersion = '0.+'
     patchline = 'release'
 }
 ```
@@ -434,7 +434,7 @@ You can customize the server launch arguments, JVM arguments, debug mode, and ho
 
 ```gradle
 hytaleTools {
-    hytaleVersion = '2026.+'
+    hytaleVersion = '0.+'
 
     serverArgs = [
         '--allow-op',
@@ -551,7 +551,7 @@ Because manifest generation and validation are wired into the build, most projec
 | Property                          | Type           |                              Default | Required | Purpose                                                                                                  |
 |-----------------------------------|----------------|-------------------------------------:|----------|----------------------------------------------------------------------------------------------------------|
 | `javaVersion`                     | `Integer`      |                                 `25` | No       | Java version used for decompilation/tooling                                                              |
-| `hytaleVersion`                   | `String`       |                             '2026.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `2026.+`)                              |
+| `hytaleVersion`                   | `String`       |                                '0.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `0.+`)                                 |
 | `manifestServerVersion`           | `String`       |  resolved `hytaleVersion` when unset | No       | Optional manifest `ServerVersion` override. Supports Hytale semver ranges such as `>=0.5.0-pre.9 <0.6.0` |
 | `patchline`                       | `String`       |                            `release` | No       | Asset/server patchline                                                                                   |
 | `serverJavadocsUrl`               | `String`       |       computed from active patchline | No       | Hosted Hytale Server API Javadocs URL used for Gradle Javadocs, IDEA metadata, and source injection      |
@@ -601,7 +601,7 @@ hytaleTools {
     subPlugin('Forestry', 'com.example.mods.forestry.ForestryPlugin')
     subPlugin('Economy', 'com.example.mods.economy.EconomyPlugin', true, false)
     // Pin a specific server version for this sub-plugin instead of inheriting the parent's:
-    subPlugin('Legacy', 'com.example.mods.legacy.LegacyPlugin', false, false, '2026.03.15-aabbccdd1')
+    subPlugin('Legacy', 'com.example.mods.legacy.LegacyPlugin', false, false, '>=0.5.2')
 }
 ```
 
@@ -622,14 +622,14 @@ Each declared sub-plugin is written into `manifest.json` with the parent manifes
   {
     "Name": "Forestry",
     "Main": "com.example.mods.forestry.ForestryPlugin",
-    "ServerVersion": "2026.04.30-b4f6a911e",
+    "ServerVersion": ">=0.5.2",
     "DisabledByDefault": false,
     "IncludesAssetPack": false
   },
   {
     "Name": "Economy",
     "Main": "com.example.mods.economy.EconomyPlugin",
-    "ServerVersion": "2026.03.15-aabbccdd1",
+    "ServerVersion": ">=0.5.2",
     "DisabledByDefault": true,
     "IncludesAssetPack": false
   }
@@ -775,7 +775,7 @@ The plugin automatically adds these repositories:
 You do not need to declare them manually.
 
 > **Note on patchlines:**
-> Both Hytale server repos are registered, but `com.hypixel.hytale` artifacts are only served by the repo matching the configured `patchline`. The other repo is restricted with `excludeGroup('com.hypixel.hytale')` so dynamic selectors like `2026.+` never cross patchlines. Other artifacts that happen to live in either repo are unaffected.
+> Both Hytale server repos are registered, but `com.hypixel.hytale` artifacts are only served by the repo matching the configured `patchline`. The other repo is restricted with `excludeGroup('com.hypixel.hytale')` so dynamic selectors like `0.+` never cross patchlines. Other artifacts that happen to live in either repo are unaffected.
 
 ## Configurations
 
@@ -849,7 +849,7 @@ The plugin automatically adds the Hytale server dependency based on:
 
 ```groovy
 hytaleTools {
-    hytaleVersion = '2026.+'
+    hytaleVersion = '0.+'
 }
 ```
 
@@ -866,15 +866,15 @@ and makes it available on `compileOnly`. You **do not need to declare this manua
 
 ```groovy
 hytaleTools {
-    hytaleVersion = '2026.+'   // latest 2026.x build on the configured patchline
+    hytaleVersion = '0.+'   // latest 0.x build on the configured patchline
     patchline     = 'release'
 }
 ```
 
 Supported selectors:
 
-- `2026.+` — latest version starting with `2026.`
-- `2026.1.+` — latest version starting with `2026.1.`
+- `0.+` — latest version starting with `0.`
+- `0.5.+` — latest version starting with `0.5.`
 - `latest.release` — same as `+`
 
 By default, the generated `manifest.json` contains the **resolved concrete version** (e.g. `0.5.0-pre.9` or `2026.1.22-6f8bdbdc4`), not the dynamic selector. For example, `hytaleVersion = '0.+'` resolves the server dependency normally, and the manifest `ServerVersion` is written as the resolved full version.
@@ -935,7 +935,7 @@ When using a dynamic selector, the plugin scopes resolution to the configured `p
 - `patchline = 'release'` resolves only against the Hytale Server Release repo
 - `patchline = 'pre-release'` resolves only against the Hytale Server Pre-Release repo
 
-This prevents `2026.+` from accidentally selecting a pre-release build when you're targeting release, or vice versa. Static versions are unaffected and continue to resolve from whichever repo serves them.
+This prevents `0.+` from accidentally selecting a pre-release build when you're targeting release, or vice versa. Static versions are unaffected and continue to resolve from whichever repo serves them.
 
 #### Cache behavior
 
@@ -1143,9 +1143,9 @@ hytaleTools {
 
 ### Dynamic version not resolving the expected build
 
-If you're using a dynamic selector like `2026.+` and Gradle is picking the wrong version (or claims it can't find any matching version), check the following:
+If you're using a dynamic selector like `0.+` and Gradle is picking the wrong version (or claims it can't find any matching version), check the following:
 
-- **Use `+`, not `*`.** Gradle's dynamic version syntax is `2026.+`, not `2026.*`. The `*` form is treated as a literal version string and will fail to resolve.
+- **Use `+`, not `*`.** Gradle's dynamic version syntax is `0.+`, not `0.*`. The `*` form is treated as a literal version string and will fail to resolve.
 - **Confirm `patchline` is set correctly.** Dynamic resolution is scoped to the active patchline. If you're tracking pre-release builds, set `patchline = 'pre-release'` (or `hytale_patchline=pre-release` in `gradle.properties`).
 - **Force a refresh.** Dynamic versions are cached for 10 minutes. Run `./gradlew --refresh-dependencies` to bypass the cache and refetch the latest version listing.
 - **Check `hytaleDoctor`.** The diagnostic task prints the configured patchline and the resolved server jar files so you can confirm what was actually picked.
