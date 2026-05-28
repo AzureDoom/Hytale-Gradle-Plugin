@@ -35,6 +35,8 @@ hytaleTools {
     // resolve to the concrete server version in manifest.json.
     // manifestServerVersion = '>=0.5.0-pre.9 <0.6.0'
     manifestGroup = 'com.example.mods'
+    // Author names cannot contain spaces. Separate multiple authors with commas.
+    // Example: 'Alice,Bob'
     modCredits = 'yourname'
     patchline = 'release'
     modId = 'examplemod'
@@ -191,6 +193,8 @@ hytaleTools {
     // Override workspace default
     manifestGroup = 'com.example.custom'
     
+    // Author names cannot contain spaces. Separate multiple authors with commas.
+    // Example: 'Alice,Bob'
     modCredits = 'yourname'
     modId = 'moda'
     mainClass = 'com.example.mods.moda.ModA'
@@ -563,7 +567,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `modDescription`                  | `String`       |                                 empty | No       | Manifest description                                                                                     |
 | `modUrl`                          | `String`       |                                 empty | No       | Manifest project URL                                                                                     |
 | `mainClass`                       | `String`       |                                 empty | Yes      | Plugin entrypoint                                                                                        |
-| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest credits                                                                                         |
+| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest credits. Author names cannot contain spaces; separate multiple authors with commas.             |
 | `manifestDependencies`            | `String`       |                `Hytale:AssetModule=*` | No       | Required manifest deps                                                                                   |
 | `manifestOptionalDependencies`    | `String`       |                                 empty | No       | Optional manifest deps                                                                                   |
 | `curseforgeId`                    | `String`       |                                 empty | No       | CurseForge project id                                                                                    |
@@ -586,6 +590,18 @@ Because manifest generation and validation are wired into the build, most projec
 | `hotswapAgentPath`                | `String`       |                                 empty | No       | Optional path to an external HotswapAgent jar used when `hotSwapEnabled` and `useHotswapAgent` are true  |
 | `jbrHome`                         | `String`       |                                 empty | No       | Optional path to a JetBrains Runtime installation                                                        |
 | `subPlugins`                      | `List<Map>`    |                                  `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                        |
+
+### Author / Credits Formatting
+
+`modCredits` is written to the manifest author/credits field. Author names must not contain spaces. To list multiple authors, separate each author name with a comma.
+
+```gradle
+hytaleTools {
+    modCredits = 'Alice,Bob,Charlie'
+}
+```
+
+Do not use spaces inside an individual author name. For example, use `AliceSmith` or `Alice_Smith` instead of `Alice Smith`.
 
 ## SubPlugins
 
@@ -1025,6 +1041,7 @@ hytaleTools {
     modDescription = project.mod_description.toString()
     modUrl = project.mod_url.toString()
     mainClass = project.main_class.toString()
+    // Author names cannot contain spaces. Separate multiple authors with commas.
     modCredits = project.mod_credits.toString()
 
     manifestDependencies = project.manifest_dependencies.toString()
@@ -1143,7 +1160,7 @@ Always configure:
 
 ```groovy
 hytaleTools {
-    hytaleVersion = '...'
+  hytaleVersion = '...'
 }
 ```
 
