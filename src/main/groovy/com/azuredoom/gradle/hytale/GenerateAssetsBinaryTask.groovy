@@ -29,7 +29,7 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 		def outFile = outputJar.get().asFile
 
 		logger.lifecycle("Generating Hytale assets binary jar...")
-		logger.lifecycle("Assets zip: ${assetsZipFile} (${formatBytes(assetsZipFile.length())})")
+		logger.lifecycle("Assets zip: ${assetsZipFile} (${BasicUtils.formatBytes(assetsZipFile.length())})")
 		logger.lifecycle("Output jar: ${outFile}")
 
 		outFile.parentFile.mkdirs()
@@ -72,21 +72,9 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 
 		logger.lifecycle(
 				"Generated assets binary jar at ${outFile} " +
-				"(${formatBytes(outFile.length())}; " +
+				"(${BasicUtils.formatBytes(outFile.length())}; " +
 				"${assetEntriesWritten} asset entries written, " +
 				"${duplicateEntriesSkipped} duplicates skipped)"
 				)
-	}
-
-	protected static String formatBytes(long bytes) {
-		if (bytes < 1024L) return "${bytes} B"
-		def units = ['KiB', 'MiB', 'GiB', 'TiB']
-		double value = bytes
-		int unitIndex = -1
-		while (value >= 1024D && unitIndex < units.size() - 1) {
-			value /= 1024D
-			unitIndex++
-		}
-		String.format(Locale.ROOT, '%.1f %s', value, units[unitIndex])
 	}
 }

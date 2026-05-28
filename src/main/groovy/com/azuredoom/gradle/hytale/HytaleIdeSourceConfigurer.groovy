@@ -83,7 +83,7 @@ final class HytaleIdeSourceConfigurer {
 					into outFile.parentFile
 					rename { outFile.name }
 				}
-				logger.lifecycle("Copied server binary to ${outFile} (${formatBytes(outFile.length())})")
+				logger.lifecycle("Copied server binary to ${outFile} (${BasicUtils.formatBytes(outFile.length())})")
 			}
 		}
 
@@ -348,17 +348,5 @@ final class HytaleIdeSourceConfigurer {
 		installDependencySourcesToRepo.configure {
 			dependsOn(installTask)
 		}
-	}
-
-	private static String formatBytes(long bytes) {
-		if (bytes < 1024L) return "${bytes} B"
-		def units = ['KiB', 'MiB', 'GiB', 'TiB']
-		double value = bytes
-		int unitIndex = -1
-		while (value >= 1024D && unitIndex < units.size() - 1) {
-			value /= 1024D
-			unitIndex++
-		}
-		String.format(Locale.ROOT, '%.1f %s', value, units[unitIndex])
 	}
 }

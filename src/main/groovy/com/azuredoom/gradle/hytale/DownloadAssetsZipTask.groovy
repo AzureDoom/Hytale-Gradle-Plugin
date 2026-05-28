@@ -345,7 +345,7 @@ Code: ${userCode}
 					throw new GradleException('Downloaded asset wrapper is empty')
 				}
 
-				logger.lifecycle("Downloaded Hytale asset wrapper zip: ${formatBytes(tmpWrapper.length())}")
+				logger.lifecycle("Downloaded Hytale asset wrapper zip: ${BasicUtils.formatBytes(tmpWrapper.length())}")
 
 				atomicCopy(tmpWrapper, wrapper)
 
@@ -372,7 +372,7 @@ Code: ${userCode}
 					zipFile.close()
 				}
 
-				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip} (${formatBytes(assetsZip.length())})")
+				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip} (${BasicUtils.formatBytes(assetsZip.length())})")
 				return
 			} catch (Exception e) {
 				remoteFailure = e
@@ -383,7 +383,7 @@ Code: ${userCode}
 
 			def localAssetsZip = resolveLocalAssetsZip(patch)
 			if (localAssetsZip != null) {
-				logger.lifecycle("Found local Hytale Assets.zip fallback: ${localAssetsZip} (${formatBytes(localAssetsZip.length())})")
+				logger.lifecycle("Found local Hytale Assets.zip fallback: ${localAssetsZip} (${BasicUtils.formatBytes(localAssetsZip.length())})")
 				validateZipFile(localAssetsZip, "Copied Assets.zip from ${localAssetsZip}")
 				atomicCopy(localAssetsZip, assetsZip)
 				logger.lifecycle("Cached extracted Hytale assets zip at ${assetsZip}")
@@ -397,18 +397,6 @@ Code: ${userCode}
 		} finally {
 			client.close()
 		}
-	}
-
-	protected static String formatBytes(long bytes) {
-		if (bytes < 1024L) return "${bytes} B"
-		def units = ['KiB', 'MiB', 'GiB', 'TiB']
-		double value = bytes
-		int unitIndex = -1
-		while (value >= 1024D && unitIndex < units.size() - 1) {
-			value /= 1024D
-			unitIndex++
-		}
-		String.format(Locale.ROOT, '%.1f %s', value, units[unitIndex])
 	}
 
 	protected BodyHandler<File> progressFileBodyHandler(File destination, String label, long logIntervalMillis = 7500L) {
@@ -463,7 +451,7 @@ Code: ${userCode}
 					))
 
 			if (contentLength.present) {
-				logger.lifecycle("${label}: starting download (${formatBytes(contentLength.asLong)})")
+				logger.lifecycle("${label}: starting download (${BasicUtils.formatBytes(contentLength.asLong)})")
 			} else {
 				logger.lifecycle("${label}: starting download")
 			}
@@ -516,7 +504,7 @@ Code: ${userCode}
 				long totalBytes = contentLength.asLong
 				double percent = (downloadedBytes * 100D) / totalBytes
 				logger.lifecycle(
-						"${label}: downloaded ${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)} " +
+						"${label}: downloaded ${BasicUtils.formatBytes(downloadedBytes)} / ${BasicUtils.formatBytes(totalBytes)} " +
 						String.format(Locale.ROOT, '(%.1f%%)', percent)
 						)
 			} else {
@@ -525,8 +513,8 @@ Code: ${userCode}
 				long bytesPerSecond = downloadedBytes.intdiv(elapsedSeconds) as long
 
 				logger.lifecycle(
-						"${label}: downloaded ${formatBytes(downloadedBytes)} " +
-						"(${formatBytes(bytesPerSecond)}/s)"
+						"${label}: downloaded ${BasicUtils.formatBytes(downloadedBytes)} " +
+						"(${BasicUtils.formatBytes(bytesPerSecond)}/s)"
 						)
 			}
 		}
