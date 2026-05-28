@@ -53,7 +53,7 @@ abstract class DecompileServerJarTask extends DefaultTask {
 		tempDir.mkdirs()
 
 		def launcher = javaToolchainService.launcherFor { spec ->
-			spec.languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(javaVersion.get()))
+			spec.languageVersion.set(JavaLanguageVersion.of(javaVersion.get()))
 		}
 
 		def javaExe = launcher.get().executablePath.asFile.absolutePath

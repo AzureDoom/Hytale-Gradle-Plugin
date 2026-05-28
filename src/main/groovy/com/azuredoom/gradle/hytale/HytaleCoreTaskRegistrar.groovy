@@ -15,9 +15,9 @@ final class HytaleCoreTaskRegistrar {
 	static void register(
 			Project project,
 			HytaleExtension ext,
-			def wrapperFileProvider,
-			def assetsZipFileProvider,
-			def tokenFileProvider,
+			Provider<File> wrapperFileProvider,
+			Provider<File> assetsZipFileProvider,
+			Provider<File> tokenFileProvider,
 			def generatedSourcesMavenRepoDir,
 			NamedDomainObjectProvider<Configuration> vineServerJar,
 			NamedDomainObjectProvider<Configuration> vineImplementation,

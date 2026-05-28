@@ -2,6 +2,7 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
@@ -41,7 +42,7 @@ class HytalePlugin implements Plugin<Project> {
 		vineServerJar.get().defaultDependencies { deps ->
 			if (ext.hytaleVersion.isPresent()) {
 				def serverDep = project.dependencies.create("com.hypixel.hytale:Server:${ext.hytaleVersion.get()}")
-				if (serverDep instanceof org.gradle.api.artifacts.ExternalModuleDependency) {
+				if (serverDep instanceof ExternalModuleDependency) {
 					serverDep.changing = true
 				}
 				deps.add(serverDep)

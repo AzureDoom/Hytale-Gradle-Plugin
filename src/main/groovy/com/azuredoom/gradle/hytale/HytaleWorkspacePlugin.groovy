@@ -3,6 +3,7 @@ package com.azuredoom.gradle.hytale
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
+@SuppressWarnings("unused")
 class HytaleWorkspacePlugin implements Plugin<Project> {
 
 	@Override

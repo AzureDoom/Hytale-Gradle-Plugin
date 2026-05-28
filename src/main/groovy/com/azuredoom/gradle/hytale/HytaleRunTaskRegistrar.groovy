@@ -2,7 +2,6 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
-import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.api.Project
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration

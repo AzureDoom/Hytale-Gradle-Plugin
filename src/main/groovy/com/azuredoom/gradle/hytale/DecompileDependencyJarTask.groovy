@@ -14,6 +14,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 
 import javax.inject.Inject
@@ -52,7 +53,7 @@ abstract class DecompileDependencyJarTask extends DefaultTask {
 		tempDir.mkdirs()
 
 		def launcher = javaToolchainService.launcherFor { spec ->
-			spec.languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(javaVersion.get()))
+			spec.languageVersion.set(JavaLanguageVersion.of(javaVersion.get()))
 		}
 
 		def javaExe = launcher.get().executablePath.asFile.absolutePath

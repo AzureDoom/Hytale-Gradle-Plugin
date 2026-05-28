@@ -7,6 +7,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
+@SuppressWarnings("unused")
 abstract class HytaleExtension {
 	abstract Property<Integer> getJavaVersion()
 	abstract Property<String> getHytaleVersion()
