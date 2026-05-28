@@ -26,10 +26,19 @@ class ManifestUtilsTest extends Specification {
 		]
 	}
 
-	def "parseAuthors returns null for empty input"() {
+	def "parseAuthors returns empty list for empty input"() {
 		expect:
-		ManifestUtils.parseAuthors(null) == null
-		ManifestUtils.parseAuthors('') == null
+		ManifestUtils.parseAuthors(null) == []
+		ManifestUtils.parseAuthors('') == []
+	}
+
+	def "parseAuthors supports optional email and url fields"() {
+		expect:
+		ManifestUtils.parseAuthors('Alice|alice@example.com|https://example.com,Bob,Charlie|charlie@example.com') == [
+			[Name: 'Alice', Email: 'alice@example.com', Url: 'https://example.com'],
+			[Name: 'Bob'],
+			[Name: 'Charlie', Email: 'charlie@example.com']
+		]
 	}
 
 	def "parseAuthors returns manifest author objects"() {

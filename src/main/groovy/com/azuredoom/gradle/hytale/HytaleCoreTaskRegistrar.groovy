@@ -86,7 +86,10 @@ final class HytaleCoreTaskRegistrar {
 		}
 
 		def directAssetsZipFileProvider = project.providers.provider {
-			HytaleAssetsResolver.resolveDirectOverrideAssetsZip(project, ext)
+			HytaleAssetsResolver.resolveDirectOverrideAssetsZip(
+					ext.hytaleHomeOverride.orNull,
+					ext.patchline.get()
+					)
 		}
 
 		def downloadAssetsZipTask = project.tasks.register('downloadAssetsZip', DownloadAssetsZipTask) {
@@ -101,14 +104,6 @@ final class HytaleCoreTaskRegistrar {
 			resolvedAssetsWrapper.set(project.layout.file(wrapperFileProvider))
 			resolvedAssetsZip.set(project.layout.file(assetsZipFileProvider))
 			tokenCacheFile.set(project.layout.file(tokenFileProvider))
-			onlyIf {
-				def directAssetsZip = directAssetsZipFileProvider.getOrNull()
-				if (directAssetsZip != null) {
-					project.logger.lifecycle("Skipping downloadAssetsZip; using hytaleHomeOverride Assets.zip directly: ${directAssetsZip}")
-					return false
-				}
-				return true
-			}
 		}
 
 		project.tasks.withType(JavaCompile).configureEach {

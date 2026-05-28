@@ -321,10 +321,13 @@ Code: ${userCode}
 			return
 		}
 
-		// Do not consume hytaleHomeOverride here as a cache source.
-		// A valid override is resolved directly by the task registrar/configurer so this task is not scheduled.
-		// If this task is scheduled, it means no valid direct override was found and this task should
-		// produce its own cached output, falling back to local installs only if remote download fails.
+		if (hasHytaleHomeOverride()) {
+			def localAssetsZip = resolveLocalAssetsZip(patch)
+			if (localAssetsZip != null) {
+				logger.lifecycle("Using hytaleHomeOverride Assets.zip directly; downloadAssetsZip has nothing to cache: ${localAssetsZip}")
+				return
+			}
+		}
 
 		def json = new JsonSlurper()
 

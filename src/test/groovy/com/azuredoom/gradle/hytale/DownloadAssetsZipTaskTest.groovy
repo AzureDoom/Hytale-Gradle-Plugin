@@ -95,10 +95,7 @@ class DownloadAssetsZipTaskTest extends Specification {
 		} as Closure<Void>
 		task.createHttpClientOverride = {
 			fakeHttpClient { req, handler ->
-				def tmpFile = new File(
-						task.resolvedAssetsWrapper.get().asFile.parentFile,
-						task.resolvedAssetsWrapper.get().asFile.name + '.part'
-						)
+				def tmpFile = task.tempDownloadFileFor(task.resolvedAssetsWrapper.get().asFile)
 				tmpFile.parentFile.mkdirs()
 				Files.copy(wrapper.toPath(), tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
 				[
@@ -122,19 +119,32 @@ class DownloadAssetsZipTaskTest extends Specification {
 	def "remote failure falls back to local assets zip"() {
 		given:
 		def task = newTask()
-		def localHome = tempDir.resolve('local-hytale').toFile()
-		def localAssets = new File(localHome, 'install/release/latest/Assets.zip')
-		writeZip(localAssets, ['asset.txt': 'fallback'.bytes])
-		task.hytaleHomeOverride.set(localHome.absolutePath)
+
+		task.hytaleHomeOverride.set('')
+
+		def originalUserHome = System.getProperty('user.home')
+		System.setProperty('user.home', tempDir.toString())
+
+		[
+			'AppData/Roaming/Hytale/install/release/latest/Assets.zip',
+			'Library/Application Support/Hytale/install/release/latest/Assets.zip',
+			'.var/app/com.hypixel.HytaleLauncher/data/Hytale/install/release/latest/Assets.zip',
+			'.local/share/Hytale/install/release/latest/Assets.zip'
+		].each { relativePath ->
+			def localAssets = new File(tempDir.toFile(), relativePath)
+			writeZip(localAssets, ['asset.txt': 'fallback'.bytes])
+		}
 
 		task.createHttpClientOverride = {
 			fakeHttpClient { req, handler ->
 				throw new UnsupportedOperationException('unused')
 			}
 		}
+
 		task.startDeviceFlowOverride = { HttpClient client, JsonSlurper json, String oauthBaseUrl ->
 			[access_token: 'access-1', refresh_token: 'refresh-1']
 		}
+
 		task.getJsonOverride = ({ HttpClient client, String url, String bearerToken ->
 			throw new GradleException('lookup failed')
 		} as Closure)
@@ -145,6 +155,13 @@ class DownloadAssetsZipTaskTest extends Specification {
 		then:
 		task.resolvedAssetsZip.get().asFile.exists()
 		task.resolvedAssetsZip.get().asFile.length() > 0
+
+		cleanup:
+		if (originalUserHome != null) {
+			System.setProperty('user.home', originalUserHome)
+		} else {
+			System.clearProperty('user.home')
+		}
 	}
 
 	def "fails when wrapper does not contain Assets zip"() {
@@ -162,12 +179,10 @@ class DownloadAssetsZipTaskTest extends Specification {
 		}
 		task.createHttpClientOverride = {
 			fakeHttpClient { req, handler ->
-				def tmpFile = new File(
-						task.resolvedAssetsWrapper.get().asFile.parentFile,
-						task.resolvedAssetsWrapper.get().asFile.name + '.part'
-						)
+				def tmpFile = task.tempDownloadFileFor(task.resolvedAssetsWrapper.get().asFile)
 				tmpFile.parentFile.mkdirs()
 				Files.copy(wrapper.toPath(), tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+
 				[
 					statusCode: { -> 200 },
 					body      : {
