@@ -136,7 +136,7 @@ final class HytaleCoreTaskRegistrar {
 
 			dependsOn(prepareDecompiledSourcesForIde, downloadAssetsZipTask)
 
-			hytaleVersion.set(ext.hytaleVersion)
+			hytaleVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
 			assetsZip.set(project.layout.file(assetsZipFileProvider))
 			generatedSourcesMavenRepo.set(generatedSourcesMavenRepoDir)
 			vineServerJarDependencies.set(project.provider {
