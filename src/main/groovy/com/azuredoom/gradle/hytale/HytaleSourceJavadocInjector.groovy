@@ -52,19 +52,21 @@ final class HytaleSourceJavadocInjector {
 	}
 
 	private static void prefetchAll(List<File> javaFiles, File sourcesDir, String docsBaseUrl, File cacheDir, Logger logger) {
-		String normalizedBase = docsBaseUrl.endsWith('/') ? docsBaseUrl : docsBaseUrl + '/'
+		String normalizedBase = BasicUtils.normalizeBaseUrl(docsBaseUrl)
 
 		List<String> toFetch = javaFiles.collectMany { File javaFile ->
 			if (javaFile.getText('UTF-8').contains('<strong>Hytale API docs:</strong>')) {
 				return []
 			}
-			String fqcn = fqcnFor(javaFile, sourcesDir)
+
+			String fqcn = BasicUtils.fqcnForJavaFile(javaFile, sourcesDir)
 			if (fqcn == null) return []
-			String path = fqcn.replace('.', '/')
-			File cached  = new File(cacheDir, path + '.html')
-			File missing = new File(cacheDir, path + '.missing')
-			(cached.isFile() || missing.isFile()) ? [] : [fqcn]
-		}
+
+			File cached = BasicUtils.cacheFileForClass(cacheDir, fqcn, '.html')
+			File missing = BasicUtils.cacheFileForClass(cacheDir, fqcn, '.missing')
+
+			return (cached.isFile() || missing.isFile()) ? [] : [fqcn]
+		} as List<String>
 
 		if (toFetch.isEmpty()) return
 
@@ -72,12 +74,15 @@ final class HytaleSourceJavadocInjector {
 
 		def pool = Executors.newFixedThreadPool(FETCH_THREADS)
 		try {
-			List<Future<?>> futures = toFetch.collect { String fqcn ->
+			def futures = toFetch.collect { String fqcn ->
 				pool.submit({
 					fetchDocsHtml(fqcn, normalizedBase, cacheDir, logger)
 				} as Runnable)
 			}
-			futures.each { it.get() }
+
+			futures.each { Future<?> future ->
+				future.get()
+			}
 		} finally {
 			pool.shutdown()
 		}
@@ -89,12 +94,12 @@ final class HytaleSourceJavadocInjector {
 			return false
 		}
 
-		String fqcn = fqcnFor(javaFile, sourcesDir)
+		String fqcn = BasicUtils.fqcnForJavaFile(javaFile, sourcesDir)
 		if (fqcn == null) {
 			return false
 		}
 
-		String normalizedBase = docsBaseUrl.endsWith('/') ? docsBaseUrl : docsBaseUrl + '/'
+		String normalizedBase = BasicUtils.normalizeBaseUrl(docsBaseUrl)
 		String html = fetchDocsHtml(fqcn, normalizedBase, cacheDir, logger)
 		if (!html) {
 			return false
@@ -134,8 +139,8 @@ final class HytaleSourceJavadocInjector {
 	private static String fetchDocsHtml(String fqcn, String normalizedBase, File cacheDir, Logger logger) {
 		String path = fqcn.replace('.', '/')
 
-		File cached  = new File(cacheDir, path + '.html')
-		File missing = new File(cacheDir, path + '.missing')
+		File cached  = BasicUtils.cacheFileForClass(cacheDir, fqcn, '.html')
+		File missing = BasicUtils.cacheFileForClass(cacheDir, fqcn, '.missing')
 
 		if (cached.isFile())  return cached.getText('UTF-8')
 		if (missing.isFile()) return null
@@ -156,43 +161,28 @@ final class HytaleSourceJavadocInjector {
 			int status = connection.responseCode
 
 			if (status == 404) {
-				atomicWrite(missing, uri.toString())
+				BasicUtils.atomicWrite(missing, uri.toString())
 				return null
 			}
 
 			if (status < 200 || status >= 300) {
 				logger.info("No hosted Hytale Javadocs found at {}: HTTP {}", uri, status)
-				atomicWrite(missing, "${uri} HTTP ${status}")
+				BasicUtils.atomicWrite(missing, "${uri} HTTP ${status}")
 				return null
 			}
 
 			String html = connection.inputStream.getText('UTF-8')
-			atomicWrite(cached, html)
+			BasicUtils.atomicWrite(cached, html)
 			return html
 		} catch (Throwable throwable) {
 			logger.info("No hosted Hytale Javadocs found at {}: {}", uri, throwable.message)
-			atomicWrite(missing, "${uri} ${throwable.class.name}: ${throwable.message}")
+			BasicUtils.atomicWrite(missing, "${uri} ${throwable.class.name}: ${throwable.message}")
 			return null
 		} finally {
 			connection?.disconnect()
 		}
 	}
 
-	private static void atomicWrite(File target, String content) {
-		File tmp = new File(target.parentFile, target.name + '.tmp')
-		tmp.setText(content, 'UTF-8')
-		tmp.renameTo(target)
-	}
-
-	private static String fqcnFor(File javaFile, File sourcesDir) {
-		String rel = sourcesDir.toPath().relativize(javaFile.toPath()).toString()
-		if (!rel.endsWith('.java')) {
-			return null
-		}
-		return rel
-				.substring(0, rel.length() - '.java'.length())
-				.replace(File.separatorChar, '.' as char)
-	}
 
 	private static ClassDocs parseDocs(String html, String className) {
 		ClassDocs docs = new ClassDocs()
@@ -214,7 +204,7 @@ final class HytaleSourceJavadocInjector {
 			String sectionHtml = sectionMatcher.group(1)
 			def blockMatcher = sectionHtml =~ /(?s)<div\s+class="block">(.*?)<\/div>/
 			if (blockMatcher.find()) {
-				return cleanHtml(blockMatcher.group(1))
+				return BasicUtils.cleanHtml(blockMatcher.group(1))
 			}
 			return null
 		}
@@ -223,12 +213,12 @@ final class HytaleSourceJavadocInjector {
 
 		def h1Matcher = classRegion =~ /(?s)<h1[^>]*>\s*Class\s+[^<]+<\/h1>.*?<div\s+class="block">(.*?)<\/div>/
 		if (h1Matcher.find()) {
-			return cleanHtml(h1Matcher.group(1))
+			return BasicUtils.cleanHtml(h1Matcher.group(1))
 		}
 
 		def typeSigMatcher = classRegion =~ /(?s)<div\s+class="type-signature"[^>]*>.*?<\/div>\s*<div\s+class="block">(.*?)<\/div>/
 		if (typeSigMatcher.find()) {
-			return cleanHtml(typeSigMatcher.group(1))
+			return BasicUtils.cleanHtml(typeSigMatcher.group(1))
 		}
 
 		return null
@@ -258,7 +248,7 @@ final class HytaleSourceJavadocInjector {
 		Matcher matcher = sectionPattern.matcher(html)
 		while (matcher.find()) {
 			sections.add(new DetailSection(
-					id: decodeHtml(matcher.group(1)),
+					id: BasicUtils.decodeHtml(matcher.group(1)),
 					html: matcher.group(2)
 					))
 		}
@@ -300,7 +290,7 @@ final class HytaleSourceJavadocInjector {
 	private static String extractMemberName(DetailSection section, String className) {
 		def matcher = section.html =~ /(?s)<h3[^>]*>\s*(.*?)\s*<\/h3>/
 		if (matcher.find()) {
-			String heading = cleanHtml(matcher.group(1))
+			String heading = BasicUtils.cleanHtml(matcher.group(1))
 			if (heading) {
 				return heading
 			}
@@ -322,7 +312,7 @@ final class HytaleSourceJavadocInjector {
 	private static String extractFirstBlock(String html) {
 		def matcher = html =~ /(?s)<div\s+class="block">(.*?)<\/div>/
 		if (matcher.find()) {
-			return cleanHtml(matcher.group(1))
+			return BasicUtils.cleanHtml(matcher.group(1))
 		}
 		return null
 	}
@@ -332,8 +322,8 @@ final class HytaleSourceJavadocInjector {
 
 		def matcher = html =~ /(?s)<dd>\s*<code>([^<]+)<\/code>\s*-\s*(.*?)<\/dd>/
 		while (matcher.find()) {
-			String name = cleanHtml(matcher.group(1))
-			String description = cleanHtml(matcher.group(2))
+			String name = BasicUtils.cleanHtml(matcher.group(1))
+			String description = BasicUtils.cleanHtml(matcher.group(2))
 			if (name && description) {
 				params[name] = description
 			}
@@ -347,8 +337,8 @@ final class HytaleSourceJavadocInjector {
 
 		def matcher = html =~ /(?s)<dd>\s*<code>([^<]+)<\/code>\s*-\s*(.*?)<\/dd>/
 		while (matcher.find()) {
-			String name = cleanHtml(matcher.group(1))
-			String description = cleanHtml(matcher.group(2))
+			String name = BasicUtils.cleanHtml(matcher.group(1))
+			String description = BasicUtils.cleanHtml(matcher.group(2))
 
 			if (!name || !description) {
 				continue
@@ -367,7 +357,7 @@ final class HytaleSourceJavadocInjector {
 
 		def matcher = html =~ /(?s)<dt>\s*${quoted}\s*<\/dt>\s*<dd>(.*?)<\/dd>/
 		if (matcher.find()) {
-			return cleanHtml(matcher.group(1))
+			return BasicUtils.cleanHtml(matcher.group(1))
 		}
 
 		return null
@@ -391,7 +381,7 @@ final class HytaleSourceJavadocInjector {
 		String declaration = matcher.group(2)
 
 		String replacement = Matcher.quoteReplacement(
-				toJavadoc(doc, indent) + '\n' + indent + declaration
+				BasicUtils.toJavadoc(doc, indent) + '\n' + indent + declaration
 				)
 
 		return matcher.replaceFirst(replacement)
@@ -420,7 +410,7 @@ final class HytaleSourceJavadocInjector {
 		String declarationStart = matcher.group(2)
 
 		String replacement = Matcher.quoteReplacement(
-				toJavadoc(doc, indent) + '\n' + indent + declarationStart
+				BasicUtils.toJavadoc(doc, indent) + '\n' + indent + declarationStart
 				)
 
 		return matcher.replaceFirst(replacement)
@@ -449,7 +439,7 @@ final class HytaleSourceJavadocInjector {
 		String declarationStart = matcher.group(2)
 
 		String replacement = Matcher.quoteReplacement(
-				toJavadoc(doc, indent) + '\n' + indent + declarationStart
+				BasicUtils.toJavadoc(doc, indent) + '\n' + indent + declarationStart
 				)
 
 		return matcher.replaceFirst(replacement)
@@ -482,36 +472,6 @@ final class HytaleSourceJavadocInjector {
 		}
 
 		return lines[i].trim() == '*/'
-	}
-
-	private static String cleanHtml(String html) {
-		return decodeHtml(html)
-				.replaceAll(/(?i)<br\s*\/?>/, '\n')
-				.replaceAll(/(?s)<[^>]+>/, '')
-				.replaceAll(/[ \t\r\f]+/, ' ')
-				.replaceAll(/\n\s+/, '\n')
-				.trim()
-	}
-
-	private static String decodeHtml(String value) {
-		return value
-				.replace('&nbsp;', ' ')
-				.replace('&#160;', ' ')
-				.replace('&lt;', '<')
-				.replace('&gt;', '>')
-				.replace('&amp;', '&')
-				.replace('&quot;', '"')
-				.replace('&#39;', "'")
-				.trim()
-	}
-
-	private static String toJavadoc(String text, String indent) {
-		def lines = text.readLines()
-
-		return indent + '/**\n' +
-				indent + ' * <p><strong>Hytale API docs:</strong></p>\n' +
-				lines.collect { indent + ' * ' + it }.join('\n') +
-				'\n' + indent + ' */'
 	}
 
 	private static final class DetailSection {

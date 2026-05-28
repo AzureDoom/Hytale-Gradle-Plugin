@@ -14,7 +14,6 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 
 import javax.inject.Inject
@@ -48,54 +47,23 @@ abstract class DecompileDependencyJarTask extends DefaultTask {
 	void decompile() {
 		def outDir = outputDirectory.get().asFile
 		def tempDir = tempDirectoryRoot.get().asFile
-		project.delete(outDir, tempDir)
-		outDir.mkdirs()
-		tempDir.mkdirs()
-
-		def launcher = javaToolchainService.launcherFor { spec ->
-			spec.languageVersion.set(JavaLanguageVersion.of(javaVersion.get()))
-		}
-
-		def javaExe = launcher.get().executablePath.asFile.absolutePath
+		BasicUtils.recreateDirectories(project, outDir, tempDir)
 
 		def input = inputJar.get().asFile
 		if (!input.exists()) {
 			throw new GradleException("Could not resolve dependency jar: ${input}")
 		}
 
-		def externals = decompileClasspath.files
-				.findAll {
-					it.name.endsWith('.jar') &&
-							it != input &&
-							!it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-m2${File.separator}") &&
-							!it.absolutePath.contains("${File.separator}build${File.separator}generated-sources-ivy${File.separator}")
-				}
-				.collect { "-e=${it.absolutePath}" }
-
 		def cmd = [
-			javaExe,
+			BasicUtils.javaExecutableFor(javaToolchainService, javaVersion.get()),
 			'-jar',
 			vineflowerJar.get().asFile.absolutePath,
-			*externals,
+			*BasicUtils.vineflowerExternalArgs(decompileClasspath.files, input),
 			input.absolutePath,
 			outDir.absolutePath
-		].collect { it.toString() }
+		]
 
-		logger.lifecycle("Running: ${cmd.join(' ')}")
-
-		def proc = new ProcessBuilder(cmd)
-				.directory(project.projectDir)
-				.redirectErrorStream(true)
-				.start()
-
-		proc.inputStream.withReader { reader ->
-			reader.eachLine { line -> logger.lifecycle(line) }
-		}
-
-		def exit = proc.waitFor()
-		if (exit != 0) {
-			throw new GradleException("Vineflower failed for ${input.name} (exit ${exit})")
-		}
+		BasicUtils.runLoggedProcess(cmd, project.projectDir, logger, "Vineflower failed for ${input.name}")
 
 		logger.lifecycle("Decompiled ${input.name} -> ${outDir}")
 	}
