@@ -11,6 +11,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
@@ -68,7 +69,7 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 					"${groups[i].replace('.', '_')}_${ids[i]}"
 					).toPath().toAbsolutePath().normalize()
 
-			if (Files.exists(targetDir)) {
+			if (Files.exists(targetDir, LinkOption.NOFOLLOW_LINKS)) {
 				deleteRecursively(targetDir)
 			}
 
@@ -78,36 +79,8 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 	}
 
 	private void createLinkJunctionOrCopy(Path sourceDir, Path targetDir) {
-		try {
-			Path relativeSource = targetDir.parent.relativize(sourceDir)
-			Files.createSymbolicLink(targetDir, relativeSource)
-			logger.lifecycle("Created symlink ${targetDir} -> ${relativeSource}")
+		if (BasicUtils.createSymlinkOrWindowsJunction(sourceDir, targetDir, "asset pack staging", logger)) {
 			return
-		} catch (Exception ex) {
-			logger.warn("Symlink creation failed, attempting fallback: ${ex.message}")
-		}
-
-		if (System.getProperty('os.name').toLowerCase().contains('win')) {
-			def process = new ProcessBuilder(
-					'cmd', '/c', 'mklink', '/J',
-					targetDir.toString(),
-					sourceDir.toString()
-					).redirectErrorStream(true).start()
-
-			def output = process.inputStream.text
-			def code = process.waitFor()
-
-			if (code == 0 && Files.exists(targetDir)) {
-				logger.lifecycle("Created junction ${targetDir} -> ${sourceDir}")
-				return
-			}
-
-			logger.warn(
-					"Junction creation failed, falling back to copy.\n" +
-					"Target: ${targetDir}\n" +
-					"Source: ${sourceDir}\n" +
-					"Output:\n${output}"
-					)
 		}
 
 		copyDirectory(sourceDir, targetDir)
@@ -115,28 +88,31 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 	}
 
 	private static void copyDirectory(Path source, Path target) {
-		Files.walk(source).forEach { path ->
-			Path relative = source.relativize(path)
-			Path destination = target.resolve(relative)
+		Files.walk(source).withCloseable { paths ->
+			paths.forEach { path ->
+				Path relative = source.relativize(path)
+				Path destination = target.resolve(relative)
 
-			if (Files.isDirectory(path)) {
-				Files.createDirectories(destination)
-			} else {
-				if (destination.parent != null) {
-					Files.createDirectories(destination.parent)
+				if (Files.isDirectory(path)) {
+					Files.createDirectories(destination)
+				} else {
+					if (destination.parent != null) {
+						Files.createDirectories(destination.parent)
+					}
+					Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING)
 				}
-				Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING)
 			}
 		}
 	}
 
 	private static void deleteRecursively(Path path) {
-		if (!Files.exists(path)) {
+		if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
 			return
 		}
 
-		Files.walk(path)
-				.sorted(Comparator.reverseOrder())
-				.forEach { Files.deleteIfExists(it) }
+		Files.walk(path).withCloseable { paths ->
+			paths.sorted(Comparator.reverseOrder())
+					.forEach { Files.deleteIfExists(it) }
+		}
 	}
 }
