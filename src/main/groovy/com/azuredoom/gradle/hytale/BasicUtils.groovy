@@ -1,7 +1,6 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.GradleException
-import org.gradle.api.Project
 import org.gradle.api.logging.Logger
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
@@ -25,10 +24,10 @@ class BasicUtils {
 		String.format(Locale.ROOT, '%.1f %s', value, units[unitIndex])
 	}
 
-	static void recreateDirectories(Project project, File... directories) {
-		project.delete((Object[]) directories)
+	static void recreateDirectories(File... directories) {
 		directories.each { File directory ->
-			directory.mkdirs()
+			deleteRecursively(directory)
+			Files.createDirectories(directory.toPath())
 		}
 	}
 
@@ -185,6 +184,18 @@ class BasicUtils {
 		}
 
 		return false
+	}
+
+	private static void deleteRecursively(File file) {
+		if (file == null || !file.exists()) {
+			return
+		}
+
+		Path root = file.toPath()
+		Files.walk(root).withCloseable { stream ->
+			stream.sorted(Comparator.reverseOrder())
+					.each { Path path -> Files.deleteIfExists(path) }
+		}
 	}
 
 	private static boolean isExternalJar(File file, File inputJar) {

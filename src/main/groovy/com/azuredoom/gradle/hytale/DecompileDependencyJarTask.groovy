@@ -47,7 +47,7 @@ abstract class DecompileDependencyJarTask extends DefaultTask {
 	void decompile() {
 		def outDir = outputDirectory.get().asFile
 		def tempDir = tempDirectoryRoot.get().asFile
-		BasicUtils.recreateDirectories(project, outDir, tempDir)
+		BasicUtils.recreateDirectories(outDir, tempDir)
 
 		def input = inputJar.get().asFile
 		if (!input.exists()) {
@@ -63,7 +63,7 @@ abstract class DecompileDependencyJarTask extends DefaultTask {
 			outDir.absolutePath
 		]
 
-		BasicUtils.runLoggedProcess(cmd, project.projectDir, logger, "Vineflower failed for ${input.name}")
+		BasicUtils.runLoggedProcess(cmd, tempDir, logger, "Vineflower failed for ${input.name}")
 
 		logger.lifecycle("Decompiled ${input.name} -> ${outDir}")
 	}

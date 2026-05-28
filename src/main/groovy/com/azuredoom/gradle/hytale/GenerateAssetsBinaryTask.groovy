@@ -33,7 +33,9 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 		logger.lifecycle("Output jar: ${outFile}")
 
 		outFile.parentFile.mkdirs()
-		project.delete(outFile)
+		if (outFile.exists() && !outFile.delete()) {
+			throw new IOException("Could not delete existing output jar: ${outFile}")
+		}
 
 		def seen = new LinkedHashSet<String>()
 		int assetEntriesWritten = 0
