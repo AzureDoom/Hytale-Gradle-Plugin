@@ -35,8 +35,9 @@ hytaleTools {
     // resolve to the concrete server version in manifest.json.
     // manifestServerVersion = '>=0.5.0-pre.9 <0.6.0'
     manifestGroup = 'com.example.mods'
-    // Author names cannot contain spaces. Separate multiple authors with commas.
-    // Example: 'Alice,Bob'
+    // Author format: Name, or Name|Email, or Name|Email|Url.
+    // Separate multiple authors with commas. Email and Url are optional.
+    // Example: 'Alice|alice@example.com|https://example.com,Bob'
     modCredits = 'yourname'
     patchline = 'release'
     modId = 'examplemod'
@@ -193,8 +194,9 @@ hytaleTools {
     // Override workspace default
     manifestGroup = 'com.example.custom'
     
-    // Author names cannot contain spaces. Separate multiple authors with commas.
-    // Example: 'Alice,Bob'
+    // Author format: Name, or Name|Email, or Name|Email|Url.
+    // Separate multiple authors with commas. Email and Url are optional.
+    // Example: 'Alice|alice@example.com|https://example.com,Bob'
     modCredits = 'yourname'
     modId = 'moda'
     mainClass = 'com.example.mods.moda.ModA'
@@ -569,7 +571,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `modDescription`                  | `String`       |                                 empty | No       | Manifest description                                                                                                                                                            |
 | `modUrl`                          | `String`       |                                 empty | No       | Manifest project URL                                                                                                                                                            |
 | `mainClass`                       | `String`       |                                 empty | Yes      | Plugin entrypoint                                                                                                                                                               |
-| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest credits. Author names cannot contain spaces; separate multiple authors with commas.                                                                                    |
+| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest authors/credits. Use `Name`, `Name                                                                                                                                     |Email`, or `Name|Email|Url`; separate multiple authors with commas. Email and Url are optional.                                      |
 | `manifestDependencies`            | `String`       |                `Hytale:AssetModule=*` | No       | Required manifest deps                                                                                                                                                          |
 | `manifestOptionalDependencies`    | `String`       |                                 empty | No       | Optional manifest deps                                                                                                                                                          |
 | `curseforgeId`                    | `String`       |                                 empty | No       | CurseForge project id                                                                                                                                                           |
@@ -595,15 +597,46 @@ Because manifest generation and validation are wired into the build, most projec
 
 ### Author / Credits Formatting
 
-`modCredits` is written to the manifest author/credits field. Author names must not contain spaces. To list multiple authors, separate each author name with a comma.
+`modCredits` is written to the manifest `Authors` array. Each author supports a required `Name` and optional `Email` and `Url` fields.
+
+Use one of these formats for each author:
+
+- `Name`
+- `Name|Email`
+- `Name|Email|Url`
+
+Separate multiple authors with commas.
 
 ```gradle
 hytaleTools {
-    modCredits = 'Alice,Bob,Charlie'
+    modCredits = 'Alice|alice@example.com|https://example.com,Bob,Charlie|charlie@example.com'
 }
 ```
 
-Do not use spaces inside an individual author name. For example, use `AliceSmith` or `Alice_Smith` instead of `Alice Smith`.
+This writes:
+
+```json
+{
+  "Authors": [
+    {
+      "Name": "Alice",
+      "Email": "alice@example.com",
+      "Url": "https://example.com"
+    },
+    {
+      "Name": "Bob"
+    },
+    {
+      "Name": "Charlie",
+      "Email": "charlie@example.com"
+    }
+  ]
+}
+```
+
+`Email` and `Url` are optional. `Authors` is also optional during validation for compatibility with handwritten or older manifests, but when it is present it must be an array of author objects. Each author object must have a non-blank `Name`.
+
+Do not use commas or pipe characters inside an individual author value, because commas separate authors and pipes separate author fields.
 
 ## SubPlugins
 
@@ -1049,7 +1082,8 @@ hytaleTools {
     modDescription = project.mod_description.toString()
     modUrl = project.mod_url.toString()
     mainClass = project.main_class.toString()
-    // Author names cannot contain spaces. Separate multiple authors with commas.
+    // Author format: Name, or Name|Email, or Name|Email|Url.
+    // Separate multiple authors with commas. Email and Url are optional.
     modCredits = project.mod_credits.toString()
 
     manifestDependencies = project.manifest_dependencies.toString()
@@ -1249,6 +1283,7 @@ Also review:
 - `manifest_dependencies`
 - `manifest_opt_dependencies`
 - `includes_pack`
+- `Authors`, if present, must be an array of objects with a non-blank `Name`; optional `Email` and `Url` values must not be blank
 
 ### Dependency sources are not being generated
 

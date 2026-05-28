@@ -15,12 +15,30 @@ class ManifestUtils {
 		out as Map<String, String>
 	}
 
-	static List<Map<String, String>> parseAuthors(String raw) {
-		if (!raw) {
-			return null
+	static List<Map<String, String>> parseAuthors(String value) {
+		if (value == null || value.trim().isEmpty()) {
+			return []
 		}
-		raw.split(/\s*,\s*/)
-				.findAll { it?.trim() }
-				.collect { [Name: it.trim()] }
+
+		return value.split(',')
+				.collect { it.trim() }
+				.findAll { !it.isEmpty() }
+				.collect { author ->
+					def parts = author.split('\\|', -1)*.trim()
+
+					def entry = [
+						Name: parts[0]
+					]
+
+					if (parts.size() > 1 && parts[1]) {
+						entry.Email = parts[1]
+					}
+
+					if (parts.size() > 2 && parts[2]) {
+						entry.Url = parts[2]
+					}
+
+					return entry
+				}
 	}
 }

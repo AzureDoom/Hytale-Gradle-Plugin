@@ -70,6 +70,14 @@ abstract class ValidateManifestTask extends DefaultTask {
 		requireNonBlank(json, 'ServerVersion', errors)
 		requireNonBlank(json, 'Main', errors)
 
+		if (json.Authors != null) {
+			if (!(json.Authors instanceof List)) {
+				errors << "Manifest Authors must be an array."
+			} else {
+				validateAuthors(json.Authors as List, errors)
+			}
+		}
+
 		if (json.Group != manifestGroup.get()) {
 			errors << "Manifest Group '${json.Group}' does not match configured manifestGroup '${manifestGroup.get()}'."
 		}
@@ -139,6 +147,28 @@ abstract class ValidateManifestTask extends DefaultTask {
 			}
 			if (v == null || !v.toString().trim()) {
 				errors << ("${label} entry '${k}' has a blank version." as String)
+			}
+		}
+	}
+
+	private static void validateAuthors(List authors, List<String> errors) {
+		authors.eachWithIndex { author, index ->
+			if (!(author instanceof Map)) {
+				errors << "Manifest Authors[${index}] must be an object."
+				return
+			}
+
+			def name = author.Name
+			if (name == null || !name.toString().trim()) {
+				errors << "Manifest Authors[${index}].Name is missing or blank."
+			}
+
+			if (author.Email != null && !author.Email.toString().trim()) {
+				errors << "Manifest Authors[${index}].Email is blank."
+			}
+
+			if (author.Url != null && !author.Url.toString().trim()) {
+				errors << "Manifest Authors[${index}].Url is blank."
 			}
 		}
 	}
