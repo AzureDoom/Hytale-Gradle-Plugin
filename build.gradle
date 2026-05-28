@@ -98,7 +98,6 @@ publishing {
 	}
 }
 
-
 tasks.register('publishPluginRelease') {
 	group = 'publishing'
 	description = 'Validates, tests, and publishes the plugin to the Gradle Plugin Portal.'
