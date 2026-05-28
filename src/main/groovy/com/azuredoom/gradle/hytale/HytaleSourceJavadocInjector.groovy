@@ -11,8 +11,6 @@ import java.util.regex.Pattern
 final class HytaleSourceJavadocInjector {
 	private HytaleSourceJavadocInjector() {}
 
-	// Max parallel HTTP fetches. Stays polite to the docs server and
-	// avoids overwhelming the Gradle worker thread pool.
 	private static final int FETCH_THREADS = 8
 
 	static void inject(File sourcesDir, String docsBaseUrl, File cacheDir, Logger logger) {
@@ -28,7 +26,6 @@ final class HytaleSourceJavadocInjector {
 			return
 		}
 
-		// Collect all java files first
 		List<File> javaFiles = []
 		apiRoot.eachFileRecurse { File f ->
 			if (f.name.endsWith('.java')) {
@@ -41,13 +38,8 @@ final class HytaleSourceJavadocInjector {
 			return
 		}
 
-		// Phase 1 — parallel prefetch: fire off HTTP requests for all FQCNs that
-		// aren't already cached. This turns N sequential round-trips into a single
-		// parallel burst and is the main reason first-run is slow.
 		prefetchAll(javaFiles, sourcesDir, docsBaseUrl, cacheDir, logger)
 
-		// Phase 2 — serial injection: read cache, parse, inject. No network I/O here
-		// so there's no benefit to parallelising writes (avoids concurrent file mutation).
 		AtomicInteger changed = new AtomicInteger(0)
 
 		javaFiles.each { File javaFile ->
@@ -59,17 +51,12 @@ final class HytaleSourceJavadocInjector {
 		logger.lifecycle("Hytale Javadocs injection finished: {} changed / {} visited", changed.get(), javaFiles.size())
 	}
 
-	/**
-	 * Fires parallel HTTP fetches for every FQCN that has no cached .html or .missing file.
-	 * Results are written to the cache so the serial injection phase only reads from disk.
-	 */
 	private static void prefetchAll(List<File> javaFiles, File sourcesDir, String docsBaseUrl, File cacheDir, Logger logger) {
 		String normalizedBase = docsBaseUrl.endsWith('/') ? docsBaseUrl : docsBaseUrl + '/'
 
-		// Build the list of FQCNs that actually need fetching
 		List<String> toFetch = javaFiles.collectMany { File javaFile ->
 			if (javaFile.getText('UTF-8').contains('<strong>Hytale API docs:</strong>')) {
-				return []  // already injected, skip
+				return []
 			}
 			String fqcn = fqcnFor(javaFile, sourcesDir)
 			if (fqcn == null) return []
@@ -90,7 +77,6 @@ final class HytaleSourceJavadocInjector {
 					fetchDocsHtml(fqcn, normalizedBase, cacheDir, logger)
 				} as Runnable)
 			}
-			// Wait for all fetches to complete and propagate any exceptions
 			futures.each { it.get() }
 		} finally {
 			pool.shutdown()
@@ -145,11 +131,6 @@ final class HytaleSourceJavadocInjector {
 		return false
 	}
 
-	/**
-	 * Fetches (or returns from cache) the Javadoc HTML for the given FQCN.
-	 * normalizedBase must already have a trailing slash.
-	 * Thread-safe: cache file writes use a tmp-then-rename strategy.
-	 */
 	private static String fetchDocsHtml(String fqcn, String normalizedBase, File cacheDir, Logger logger) {
 		String path = fqcn.replace('.', '/')
 
@@ -197,7 +178,6 @@ final class HytaleSourceJavadocInjector {
 		}
 	}
 
-	/** Writes content to a temp file then atomically renames it, avoiding partial reads from parallel threads. */
 	private static void atomicWrite(File target, String content) {
 		File tmp = new File(target.parentFile, target.name + '.tmp')
 		tmp.setText(content, 'UTF-8')
@@ -229,9 +209,6 @@ final class HytaleSourceJavadocInjector {
 	}
 
 	private static String extractClassDescription(String html) {
-		// Pattern 1: modern Javadoc — extract the <section class="class-description"> content
-		// first, then search for a block div *within* that string only. This prevents the
-		// lazy (?s) dot from crossing the section boundary into method detail sections.
 		def sectionMatcher = html =~ /(?s)<section\s+class="class-description"[^>]*>(.*?)<\/section>/
 		if (sectionMatcher.find()) {
 			String sectionHtml = sectionMatcher.group(1)
@@ -239,11 +216,9 @@ final class HytaleSourceJavadocInjector {
 			if (blockMatcher.find()) {
 				return cleanHtml(blockMatcher.group(1))
 			}
-			// Section exists but has no block — class has no description, don't fall through.
 			return null
 		}
 
-		// Patterns 2 & 3: older Javadoc — restrict search to the region before any detail sections.
 		String classRegion = extractClassRegion(html)
 
 		def h1Matcher = classRegion =~ /(?s)<h1[^>]*>\s*Class\s+[^<]+<\/h1>.*?<div\s+class="block">(.*?)<\/div>/
