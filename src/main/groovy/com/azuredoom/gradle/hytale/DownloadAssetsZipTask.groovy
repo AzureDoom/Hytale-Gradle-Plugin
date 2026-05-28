@@ -15,6 +15,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.channels.WritableByteChannel
 import java.nio.file.StandardOpenOption
+import java.nio.file.AtomicMoveNotSupportedException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Flow
@@ -222,14 +223,56 @@ Code: ${userCode}
 		Files.copy(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING)
 	}
 
+	protected static void deleteIfExistsQuietly(File file, Logger logger = null) {
+		if (file == null) {
+			return
+		}
+
+		try {
+			Files.deleteIfExists(file.toPath())
+		} catch (Exception e) {
+			logger?.info("Failed to delete temporary file ${file}: ${e.message}")
+		}
+	}
+
+	protected File tempDownloadFileFor(File finalFile) {
+		def safeName = finalFile.name.replaceAll(/[^A-Za-z0-9._-]/, '_')
+		return new File(new File(temporaryDir, 'downloads'), safeName + '.part')
+	}
+
+	protected void cleanupTemporaryDownloadFiles(File wrapper, File assetsZip) {
+		// Clean up stale files created by older versions that wrote .part files beside the outputs.
+		deleteIfExistsQuietly(new File(wrapper.parentFile, wrapper.name + '.part'), logger)
+		deleteIfExistsQuietly(new File(assetsZip.parentFile, assetsZip.name + '.part'), logger)
+
+		// Clean up the current task's temporary download location too.
+		deleteIfExistsQuietly(tempDownloadFileFor(wrapper), logger)
+		deleteIfExistsQuietly(tempDownloadFileFor(assetsZip), logger)
+	}
+
+	protected void atomicMoveIntoPlace(File from, File to) {
+		Files.createDirectories(to.parentFile.toPath())
+		try {
+			Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+		} catch (AtomicMoveNotSupportedException ignored) {
+			Files.move(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING)
+		}
+	}
+
+	protected boolean hasHytaleHomeOverride() {
+		def override = hytaleHomeOverride.present ? hytaleHomeOverride.get() : null
+		return override != null && override.trim().length() > 0
+	}
+
 	protected File resolveLocalAssetsZip(String patchline) {
 		def candidates = []
-		def override = hytaleHomeOverride.present ? hytaleHomeOverride.get() : null
+		def override = hytaleHomeOverride.present ? hytaleHomeOverride.get()?.trim() : null
 		def branch = (patchline ?: '').trim()
 
 		def addInstallCandidates = { File homeDir ->
 			if (homeDir == null) return
-				candidates << new File(homeDir, 'Assets.zip')
+				candidates << homeDir
+			candidates << new File(homeDir, 'Assets.zip')
 			candidates << new File(homeDir, "install/${branch}/package/game/latest/Assets.zip")
 			candidates << new File(homeDir, "install/${branch}/game/latest/Assets.zip")
 			candidates << new File(homeDir, "install/${branch}/latest/Assets.zip")
@@ -271,10 +314,17 @@ Code: ${userCode}
 		assetsZip.parentFile.mkdirs()
 		tokenFile.parentFile.mkdirs()
 
+		cleanupTemporaryDownloadFiles(wrapper, assetsZip)
+
 		if (assetsZip.exists() && assetsZip.length() > 0) {
 			logger.lifecycle("Using cached extracted Hytale assets zip: ${assetsZip}")
 			return
 		}
+
+		// Do not consume hytaleHomeOverride here as a cache source.
+		// A valid override is resolved directly by the task registrar/configurer so this task is not scheduled.
+		// If this task is scheduled, it means no valid direct override was found and this task should
+		// produce its own cached output, falling back to local installs only if remote download fails.
 
 		def json = new JsonSlurper()
 
@@ -325,29 +375,34 @@ Code: ${userCode}
 					throw new GradleException('Asset bundle lookup did not return a download url')
 				}
 
-				def tmpWrapper = new File(wrapper.parentFile, wrapper.name + '.part')
+				def tmpWrapper = tempDownloadFileFor(wrapper)
+				deleteIfExistsQuietly(tmpWrapper, logger)
 
 				logger.lifecycle("Downloading Hytale asset wrapper zip. This may take a while...")
-				def downloadResp = client.send(
-						HttpRequest.newBuilder()
-						.uri(URI.create(bundleUrl))
-						.timeout(Duration.ofMinutes(30))
-						.GET()
-						.build(),
-						progressFileBodyHandler(tmpWrapper, 'Downloading Hytale asset wrapper zip', 5000L)
-						)
+				try {
+					def downloadResp = client.send(
+							HttpRequest.newBuilder()
+							.uri(URI.create(bundleUrl))
+							.timeout(Duration.ofMinutes(30))
+							.GET()
+							.build(),
+							progressFileBodyHandler(tmpWrapper, 'Downloading Hytale asset wrapper zip', 5000L)
+							)
 
-				if (downloadResp.statusCode() < 200 || downloadResp.statusCode() >= 300) {
-					throw new GradleException("Asset wrapper download failed with HTTP ${downloadResp.statusCode()}")
+					if (downloadResp.statusCode() < 200 || downloadResp.statusCode() >= 300) {
+						throw new GradleException("Asset wrapper download failed with HTTP ${downloadResp.statusCode()}")
+					}
+
+					if (!tmpWrapper.exists() || tmpWrapper.length() == 0) {
+						throw new GradleException('Downloaded asset wrapper is empty')
+					}
+
+					logger.lifecycle("Downloaded Hytale asset wrapper zip: ${BasicUtils.formatBytes(tmpWrapper.length())}")
+
+					atomicMoveIntoPlace(tmpWrapper, wrapper)
+				} finally {
+					deleteIfExistsQuietly(tmpWrapper, logger)
 				}
-
-				if (!tmpWrapper.exists() || tmpWrapper.length() == 0) {
-					throw new GradleException('Downloaded asset wrapper is empty')
-				}
-
-				logger.lifecycle("Downloaded Hytale asset wrapper zip: ${BasicUtils.formatBytes(tmpWrapper.length())}")
-
-				atomicCopy(tmpWrapper, wrapper)
 
 				logger.lifecycle("Extracting Assets.zip from downloaded wrapper...")
 
@@ -359,15 +414,20 @@ Code: ${userCode}
 						throw new GradleException("Wrapper did not contain Assets.zip. Found entries: ${sample}")
 					}
 
-					def tmpAssetsZip = new File(assetsZip.parentFile, assetsZip.name + '.part')
-					tmpAssetsZip.withOutputStream { os ->
-						zipFile.getInputStream(innerEntry).withStream { ins -> os << ins }
+					def tmpAssetsZip = tempDownloadFileFor(assetsZip)
+					deleteIfExistsQuietly(tmpAssetsZip, logger)
+					try {
+						tmpAssetsZip.withOutputStream { os ->
+							zipFile.getInputStream(innerEntry).withStream { ins -> os << ins }
+						}
+
+						logger.lifecycle("Validating extracted Assets.zip...")
+						validateZipFile(tmpAssetsZip, 'Extracted Assets.zip')
+
+						atomicMoveIntoPlace(tmpAssetsZip, assetsZip)
+					} finally {
+						deleteIfExistsQuietly(tmpAssetsZip, logger)
 					}
-
-					logger.lifecycle("Validating extracted Assets.zip...")
-					validateZipFile(tmpAssetsZip, 'Extracted Assets.zip')
-
-					atomicCopy(tmpAssetsZip, assetsZip)
 				} finally {
 					zipFile.close()
 				}
@@ -396,6 +456,7 @@ Code: ${userCode}
 			)
 		} finally {
 			client.close()
+			cleanupTemporaryDownloadFiles(wrapper, assetsZip)
 		}
 	}
 

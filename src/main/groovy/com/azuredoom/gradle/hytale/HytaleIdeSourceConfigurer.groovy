@@ -31,7 +31,18 @@ final class HytaleIdeSourceConfigurer {
 		def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile } as Provider<File>)
 		def serverJarFile = project.layout.file(project.provider { vineServerJar.get().singleFile } as Provider<File>)
 		def decompiledServerDir = project.layout.buildDirectory.dir('vineflower/hytale-server')
-		def assetsZipFile = project.layout.file(project.provider { assetsZipFileProvider.get() } as Provider)
+		def directAssetsZipFile = project.providers.provider {
+			HytaleAssetsResolver.resolveDirectOverrideAssetsZip(project, ext)
+		}
+		def assetsZipFile = project.layout.file(project.provider {
+			def direct = directAssetsZipFile.getOrNull()
+			if (direct != null) {
+				return direct
+			}
+
+			def fallback = assetsZipFileProvider.get()
+			return fallback.hasProperty('asFile') ? fallback.asFile : fallback
+		} as Provider<File>)
 		def serverBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/server/hytale-server.jar')
 		def assetsBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/assets/hytale-assets.jar')
 
@@ -90,7 +101,14 @@ final class HytaleIdeSourceConfigurer {
 		def generateAssetsBinary = project.tasks.register('generateAssetsBinary', GenerateAssetsBinaryTask) {
 			group = null
 			description = 'Packages Assets.zip into a dedicated hytale-assets.jar for IDE External Libraries.'
-			dependsOn('downloadAssetsZip')
+			// When hytaleHomeOverride resolves to a real Assets.zip, use that linked file directly
+			// and do not schedule downloadAssetsZip. Otherwise, schedule downloadAssetsZip so
+			// the fallback provider's cached output exists before this task reads it.
+			dependsOn(project.provider {
+				directAssetsZipFile.getOrNull() != null ? [] : [
+					project.tasks.named('downloadAssetsZip')
+				]
+			})
 			assetsZip.set(assetsZipFile)
 			outputJar.set(assetsBinaryJar)
 		}
@@ -235,7 +253,7 @@ final class HytaleIdeSourceConfigurer {
 			description = 'Builds and installs generated decompiled sources for IDE source attachment.'
 
 			dependsOn(installServerSourcesToRepo)
-			dependsOn(generateAssetsBinary)
+			dependsOn(project.provider { ext.generateAssetsBinary.get() ? [generateAssetsBinary] : [] })
 			dependsOn(installDependencySourcesToRepo)
 		}
 

@@ -9,6 +9,9 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.jar.JarOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -33,43 +36,49 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 		logger.lifecycle("Output jar: ${outFile}")
 
 		outFile.parentFile.mkdirs()
-		if (outFile.exists() && !outFile.delete()) {
-			throw new IOException("Could not delete existing output jar: ${outFile}")
-		}
+		def tmpOutFile = new File(new File(temporaryDir, 'outputs'), outFile.name + '.part')
+		deleteIfExistsQuietly(tmpOutFile)
+		tmpOutFile.parentFile.mkdirs()
 
 		def seen = new LinkedHashSet<String>()
 		int assetEntriesWritten = 0
 		int duplicateEntriesSkipped = 0
 
-		new JarOutputStream(outFile.newOutputStream()).withCloseable { jos ->
-			logger.lifecycle("Embedding asset entries under assets/...")
+		try {
+			new JarOutputStream(tmpOutFile.newOutputStream()).withCloseable { jos ->
+				logger.lifecycle("Embedding asset entries under assets/...")
 
-			new ZipFile(assetsZipFile).withCloseable { zip ->
-				def entries = zip.entries()
-				while (entries.hasMoreElements()) {
-					def entry = entries.nextElement()
-					def targetName = "assets/${entry.name}"
+				new ZipFile(assetsZipFile).withCloseable { zip ->
+					def entries = zip.entries()
+					while (entries.hasMoreElements()) {
+						def entry = entries.nextElement()
+						def targetName = "assets/${entry.name}"
 
-					if (targetName == null || targetName.trim().isEmpty()) {
-						continue
-					}
-					if (!seen.add(targetName)) {
-						duplicateEntriesSkipped++
-						continue
-					}
-
-					def newEntry = new ZipEntry(targetName)
-					newEntry.time = entry.time
-					jos.putNextEntry(newEntry)
-					if (!entry.isDirectory()) {
-						zip.getInputStream(entry).withCloseable { input ->
-							input.transferTo(jos)
+						if (targetName == null || targetName.trim().isEmpty()) {
+							continue
 						}
+						if (!seen.add(targetName)) {
+							duplicateEntriesSkipped++
+							continue
+						}
+
+						def newEntry = new ZipEntry(targetName)
+						newEntry.time = entry.time
+						jos.putNextEntry(newEntry)
+						if (!entry.isDirectory()) {
+							zip.getInputStream(entry).withCloseable { input ->
+								input.transferTo(jos)
+							}
+						}
+						jos.closeEntry()
+						assetEntriesWritten++
 					}
-					jos.closeEntry()
-					assetEntriesWritten++
 				}
 			}
+
+			moveIntoPlace(tmpOutFile, outFile)
+		} finally {
+			deleteIfExistsQuietly(tmpOutFile)
 		}
 
 		logger.lifecycle(
@@ -78,5 +87,24 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 				"${assetEntriesWritten} asset entries written, " +
 				"${duplicateEntriesSkipped} duplicates skipped)"
 				)
+	}
+
+	private static void deleteIfExistsQuietly(File file) {
+		if (file == null) {
+			return
+		}
+		try {
+			Files.deleteIfExists(file.toPath())
+		} catch (Exception ignored) {
+		}
+	}
+
+	private static void moveIntoPlace(File from, File to) {
+		Files.createDirectories(to.parentFile.toPath())
+		try {
+			Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+		} catch (AtomicMoveNotSupportedException ignored) {
+			Files.move(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING)
+		}
 	}
 }

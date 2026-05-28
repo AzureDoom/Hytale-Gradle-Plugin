@@ -85,6 +85,10 @@ final class HytaleCoreTaskRegistrar {
 			dependsOn('updatePluginManifest')
 		}
 
+		def directAssetsZipFileProvider = project.providers.provider {
+			HytaleAssetsResolver.resolveDirectOverrideAssetsZip(project, ext)
+		}
+
 		def downloadAssetsZipTask = project.tasks.register('downloadAssetsZip', DownloadAssetsZipTask) {
 			group = 'hytale'
 			description = 'Downloads the authenticated Hytale asset wrapper and extracts the inner Assets.zip'
@@ -93,10 +97,18 @@ final class HytaleCoreTaskRegistrar {
 			patchline.set(ext.patchline)
 			oauthBaseUrl.set(ext.oauthBaseUrl)
 			accountBaseUrl.set(ext.accountBaseUrl)
-			hytaleHomeOverride.set(project.providers.gradleProperty('hytale_home'))
+			hytaleHomeOverride.set(ext.hytaleHomeOverride)
 			resolvedAssetsWrapper.set(project.layout.file(wrapperFileProvider))
 			resolvedAssetsZip.set(project.layout.file(assetsZipFileProvider))
 			tokenCacheFile.set(project.layout.file(tokenFileProvider))
+			onlyIf {
+				def directAssetsZip = directAssetsZipFileProvider.getOrNull()
+				if (directAssetsZip != null) {
+					project.logger.lifecycle("Skipping downloadAssetsZip; using hytaleHomeOverride Assets.zip directly: ${directAssetsZip}")
+					return false
+				}
+				return true
+			}
 		}
 
 		project.tasks.withType(JavaCompile).configureEach {
@@ -130,14 +142,25 @@ final class HytaleCoreTaskRegistrar {
 			})
 		}
 
+		def effectiveAssetsZipFileProvider = project.providers.provider {
+			def directAssetsZip = directAssetsZipFileProvider.getOrNull()
+			if (directAssetsZip != null) {
+				return directAssetsZip
+			}
+			return assetsZipFileProvider.get()
+		}
+
 		project.tasks.register('setupHytaleDev', SetupHytaleDevTask) {
 			group = 'hytale'
 			description = 'Prepares local development by validating configuration, generating IDE sources, and downloading assets.'
 
-			dependsOn(prepareDecompiledSourcesForIde, downloadAssetsZipTask)
+			dependsOn(prepareDecompiledSourcesForIde)
+			dependsOn(project.provider {
+				directAssetsZipFileProvider.getOrNull() == null ? [downloadAssetsZipTask] : []
+			})
 
 			hytaleVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
-			assetsZip.set(project.layout.file(assetsZipFileProvider))
+			assetsZip.set(project.layout.file(effectiveAssetsZipFileProvider))
 			generatedSourcesMavenRepo.set(generatedSourcesMavenRepoDir)
 			vineServerJarDependencies.set(project.provider {
 				vineServerJar.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }

@@ -15,6 +15,7 @@ abstract class HytaleExtension {
 	abstract Property<String> getPatchline()
 	abstract Property<String> getOauthBaseUrl()
 	abstract Property<String> getAccountBaseUrl()
+	abstract Property<String> getHytaleHomeOverride()
 
 	abstract Property<String> getManifestGroup()
 	abstract Property<String> getModId()
@@ -28,6 +29,7 @@ abstract class HytaleExtension {
 	abstract Property<Boolean> getDisabledByDefault()
 	abstract Property<Boolean> getIncludesPack()
 	abstract Property<Boolean> getBundleAssetEditorRuntime()
+	abstract Property<Boolean> getGenerateAssetsBinary()
 
 	abstract Property<String> getSubPlugins()
 
@@ -97,6 +99,9 @@ abstract class HytaleExtension {
 	void accountBaseUrl(String v) {
 		getAccountBaseUrl().set(v)
 	}
+	void hytaleHomeOverride(String v) {
+		getHytaleHomeOverride().set(v)
+	}
 	void manifestGroup(String v) {
 		getManifestGroup().set(v)
 	}
@@ -132,6 +137,9 @@ abstract class HytaleExtension {
 	}
 	void bundleAssetEditorRuntime(boolean v) {
 		getBundleAssetEditorRuntime().set(v)
+	}
+	void generateAssetsBinary(boolean v) {
+		getGenerateAssetsBinary().set(v)
 	}
 	void preRunTask(String v) {
 		getPreRunTask().set(v)

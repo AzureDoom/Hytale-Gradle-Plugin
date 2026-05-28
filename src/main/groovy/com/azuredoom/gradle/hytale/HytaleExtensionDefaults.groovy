@@ -14,6 +14,11 @@ final class HytaleExtensionDefaults {
 		ext.patchline.convention(project.providers.gradleProperty('hytale_patchline').orElse('release'))
 		ext.oauthBaseUrl.convention(project.providers.gradleProperty('hytools.hytale.oauth.base').orElse('https://oauth.accounts.hytale.com'))
 		ext.accountBaseUrl.convention(project.providers.gradleProperty('hytools.hytale.accounts.base').orElse('https://account-data.hytale.com'))
+		ext.hytaleHomeOverride.convention(
+				project.providers.gradleProperty('hytale_home')
+				.orElse(project.providers.gradleProperty('hytools.hytale.home'))
+				.orElse('')
+				)
 
 		ext.manifestGroup.convention(project.providers.gradleProperty('manifest_group').orElse(project.group.toString()))
 		ext.modId.convention(project.providers.gradleProperty('mod_id').orElse(project.name))
@@ -36,6 +41,9 @@ final class HytaleExtensionDefaults {
 				)
 		ext.subPlugins.convention('[]')
 		ext.bundleAssetEditorRuntime.convention(true)
+		ext.generateAssetsBinary.convention(
+				project.providers.gradleProperty('hytools.generate.assets.binary').map { it.toBoolean() }.orElse(true)
+				)
 		ext.serverArgs.convention([
 			'--allow-op',
 			'--disable-sentry'
