@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        gradle: ["8.10.2", "9.0.0"]
+        gradle: ["8.10.2", "9.5.1"]
     permissions:
       contents: read
     steps:
