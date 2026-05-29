@@ -2,9 +2,13 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
+
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 final class HytaleDependencySupport {
 	private HytaleDependencySupport() {}
@@ -29,25 +33,26 @@ final class HytaleDependencySupport {
 		}
 	}
 
-	static File resolveDeclaredDependencyArtifact(Project project, ModuleDependency dependency) {
+	static Configuration detachedNonTransitiveConfiguration(Project project, ModuleDependency dependency) {
 		def detached = project.configurations.detachedConfiguration(dependency.copy())
 		detached.canBeConsumed = false
 		detached.canBeResolved = true
 		detached.transitive = false
+		return detached
+	}
 
-		def artifacts = detached.incoming.artifactView { view ->
-			view.lenient(false)
-		}.artifacts.artifacts.findAll { it instanceof ResolvedArtifactResult } as List<ResolvedArtifactResult>
+	static File singleFile(Configuration configuration, String displayName) {
+		def files = configuration.files
 
-		if (artifacts.isEmpty()) {
-			throw new GradleException("Could not resolve artifact for declared dependency ${dependency.group}:${dependency.name}:${dependency.version}")
+		if (files.isEmpty()) {
+			throw new GradleException("Could not resolve artifact for declared dependency ${displayName}")
 		}
 
-		if (artifacts.size() > 1) {
-			throw new GradleException("Expected exactly one artifact for declared dependency ${dependency.group}:${dependency.name}:${dependency.version}, got ${artifacts.size()}")
+		if (files.size() > 1) {
+			throw new GradleException("Expected exactly one artifact for declared dependency ${displayName}, got ${files.size()}")
 		}
 
-		artifacts.first().file
+		return files.iterator().next()
 	}
 
 	static Set<ResolvedArtifactResult> resolveArtifacts(Project project, String configurationName) {
@@ -86,32 +91,41 @@ final class HytaleDependencySupport {
 		moduleDir
 	}
 
-	private static void copyRepoArtifacts(Project project, File moduleDir, String module, String version,
-			File binaryJarFile, File sourcesJarFile) {
-		project.copy {
-			from binaryJarFile
-			into moduleDir
-			rename { "${module}-${version}.jar" }
-		}
+	private static void copyRepoArtifacts(
+			File moduleDir,
+			String module,
+			String version,
+			File binaryJarFile,
+			File sourcesJarFile
+	) {
+		moduleDir.mkdirs()
 
-		if (sourcesJarFile != null) {
-			project.copy {
-				from sourcesJarFile
-				into moduleDir
-				rename { "${module}-${version}-sources.jar" }
-			}
-		}
+		Files.copy(
+				binaryJarFile.toPath(),
+				new File(moduleDir, "${module}-${version}.jar").toPath(),
+				StandardCopyOption.REPLACE_EXISTING
+				)
+
+		Files.copy(
+				sourcesJarFile.toPath(),
+				new File(moduleDir, "${module}-${version}-sources.jar").toPath(),
+				StandardCopyOption.REPLACE_EXISTING
+				)
 	}
 
-	static void installModuleIntoMavenRepo(Project project, File repoRoot, String group, String module, String version,
-			File binaryJarFile, File sourcesJarFile) {
+	static void installModuleIntoMavenRepo(
+			File repoRoot,
+			String group,
+			String module,
+			String version,
+			File binaryJarFile,
+			File sourcesJarFile
+	) {
 		def files = mavenRepoFiles(repoRoot, group, module, version)
 		def moduleDir = prepareRepoModuleDir(files)
-		copyRepoArtifacts(project, moduleDir, module, version, binaryJarFile, sourcesJarFile)
+		copyRepoArtifacts(moduleDir, module, version, binaryJarFile, sourcesJarFile)
 
-		files.descriptor.text = """<project xmlns="http://maven.apache.org/POM/4.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+		files.descriptor.text = """<project>
   <modelVersion>4.0.0</modelVersion>
   <groupId>${group}</groupId>
   <artifactId>${module}</artifactId>
@@ -121,36 +135,21 @@ final class HytaleDependencySupport {
 """
 	}
 
-	static void installModuleIntoIvyRepo(Project project, File repoRoot, String group, String module, String version,
-			File binaryJarFile, File sourcesJarFile) {
+	static void installModuleIntoIvyRepo(
+			File repoRoot,
+			String group,
+			String module,
+			String version,
+			File binaryJarFile,
+			File sourcesJarFile
+	) {
 		def files = ivyRepoFiles(repoRoot, group, module, version)
 		def moduleDir = prepareRepoModuleDir(files)
-		copyRepoArtifacts(project, moduleDir, module, version, binaryJarFile, sourcesJarFile)
+		copyRepoArtifacts(moduleDir, module, version, binaryJarFile, sourcesJarFile)
 
-		if (sourcesJarFile != null) {
-			files.descriptor.text = """<ivy-module version="2.0" xmlns:m="https://ant.apache.org/ivy/maven">
+		files.descriptor.text = """<ivy-module version="2.0">
   <info organisation="${group}" module="${module}" revision="${version}"/>
-  <configurations>
-    <conf name="default"/>
-    <conf name="sources"/>
-  </configurations>
-  <publications>
-    <artifact name="${module}" type="jar" ext="jar" conf="default"/>
-    <artifact name="${module}" type="jar" ext="jar" conf="sources" m:classifier="sources"/>
-  </publications>
 </ivy-module>
 """
-		} else {
-			files.descriptor.text = """<ivy-module version="2.0" xmlns:m="https://ant.apache.org/ivy/maven">
-  <info organisation="${group}" module="${module}" revision="${version}"/>
-  <configurations>
-    <conf name="default"/>
-  </configurations>
-  <publications>
-    <artifact name="${module}" type="jar" ext="jar" conf="default"/>
-  </publications>
-</ivy-module>
-"""
-		}
 	}
 }

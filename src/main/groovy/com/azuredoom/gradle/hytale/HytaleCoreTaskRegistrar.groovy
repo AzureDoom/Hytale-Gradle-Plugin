@@ -114,17 +114,6 @@ final class HytaleCoreTaskRegistrar {
 			resolvedAssetsWrapper.set(project.layout.file(wrapperFileProvider))
 			resolvedAssetsZip.set(project.layout.file(assetsZipFileProvider))
 			tokenCacheFile.set(project.layout.file(tokenFileProvider))
-
-			outputs.upToDateWhen {
-				def assetsZip = resolvedAssetsZip.get().asFile
-				def upToDate = assetsZip.exists() && assetsZip.length() > 0
-
-				if (upToDate) {
-					logger.lifecycle("Using cached extracted Hytale assets zip: ${assetsZip}")
-				}
-
-				upToDate
-			}
 		}
 
 		project.tasks.withType(JavaCompile).configureEach {

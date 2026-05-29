@@ -3,6 +3,7 @@ package com.azuredoom.gradle.hytale
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalModuleDependency
+import org.gradle.api.file.ArchiveOperations
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
@@ -18,6 +19,7 @@ class HytalePlugin implements Plugin<Project> {
 
 		def generatedSourcesMavenRepoDir = project.layout.buildDirectory.dir('generated-sources-m2')
 		def generatedSourcesIvyRepoDir = project.layout.buildDirectory.dir('generated-sources-ivy')
+		def archiveOperations = project.services.get(ArchiveOperations)
 
 		HytaleRepositoryConfigurer.configure(
 				project,
@@ -68,15 +70,15 @@ class HytalePlugin implements Plugin<Project> {
 					))
 		}
 
-		project.tasks.named('jar', Jar).configure {
+		project.tasks.named('jar', Jar).configure { Jar jarTask ->
 			duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
 			if (ext.bundleAssetEditorRuntime.getOrElse(true)) {
-				from({
+				from(project.providers.provider {
 					hytaleBundledRuntime.get()
 							.resolve()
 							.findAll { it.name.endsWith('.jar') }
-							.collect { project.zipTree(it) }
+							.collect { archiveOperations.zipTree(it) }
 				})
 			}
 		}

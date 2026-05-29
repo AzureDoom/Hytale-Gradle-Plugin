@@ -64,9 +64,8 @@ final class HytaleRunTaskRegistrar {
 						runtimeWithoutMainOutput,
 						vineServerJar
 						))
-				doFirst {
-					workingDir = ext.runDirectory.get().asFile
-				}
+				projectDirectory.set(project.layout.projectDirectory)
+				workingDir(ext.runDirectory.map { it.asFile })
 
 				serverArgs.set(ext.serverArgs)
 				serverJvmArgs.set(ext.serverJvmArgs)

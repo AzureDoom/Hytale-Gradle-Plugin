@@ -1,11 +1,13 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.GradleException
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.JavaExec
@@ -48,7 +50,18 @@ abstract class RunServerTask extends JavaExec {
 	@Input
 	abstract Property<String> getJbrHome()
 
+	@Internal
+	abstract DirectoryProperty getProjectDirectory()
+
 	RunServerTask() {
+	}
+
+	private File resolveUserPath(String path) {
+		File f = new File(path)
+		if (f.absolute) {
+			return f
+		}
+		return new File(projectDirectory.get().asFile, path)
 	}
 
 	protected List<String> buildResolvedJvmArgs(File javaExe) {
@@ -96,7 +109,7 @@ abstract class RunServerTask extends JavaExec {
 				String configuredAgentPath = hotswapAgentPath.getOrElse('').trim()
 
 				if (!configuredAgentPath.isEmpty()) {
-					File externalAgent = project.file(configuredAgentPath)
+					File externalAgent = resolveUserPath(configuredAgentPath)
 
 					if (!externalAgent.exists() || !externalAgent.isFile()) {
 						throw new GradleException("Configured HotswapAgent jar does not exist: ${externalAgent}")

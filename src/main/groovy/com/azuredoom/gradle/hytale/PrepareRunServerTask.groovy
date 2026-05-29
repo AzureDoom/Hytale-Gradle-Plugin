@@ -45,7 +45,7 @@ abstract class PrepareRunServerTask extends DefaultTask {
 		if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
 			if (!isSameFile(target, source)) {
 				logger.lifecycle("Replacing existing staged asset pack at ${target} with live link to ${source}")
-				project.delete(dstDir)
+				deleteRecursively(dstDir.toPath())
 			} else {
 				logger.info("Run asset pack already linked correctly: ${target} -> ${source}")
 				return
@@ -65,5 +65,20 @@ abstract class PrepareRunServerTask extends DefaultTask {
 		} catch (IOException ignored) {
 			return false
 		}
+	}
+
+	private static void deleteRecursively(Path path) {
+		if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+			return
+		}
+
+		if (Files.isSymbolicLink(path) || Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+			Files.deleteIfExists(path)
+			return
+		}
+
+		Files.walk(path)
+				.sorted(Comparator.reverseOrder())
+				.forEach { Files.deleteIfExists(it) }
 	}
 }

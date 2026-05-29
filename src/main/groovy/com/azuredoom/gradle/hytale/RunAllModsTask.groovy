@@ -29,31 +29,51 @@ abstract class RunAllModsTask extends JavaExec {
 	@Input
 	abstract Property<String> getHostProjectPath()
 
-	@InputFile
-	@Optional
-	@PathSensitive(PathSensitivity.NONE)
-	abstract RegularFileProperty getAssetsZip()
-
 	@Internal
 	abstract DirectoryProperty getRunDirectory()
 
 	@Input
-	String getAssetsZipPathForCache() {
-		return assetsZip.present ? assetsZip.get().asFile.absolutePath : ""
-	}
+	@Optional
+	abstract Property<String> getHytaleHomeOverride()
+
+	@Input
+	abstract Property<String> getPatchline()
+
+	@InputFile
+	@Optional
+	@PathSensitive(PathSensitivity.NONE)
+	abstract RegularFileProperty getFallbackAssetsZip()
 
 	@Override
 	void exec() {
-		if (!assetsZip.present) {
-			throw new GradleException("Assets zip is not configured for runAllMods.")
-		}
+		File zip = resolveAssetsZip()
 
-		File zip = assetsZip.get().asFile
 		if (!zip.exists() || zip.length() == 0) {
 			throw new GradleException("Assets zip not found or empty: ${zip}")
 		}
 
 		super.setWorkingDir(runDirectory.get().asFile)
+
+		setArgs([
+			"--assets=${zip.absolutePath}",
+			'--allow-op',
+			'--disable-sentry'
+		])
+
 		super.exec()
+	}
+
+	private File resolveAssetsZip() {
+		String override = hytaleHomeOverride.orNull?.trim()
+
+		if (override) {
+			File resolved = HytaleAssetsResolver.findAssetsZip(override, patchline.get())
+			if (resolved == null) {
+				throw new GradleException("hytaleHomeOverride was set to '${override}', but no Assets.zip could be found")
+			}
+			return resolved
+		}
+
+		return fallbackAssetsZip.get().asFile
 	}
 }

@@ -32,7 +32,10 @@ final class HytaleIdeSourceConfigurer {
 		def serverJarFile = project.layout.file(project.provider { vineServerJar.get().singleFile } as Provider<File>)
 		def decompiledServerDir = project.layout.buildDirectory.dir('vineflower/hytale-server')
 		def directAssetsZipFile = project.providers.provider {
-			HytaleAssetsResolver.resolveDirectOverrideAssetsZip(project, ext)
+			HytaleAssetsResolver.resolveDirectOverrideAssetsZip(
+					ext.hytaleHomeOverride.orNull,
+					ext.patchline.get()
+					)
 		}
 		def assetsZipFile = project.layout.file(project.provider {
 			def direct = directAssetsZipFile.getOrNull()
@@ -58,63 +61,52 @@ final class HytaleIdeSourceConfigurer {
 			javaVersion.set(ext.javaVersion)
 		}
 
-		def injectServerJavadocsIntoDecompiledSources = project.tasks.register('injectServerJavadocsIntoDecompiledSources') {
-			group = null
-			description = 'Injects hosted Hytale Server API Javadocs into the Vineflower-generated server sources.'
+		def injectServerJavadocsIntoDecompiledSources = project.tasks.register(
+				'injectServerJavadocsIntoDecompiledSources',
+				InjectServerJavadocsIntoDecompiledSourcesTask
+				) {
+					group = null
+					description = 'Injects hosted Hytale Server API Javadocs into the Vineflower-generated server sources.'
 
-			dependsOn('decompileServerJar')
+					dependsOn('decompileServerJar')
 
-			inputs.dir(decompiledServerDir)
-			inputs.property('serverJavadocsUrl', ext.serverJavadocsUrl)
-			outputs.dir(decompiledServerDir)
+					sourceDirectory.set(decompiledServerDir)
+					outputDirectory.set(decompiledServerDir)
+					serverJavadocsUrl.set(ext.serverJavadocsUrl)
+					patchline.set(ext.patchline)
+					gradleUserHomeDirectory.set(project.layout.dir(project.provider {
+						project.gradle.gradleUserHomeDir
+					}))
+				}
 
-			doLast {
-				HytaleSourceJavadocInjector.inject(
-						decompiledServerDir.get().asFile,
-						ext.serverJavadocsUrl.get(),
-						new File(project.gradle.gradleUserHomeDir, "caches/hytale-javadocs/${ext.patchline.get()}"),
-						project.logger
-						)
-			}
-		}
-
-		def copyServerBinary = project.tasks.register('copyServerBinary') {
+		def copyServerBinary = project.tasks.register('copyServerBinary', CopyServerBinaryTask) {
 			group = null
 			description = 'Copies the resolved Hytale server jar to the IDE binary output location.'
 
-			inputs.file(serverJarFile)
-			outputs.file(serverBinaryJar)
-
-			doLast {
-				def outFile = serverBinaryJar.get().asFile
-				outFile.parentFile.mkdirs()
-				project.delete(outFile)
-				project.copy {
-					from serverJarFile
-					into outFile.parentFile
-					rename { outFile.name }
-				}
-				logger.lifecycle("Copied server binary to ${outFile} (${BasicUtils.formatBytes(outFile.length())})")
-			}
+			inputJar.set(serverJarFile)
+			outputJar.set(serverBinaryJar)
 		}
 
 		def generateAssetsBinary = project.tasks.register('generateAssetsBinary', GenerateAssetsBinaryTask) {
 			group = null
 			description = 'Packages Assets.zip into a dedicated hytale-assets.jar for IDE External Libraries.'
-			// When hytaleHomeOverride resolves to a real Assets.zip, use that linked file directly
-			// and do not schedule downloadAssetsZip. Otherwise, schedule downloadAssetsZip so
-			// the fallback provider's cached output exists before this task reads it.
+
 			dependsOn(project.provider {
-				directAssetsZipFile.getOrNull() != null ? [] : [
-					project.tasks.named('downloadAssetsZip')
-				]
+				directAssetsZipFile.getOrNull() != null ? [] : ['downloadAssetsZip']
 			})
+
 			assetsZip.set(assetsZipFile)
 			outputJar.set(assetsBinaryJar)
 		}
 
 		Provider<Set<ResolvedArtifactResult>> serverArtifactsProvider = project.providers.provider {
-			HytaleDependencySupport.resolveArtifacts(project, 'vineServerJar')
+			def configuration = vineServerJar.get()
+			def artifactView = configuration.incoming.artifactView { view ->
+				view.lenient(true)
+			}
+			artifactView.artifacts.artifacts.findAll {
+				it instanceof ResolvedArtifactResult
+			} as Set<ResolvedArtifactResult>
 		}
 
 		def installDependencySourcesToRepo = project.tasks.register('installDependencyDecompiledSourcesToRepo') {
@@ -136,82 +128,45 @@ final class HytaleIdeSourceConfigurer {
 			from(decompiledServerDir)
 		}
 
-		def installServerSourcesToRepo = project.tasks.register('installServerDecompiledSourcesToRepo') {
-			group = null
-			description = 'Installs generated server sources jar (and plain server binary) into local repos for IDE attachment.'
+		def installServerSourcesToRepo = project.tasks.register(
+				'installServerDecompiledSourcesToRepo',
+				InstallModuleSourcesToRepoTask
+				) {
+					group = null
+					description = 'Installs generated server sources jar into local repos for IDE attachment.'
 
-			dependsOn(serverSourcesJar)
-			dependsOn(copyServerBinary)
-			inputs.file(serverSourcesJar.flatMap { it.archiveFile })
-			inputs.file(copyServerBinary.map { serverBinaryJar.get().asFile })
+					dependsOn(serverSourcesJar)
 
-			outputs.files(project.provider {
-				def artifacts = serverArtifactsProvider.get()
-				if (!artifacts || artifacts.size() != 1) {
-					return []
+					def artifactProvider = project.providers.provider {
+						def artifacts = serverArtifactsProvider.get()
+						if (!artifacts || artifacts.size() != 1) {
+							throw new GradleException("Expected exactly one resolved artifact in vineServerJar, got ${artifacts?.size() ?: 0}")
+						}
+
+						def artifact = artifacts.iterator().next()
+						def componentId = artifact.id.componentIdentifier
+
+						if (!(componentId instanceof ModuleComponentIdentifier)) {
+							throw new GradleException("vineServerJar artifact is not a module component: ${componentId}")
+						}
+
+						[
+							group  : componentId.group,
+							module : componentId.module,
+							version: componentId.version,
+							file   : artifact.file
+						]
+					}
+
+					groupId.set(artifactProvider.map { it.group })
+					moduleId.set(artifactProvider.map { it.module })
+					moduleVersion.set(artifactProvider.map { it.version })
+					binaryJar.set(project.layout.file(artifactProvider.map { it.file }))
+					sourcesJar.set(serverSourcesJar.flatMap { it.archiveFile })
+
+					mavenRepoDir.set(generatedSourcesMavenRepoDir)
+					ivyRepoDir.set(generatedSourcesIvyRepoDir)
 				}
-
-				def artifact = artifacts.iterator().next()
-				def componentId = artifact.id.componentIdentifier
-				if (!(componentId instanceof ModuleComponentIdentifier)) {
-					return []
-				}
-
-				def outputFiles = []
-				outputFiles.addAll(HytaleDependencySupport.mavenRepoFiles(
-						generatedSourcesMavenRepoDir.get().asFile,
-						componentId.group,
-						componentId.module,
-						componentId.version
-						).values())
-				outputFiles.addAll(HytaleDependencySupport.ivyRepoFiles(
-						generatedSourcesIvyRepoDir.get().asFile,
-						componentId.group,
-						componentId.module,
-						componentId.version
-						).values())
-				outputFiles
-			})
-
-			doLast {
-				def artifacts = serverArtifactsProvider.get()
-				if (artifacts.isEmpty()) {
-					return
-				}
-				if (artifacts.size() != 1) {
-					throw new GradleException("Expected exactly one resolved artifact in vineServerJar, got ${artifacts.size()}")
-				}
-
-				def artifact = artifacts.iterator().next()
-				def componentId = artifact.id.componentIdentifier
-				if (!(componentId instanceof ModuleComponentIdentifier)) {
-					return
-				}
-
-				def binaryJarFile = serverBinaryJar.get().asFile
-				def sourcesJarFile = serverSourcesJar.get().archiveFile.get().asFile
-
-				HytaleDependencySupport.installModuleIntoMavenRepo(
-						project,
-						generatedSourcesMavenRepoDir.get().asFile,
-						componentId.group,
-						componentId.module,
-						componentId.version,
-						binaryJarFile,
-						sourcesJarFile
-						)
-
-				HytaleDependencySupport.installModuleIntoIvyRepo(
-						project,
-						generatedSourcesIvyRepoDir.get().asFile,
-						componentId.group,
-						componentId.module,
-						componentId.version,
-						binaryJarFile,
-						sourcesJarFile
-						)
-			}
-		}
 
 		def seenDependencyTaskKeys = [] as Set<String>
 		def registerDeclaredDependency = { ExternalModuleDependency declaredDep ->
@@ -283,15 +238,23 @@ final class HytaleIdeSourceConfigurer {
 		def safeName = "${artifactGroup}__${artifactModule}__${artifactVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
 		def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
 
-		def resolvedBinaryJar = project.providers.provider {
-			HytaleDependencySupport.resolveDeclaredDependencyArtifact(project, declaredDep)
-		}
+		def resolvedBinaryJarConfiguration = HytaleDependencySupport.detachedNonTransitiveConfiguration(
+				project,
+				declaredDep
+				)
+
+		def resolvedBinaryJar = project.layout.file(project.provider {
+			HytaleDependencySupport.singleFile(
+					resolvedBinaryJarConfiguration,
+					"${artifactGroup}:${artifactModule}:${artifactVersion}"
+					)
+		})
 
 		def decompileTask = project.tasks.register("decompile_${safeName}", DecompileDependencyJarTask) {
 			group = null
 			description = "Internal: Decompile dependency ${artifactGroup}:${artifactModule}:${artifactVersion}"
 
-			inputJar.set(project.layout.file(resolvedBinaryJar))
+			inputJar.set(resolvedBinaryJar)
 			vineflowerJar.set(vineflowerJarFile)
 			decompileClasspath.from(vineDependencyJars)
 			outputDirectory.set(perArtifactDir)
@@ -313,55 +276,25 @@ final class HytaleIdeSourceConfigurer {
 			from(perArtifactDir)
 		}
 
-		def installTask = project.tasks.register("installSources_${safeName}") {
-			group = null
-			description = "Internal: Install generated sources for ${artifactGroup}:${artifactModule}:${artifactVersion} into local repos"
+		def installTask = project.tasks.register(
+				"installSources_${safeName}",
+				InstallModuleSourcesToRepoTask
+				) {
+					group = null
+					description = "Internal: Install generated sources for ${artifactGroup}:${artifactModule}:${artifactVersion} into local repos"
 
-			dependsOn(sourcesJarTask)
-			inputs.file(sourcesJarTask.flatMap { it.archiveFile })
+					dependsOn(sourcesJarTask)
 
-			outputs.files(project.provider {
-				def outputFiles = []
-				outputFiles.addAll(HytaleDependencySupport.mavenRepoFiles(
-						generatedSourcesMavenRepoDir.get().asFile,
-						artifactGroup,
-						artifactModule,
-						artifactVersion
-						).values())
-				outputFiles.addAll(HytaleDependencySupport.ivyRepoFiles(
-						generatedSourcesIvyRepoDir.get().asFile,
-						artifactGroup,
-						artifactModule,
-						artifactVersion
-						).values())
-				outputFiles
-			})
+					groupId.set(artifactGroup)
+					moduleId.set(artifactModule)
+					moduleVersion.set(artifactVersion)
 
-			doLast {
-				def binaryJarFile = resolvedBinaryJar.get()
-				def sourcesJarFile = sourcesJarTask.get().archiveFile.get().asFile
+					binaryJar.set(resolvedBinaryJar)
+					sourcesJar.set(sourcesJarTask.flatMap { it.archiveFile })
 
-				HytaleDependencySupport.installModuleIntoMavenRepo(
-						project,
-						generatedSourcesMavenRepoDir.get().asFile,
-						artifactGroup,
-						artifactModule,
-						artifactVersion,
-						binaryJarFile,
-						sourcesJarFile
-						)
-
-				HytaleDependencySupport.installModuleIntoIvyRepo(
-						project,
-						generatedSourcesIvyRepoDir.get().asFile,
-						artifactGroup,
-						artifactModule,
-						artifactVersion,
-						binaryJarFile,
-						sourcesJarFile
-						)
-			}
-		}
+					mavenRepoDir.set(generatedSourcesMavenRepoDir)
+					ivyRepoDir.set(generatedSourcesIvyRepoDir)
+				}
 
 		installDependencySourcesToRepo.configure {
 			dependsOn(installTask)
