@@ -92,6 +92,16 @@ final class HytaleCoreTaskRegistrar {
 					)
 		}
 
+		def effectiveAssetsZipFileProvider = project.providers.provider {
+			def directAssetsZip = directAssetsZipFileProvider.getOrNull()
+			if (directAssetsZip != null) {
+				return directAssetsZip
+			}
+
+			def cached = assetsZipFileProvider.get()
+			return cached instanceof File ? cached : cached.asFile
+		}
+
 		def downloadAssetsZipTask = project.tasks.register('downloadAssetsZip', DownloadAssetsZipTask) {
 			group = 'hytale'
 			description = 'Downloads the authenticated Hytale asset wrapper and extracts the inner Assets.zip'
@@ -122,7 +132,7 @@ final class HytaleCoreTaskRegistrar {
 			patchline.set(ext.patchline)
 			manifestFile.set(ext.manifestFile)
 			runDirectory.set(ext.runDirectory)
-			assetsZip.set(project.layout.file(assetsZipFileProvider))
+			assetsZip.fileProvider(effectiveAssetsZipFileProvider)
 			wrapperFile.set(project.layout.file(wrapperFileProvider))
 			tokenCacheFile.set(project.layout.file(tokenFileProvider))
 			vineServerJarFiles.from(vineServerJar)
@@ -137,14 +147,6 @@ final class HytaleCoreTaskRegistrar {
 			})
 		}
 
-		def effectiveAssetsZipFileProvider = project.providers.provider {
-			def directAssetsZip = directAssetsZipFileProvider.getOrNull()
-			if (directAssetsZip != null) {
-				return directAssetsZip
-			}
-			return assetsZipFileProvider.get()
-		}
-
 		project.tasks.register('setupHytaleDev', SetupHytaleDevTask) {
 			group = 'hytale'
 			description = 'Prepares local development by validating configuration, generating IDE sources, and downloading assets.'
@@ -155,7 +157,7 @@ final class HytaleCoreTaskRegistrar {
 			})
 
 			hytaleVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
-			assetsZip.set(project.layout.file(effectiveAssetsZipFileProvider))
+			assetsZip.fileProvider(effectiveAssetsZipFileProvider)
 			generatedSourcesMavenRepo.set(generatedSourcesMavenRepoDir)
 			vineServerJarDependencies.set(project.provider {
 				vineServerJar.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
