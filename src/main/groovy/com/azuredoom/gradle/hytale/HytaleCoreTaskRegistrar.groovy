@@ -27,7 +27,7 @@ final class HytaleCoreTaskRegistrar {
 			Provider<String> resolvedServerVersionProvider
 	) {
 		project.tasks.register('createManifestIfMissing', CreateManifestIfMissingTask) {
-			group = 'hytale'
+			group = null
 			description = 'Creates src/main/resources/manifest.json with a default structure when it is missing.'
 			manifestFile.set(ext.manifestFile)
 		}
@@ -103,7 +103,7 @@ final class HytaleCoreTaskRegistrar {
 		}
 
 		def downloadAssetsZipTask = project.tasks.register('downloadAssetsZip', DownloadAssetsZipTask) {
-			group = 'hytale'
+			group = null
 			description = 'Downloads the authenticated Hytale asset wrapper and extracts the inner Assets.zip'
 
 			hytaleVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))

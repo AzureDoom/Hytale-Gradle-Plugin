@@ -249,7 +249,7 @@ final class HytaleIdeSourceConfigurer {
 		}
 
 		def prepareDecompiledSourcesForIde = project.tasks.register('prepareDecompiledSourcesForIde') {
-			group = 'hytale'
+			group = null
 			description = 'Builds and installs generated decompiled sources for IDE source attachment.'
 
 			dependsOn(installServerSourcesToRepo)
