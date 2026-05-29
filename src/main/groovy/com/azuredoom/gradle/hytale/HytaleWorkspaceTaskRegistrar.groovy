@@ -79,9 +79,27 @@ final class HytaleWorkspaceTaskRegistrar {
 				t.expectedPatchline.set(metadata.expectedPatchline)
 				t.hostProjectPath.set(hostPath)
 				t.runDirectory.set(project.layout.projectDirectory.dir('run'))
-				t.assetsZip.set(project.layout.file(project.provider {
-					assetsZipFileProvider.get()
-				}))
+				t.assetsZip.fileProvider(project.provider {
+					def override = hostExt.hytaleHomeOverride.orNull?.trim()
+					def patchline = hostExt.patchline.get()
+
+					File resolvedFile
+
+					if (override) {
+						resolvedFile = HytaleAssetsResolver.findAssetsZip(override, patchline)
+					} else {
+						def cached = assetsZipFileProvider.get()
+						resolvedFile = cached instanceof File ? cached : cached.asFile
+					}
+
+					if (resolvedFile == null) {
+						throw new GradleException(
+						"hytaleHomeOverride was set to '${override}', but no Assets.zip could be found"
+						)
+					}
+
+					resolvedFile
+				})
 
 				t.mainClass.set('com.hypixel.hytale.Main')
 				t.jvmArgs('--enable-native-access=ALL-UNNAMED')
@@ -99,7 +117,7 @@ final class HytaleWorkspaceTaskRegistrar {
 				t.classpath(hostProject.configurations.named('vineServerJar').get())
 
 				t.doFirst {
-					def assetsZipFile = assetsZipFileProvider.get()
+					def assetsZipFile = t.assetsZip.get().asFile
 
 					t.args(
 							"--assets=${assetsZipFile.absolutePath}",
