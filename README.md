@@ -277,6 +277,18 @@ hytaleWorkspace {
 
 If not set, the first project (by path) is used.
 
+If `hytaleHomeOverride` is needed for `runAllMods`, configure it on the selected host
+project's `hytaleTools` block. The workspace plugin uses the host project's resolved
+assets path for the shared server launch.
+
+```gradle
+project(':modA') {
+    hytaleTools {
+        hytaleHomeOverride = "/path/to/Hytale/install/release/package/game/latest/Assets.zip"
+    }
+}
+```
+
 ---
 
 ## Notes
@@ -344,6 +356,9 @@ This means:
 * you can browse game assets independently of server classes in the library tree
 * the server library remains clean — no asset entries embedded in it
 * assets are not included in your final mod jar
+
+If `generateAssetsBinary = false`, the plugin still resolves `Assets.zip` for local runs,
+but skips generating the large `hytale-assets` IDE binary jar.
 
 ## Version Compatibility
 
@@ -414,18 +429,34 @@ Updates (or rewrites) `src/main/resources/manifest.json` from Gradle configurati
 
 ### `downloadAssetsZip`
 
-Authenticates with Hytale device auth, downloads the asset wrapper, extracts `Assets.zip`, and caches the result.
+Resolves the Hytale `Assets.zip` used by local development.
 
-**Fallback behavior:**
-If remote download fails, the task will attempt to locate a local Hytale installation
-and reuse an existing `Assets.zip`.
+By default, this task authenticates with Hytale device auth, downloads the asset wrapper,
+extracts `Assets.zip`, and caches the extracted zip under Gradle user home.
 
-You can override this location via:
+If `hytaleHomeOverride` is configured, the plugin resolves an existing local `Assets.zip`
+from that path and uses it directly. In this mode, the assets zip is not copied into the
+Gradle cache.
+
+You can point `hytaleHomeOverride` at either:
+- a direct `Assets.zip` file
+- a directory containing `Assets.zip`
+- a Hytale launcher/install directory that contains the configured patchline assets
+
 ```gradle
 hytaleTools {
-    hytaleHomeOverride = "/path/to/folder/that/contains/Assets.zip"
+    hytaleHomeOverride = "/path/to/Hytale/install/release/package/game/latest/Assets.zip"
 }
 ```
+or
+```gradle
+hytaleTools {
+    hytaleHomeOverride = "/path/to/Hytale/install/release/package/game/latest/"
+}
+```
+
+If no override is configured and remote download fails, the task attempts to locate a local
+Hytale installation as a fallback and caches the found `Assets.zip`.
 
 ### `runServer`
 
@@ -554,46 +585,46 @@ Because manifest generation and validation are wired into the build, most projec
 
 ## Extension Reference
 
-| Property                          | Type           |                               Default | Required | Purpose                                                                                                                                                                         |
-|-----------------------------------|----------------|--------------------------------------:|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `javaVersion`                     | `Integer`      |                                  `25` | No       | Java version used for decompilation/tooling                                                                                                                                     |
-| `hytaleVersion`                   | `String`       |                                 '0.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `0.+`)                                                                                                        |
-| `manifestServerVersion`           | `String`       | resolved `>=hytaleVersion` when unset | No       | Optional manifest `ServerVersion` override. Supports Hytale semver ranges such as `>=0.5.0-pre.9 <0.6.0`                                                                        |
-| `patchline`                       | `String`       |                             `release` | No       | Asset/server patchline                                                                                                                                                          |
-| `serverJavadocsUrl`               | `String`       |        computed from active patchline | No       | Hosted Hytale Server API Javadocs URL used for Gradle Javadocs, IDEA metadata, and source injection                                                                             |
-| `injectServerJavadocsIntoSources` | `Boolean`      |                                `true` | No       | Injects hosted Hytale API docs into generated Vineflower server sources for IDE browsing                                                                                        |
-| `oauthBaseUrl`                    | `String`       |                      Hytale OAuth URL | No       | Override auth endpoint                                                                                                                                                          |
-| `accountBaseUrl`                  | `String`       |               Hytale account-data URL | No       | Override account endpoint                                                                                                                                                       |
-| `hytaleHomeOverride`              | `String`       |                                 empty | No       | Optional path to a local Hytale installation, or a directory containing Assets.zip, used by downloadAssetsZip as a fallback or override source for local assets.                |
-| `generateAssetsBinary`            | `Boolean`      |                                `true` | No       | Controls whether `prepareDecompiledSourcesForIde` / `idea` generate the large `hytale-assets.jar` IDE binary from `Assets.zip`. Disable to avoid creating the extra assets jar. |
-| `manifestGroup`                   | `String`       |                       `project.group` | Yes      | Manifest group / namespace                                                                                                                                                      |
-| `modId`                           | `String`       |                        `project.name` | Yes      | Manifest mod id                                                                                                                                                                 |
-| `modDescription`                  | `String`       |                                 empty | No       | Manifest description                                                                                                                                                            |
-| `modUrl`                          | `String`       |                                 empty | No       | Manifest project URL                                                                                                                                                            |
-| `mainClass`                       | `String`       |                                 empty | Yes      | Plugin entrypoint                                                                                                                                                               |
-| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest authors/credits. Use `Name`, `Name                                                                                                                                     |Email`, or `Name|Email|Url`; separate multiple authors with commas. Email and Url are optional.                                      |
-| `manifestDependencies`            | `String`       |                `Hytale:AssetModule=*` | No       | Required manifest deps                                                                                                                                                          |
-| `manifestOptionalDependencies`    | `String`       |                                 empty | No       | Optional manifest deps                                                                                                                                                          |
-| `curseforgeId`                    | `String`       |                                 empty | No       | CurseForge project id                                                                                                                                                           |
-| `disabledByDefault`               | `Boolean`      |                               `false` | No       | Manifest flag                                                                                                                                                                   |
-| `includesPack`                    | `Boolean`      |                               `false` | No       | Manifest flag                                                                                                                                                                   |
-| `manifestFile`                    | `RegularFile`  |    `src/main/resources/manifest.json` | No       | Manifest location                                                                                                                                                               |
-| `runDirectory`                    | `Directory`    |                                `run/` | No       | Local server run dir                                                                                                                                                            |
-| `assetPackSourceDirectory`        | `Directory`    |                  `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`                                                                                                              |
-| `assetPackRunDirectory`           | `Directory`    |         computed under `run/mods/...` | No       | Assets target dir                                                                                                                                                               |
-| `bundleAssetEditorRuntime`        | `Boolean`      |                                `true` | No       | Controls whether AssetBridge is bundled into the final jar                                                                                                                      |
-| `serverArgs`                      | `List<String>` |  `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument                                                                                          |
-| `serverJvmArgs`                   | `List<String>` |                                  `[]` | No       | Extra JVM arguments for `runServer`                                                                                                                                             |
-| `preRunTask`                      | `String`       |                                 empty | No       | Task name to run before `runServer`                                                                                                                                             |
-| `debugEnabled`                    | `Boolean`      |                               `false` | No       | Enables JDWP debugging for `runServer`                                                                                                                                          |
-| `debugPort`                       | `Integer`      |                                `5005` | No       | Debug port used when `debugEnabled` is true                                                                                                                                     |
-| `debugSuspend`                    | `Boolean`      |                               `false` | No       | Whether the JVM waits for a debugger before starting                                                                                                                            |
-| `hotSwapEnabled`                  | `Boolean`      |                               `false` | No       | Enables hot swap capability detection and runtime setup                                                                                                                         |
-| `requireDcevm`                    | `Boolean`      |                               `false` | No       | Fails launch if enhanced class redefinition support is unavailable                                                                                                              |
-| `useHotswapAgent`                 | `Boolean`      |                                `true` | No       | Enables bundled HotswapAgent integration when available                                                                                                                         |
-| `hotswapAgentPath`                | `String`       |                                 empty | No       | Optional path to an external HotswapAgent jar used when `hotSwapEnabled` and `useHotswapAgent` are true                                                                         |
-| `jbrHome`                         | `String`       |                                 empty | No       | Optional path to a JetBrains Runtime installation                                                                                                                               |
-| `subPlugins`                      | `List<Map>`    |                                  `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                                                                                               |
+| Property                          | Type           |                               Default | Required | Purpose                                                                                                                                                                                                               |
+|-----------------------------------|----------------|--------------------------------------:|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `javaVersion`                     | `Integer`      |                                  `25` | No       | Java version used for decompilation/tooling                                                                                                                                                                           |
+| `hytaleVersion`                   | `String`       |                                 '0.+' | Yes      | Hytale server version to resolve. Accepts dynamic selectors (e.g. `0.+`)                                                                                                                                              |
+| `manifestServerVersion`           | `String`       | resolved `>=hytaleVersion` when unset | No       | Optional manifest `ServerVersion` override. Supports Hytale semver ranges such as `>=0.5.0-pre.9 <0.6.0`                                                                                                              |
+| `patchline`                       | `String`       |                             `release` | No       | Asset/server patchline                                                                                                                                                                                                |
+| `serverJavadocsUrl`               | `String`       |        computed from active patchline | No       | Hosted Hytale Server API Javadocs URL used for Gradle Javadocs, IDEA metadata, and source injection                                                                                                                   |
+| `injectServerJavadocsIntoSources` | `Boolean`      |                                `true` | No       | Injects hosted Hytale API docs into generated Vineflower server sources for IDE browsing                                                                                                                              |
+| `oauthBaseUrl`                    | `String`       |                      Hytale OAuth URL | No       | Override auth endpoint                                                                                                                                                                                                |
+| `accountBaseUrl`                  | `String`       |               Hytale account-data URL | No       | Override account endpoint                                                                                                                                                                                             |
+| `hytaleHomeOverride`              | `String`       |                                 empty | No       | Optional path to a local Hytale installation, a directory containing `Assets.zip`, or an `Assets.zip` file. When set, local dev tasks use this assets zip directly instead of requiring the Gradle cached assets zip. |
+| `generateAssetsBinary`            | `Boolean`      |                                `true` | No       | Controls whether `prepareDecompiledSourcesForIde` / `idea` generate the large `hytale-assets.jar` IDE binary from `Assets.zip`. Disable to avoid creating the extra assets jar.                                       |
+| `manifestGroup`                   | `String`       |                       `project.group` | Yes      | Manifest group / namespace                                                                                                                                                                                            |
+| `modId`                           | `String`       |                        `project.name` | Yes      | Manifest mod id                                                                                                                                                                                                       |
+| `modDescription`                  | `String`       |                                 empty | No       | Manifest description                                                                                                                                                                                                  |
+| `modUrl`                          | `String`       |                                 empty | No       | Manifest project URL                                                                                                                                                                                                  |
+| `mainClass`                       | `String`       |                                 empty | Yes      | Plugin entrypoint                                                                                                                                                                                                     |
+| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest authors/credits. Use `Name`, `Name                                                                                                                                                                           |Email`, or `Name|Email|Url`; separate multiple authors with commas. Email and Url are optional.                                      |
+| `manifestDependencies`            | `String`       |                `Hytale:AssetModule=*` | No       | Required manifest deps                                                                                                                                                                                                |
+| `manifestOptionalDependencies`    | `String`       |                                 empty | No       | Optional manifest deps                                                                                                                                                                                                |
+| `curseforgeId`                    | `String`       |                                 empty | No       | CurseForge project id                                                                                                                                                                                                 |
+| `disabledByDefault`               | `Boolean`      |                               `false` | No       | Manifest flag                                                                                                                                                                                                         |
+| `includesPack`                    | `Boolean`      |                               `false` | No       | Manifest flag                                                                                                                                                                                                         |
+| `manifestFile`                    | `RegularFile`  |    `src/main/resources/manifest.json` | No       | Manifest location                                                                                                                                                                                                     |
+| `runDirectory`                    | `Directory`    |                                `run/` | No       | Local server run dir                                                                                                                                                                                                  |
+| `assetPackSourceDirectory`        | `Directory`    |                  `src/main/resources` | No       | Source asset directory used by `runServer` and `stageAllModAssets`                                                                                                                                                    |
+| `assetPackRunDirectory`           | `Directory`    |         computed under `run/mods/...` | No       | Assets target dir                                                                                                                                                                                                     |
+| `bundleAssetEditorRuntime`        | `Boolean`      |                                `true` | No       | Controls whether AssetBridge is bundled into the final jar                                                                                                                                                            |
+| `serverArgs`                      | `List<String>` |  `['--allow-op', '--disable-sentry']` | No       | Additional Hytale server arguments appended after the required `--assets=...` argument                                                                                                                                |
+| `serverJvmArgs`                   | `List<String>` |                                  `[]` | No       | Extra JVM arguments for `runServer`                                                                                                                                                                                   |
+| `preRunTask`                      | `String`       |                                 empty | No       | Task name to run before `runServer`                                                                                                                                                                                   |
+| `debugEnabled`                    | `Boolean`      |                               `false` | No       | Enables JDWP debugging for `runServer`                                                                                                                                                                                |
+| `debugPort`                       | `Integer`      |                                `5005` | No       | Debug port used when `debugEnabled` is true                                                                                                                                                                           |
+| `debugSuspend`                    | `Boolean`      |                               `false` | No       | Whether the JVM waits for a debugger before starting                                                                                                                                                                  |
+| `hotSwapEnabled`                  | `Boolean`      |                               `false` | No       | Enables hot swap capability detection and runtime setup                                                                                                                                                               |
+| `requireDcevm`                    | `Boolean`      |                               `false` | No       | Fails launch if enhanced class redefinition support is unavailable                                                                                                                                                    |
+| `useHotswapAgent`                 | `Boolean`      |                                `true` | No       | Enables bundled HotswapAgent integration when available                                                                                                                                                               |
+| `hotswapAgentPath`                | `String`       |                                 empty | No       | Optional path to an external HotswapAgent jar used when `hotSwapEnabled` and `useHotswapAgent` are true                                                                                                               |
+| `jbrHome`                         | `String`       |                                 empty | No       | Optional path to a JetBrains Runtime installation                                                                                                                                                                     |
+| `subPlugins`                      | `List<Map>`    |                                  `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                                                                                                                                     |
 
 ### Author / Credits Formatting
 
@@ -1071,9 +1102,11 @@ hytaleTools {
     // If unset, dynamic hytaleVersion selectors resolve to the full version in manifest.json.
     // manifestServerVersion = '>=0.5.0-pre.9 <0.6.0'
 
-    // Optional override to an existing Assets.zip if you don't want to redownload it.
-    // Remember to update if changing patchlines/versions
-    // hytaleHomeOverride = "/path/to/folder/that/contains/Assets.zip"
+    // Optional override to an existing local Assets.zip if you don't want to download/cache it.
+    // Accepts a direct Assets.zip path, a directory containing Assets.zip,
+    // or a Hytale launcher/install directory.
+    // Remember to update this path if changing patchlines/versions.
+    // hytaleHomeOverride = "/path/to/Hytale/install/release/package/game/latest/Assets.zip"
     
     // Optional override to not generate an Assets Binary (won't show sources as binary in your IDE)
     // generateAssetsBinary = true
@@ -1182,7 +1215,8 @@ Start here first:
 hytaleDoctor prints a summary of:
 - configured `hytaleVersion` and `patchline`
 - manifest path and run directory
-- resolved asset wrapper / `Assets.zip` cache paths
+- resolved asset wrapper path and effective `Assets.zip` path
+    (local override path when `hytaleHomeOverride` is set, otherwise the Gradle cache path
 - auth token cache path
 - resolved `vineServerJar` files
 - declared `vineImplementation`, `vineCompileOnly`, and `vineDecompileTargets` dependencies
