@@ -27,4 +27,12 @@ final class HytaleAssetsResolver {
 
 		return candidates.find { it.exists() && it.isFile() && it.length() > 0 }
 	}
+
+	static File findAssetsZip(String homeOrAssetsZip, String patchline) {
+		if (homeOrAssetsZip == null || homeOrAssetsZip.trim().isEmpty()) {
+			return null
+		}
+
+		return findAssetsZip(new File(homeOrAssetsZip.trim()), patchline)
+	}
 }

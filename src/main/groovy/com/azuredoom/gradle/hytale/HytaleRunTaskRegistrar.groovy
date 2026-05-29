@@ -1,5 +1,6 @@
 package com.azuredoom.gradle.hytale
 
+import org.gradle.api.GradleException
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.api.Project
@@ -45,7 +46,11 @@ final class HytaleRunTaskRegistrar {
 			project.tasks.register('runServer', RunServerTask) {
 				group = 'hytale'
 				description = 'Launches a local Hytale server with this project and its dependencies'
-				dependsOn('prepareRunServer', 'downloadAssetsZip')
+				dependsOn('prepareRunServer')
+
+				if (!ext.hytaleHomeOverride.present || !ext.hytaleHomeOverride.get().trim()) {
+					dependsOn('downloadAssetsZip')
+				}
 
 				def sourceSets = project.extensions.getByType(SourceSetContainer)
 				def main = sourceSets.named('main').get()
@@ -65,7 +70,27 @@ final class HytaleRunTaskRegistrar {
 
 				serverArgs.set(ext.serverArgs)
 				serverJvmArgs.set(ext.serverJvmArgs)
-				assetsZip.set(project.layout.file(assetsZipFileProvider))
+				assetsZip.fileProvider(project.provider {
+					def override = ext.hytaleHomeOverride.orNull?.trim()
+					def patchline = ext.patchline.get()
+
+					File resolvedFile
+
+					if (override) {
+						resolvedFile = HytaleAssetsResolver.findAssetsZip(override, patchline)
+					} else {
+						def cached = assetsZipFileProvider.get()
+						resolvedFile = cached instanceof File ? cached : cached.asFile
+					}
+
+					if (resolvedFile == null) {
+						throw new GradleException(
+						"hytaleHomeOverride was set to '${override}', but no Assets.zip could be found"
+						)
+					}
+
+					resolvedFile
+				})
 
 				debugEnabled.set(ext.debugEnabled)
 				debugPort.set(ext.debugPort)
