@@ -74,17 +74,9 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 			}
 
 			targetDir.parent.toFile().mkdirs()
-			createLinkJunctionOrCopy(sourceDir, targetDir)
+			copyDirectory(sourceDir, targetDir)
+			logger.lifecycle("Copied asset pack ${sourceDir} -> ${targetDir}")
 		}
-	}
-
-	private void createLinkJunctionOrCopy(Path sourceDir, Path targetDir) {
-		if (BasicUtils.createSymlinkOrWindowsJunction(sourceDir, targetDir, "asset pack staging", logger)) {
-			return
-		}
-
-		copyDirectory(sourceDir, targetDir)
-		logger.lifecycle("Copied asset pack ${sourceDir} -> ${targetDir}")
 	}
 
 	private static void copyDirectory(Path source, Path target) {
