@@ -164,7 +164,7 @@ abstract class RunServerTask extends JavaExec {
 		jvmArgs(buildResolvedJvmArgs(javaExe))
 		args(buildResolvedArgs(resolvedAssetsZip))
 
-		standardInput = InputStream.nullInputStream()
+		standardInput = System.in
 
 		super.exec()
 	}
