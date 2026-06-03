@@ -319,13 +319,43 @@ The design keeps:
 
 ### VS Code Usage
 
-If you are using VS Code, run:
+Generate recommended VS Code project files:
+
+```bash
+./gradlew generateVSCodeConfig
+```
+
+This creates:
+
+- `.vscode/extensions.json`
+- `.vscode/settings.json`
+- `.vscode/launch.json`
+
+For source attachment, run:
 
 ```bash
 ./gradlew prepareDecompiledSourcesForIde
 ```
 
-Then reload the workspace to enable source attachment. The generated Hytale server sources include injected hosted API Javadocs by default, so class and method documentation can appear directly in the source view where matching hosted docs are available.
+To debug the local Hytale server:
+
+```bash
+./gradlew runServer -Ddebug=true -Dhotswap=true
+```
+
+Then use the generated Attach to Hytale Server VS Code launch configuration.
+
+### Optional Dev Container
+
+Generate an optional Dev Container:
+
+```bash
+./gradlew generateDevContainer
+```
+
+This creates `.devcontainer/devcontainer.json` and `.devcontainer/Dockerfile`.
+
+The Dev Container is optional and mainly useful for contributors who want a reproducible Java/Gradle environment.
 
 ## Dependency Flow
 

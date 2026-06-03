@@ -163,5 +163,46 @@ final class HytaleCoreTaskRegistrar {
 				vineServerJar.get().allDependencies.collect { HytaleDependencySupport.dependencyNotation(it) }
 			})
 		}
+
+		project.tasks.register('generateVSCodeConfig', GenerateVSCodeConfigTask) {
+			group = 'hytale'
+			description = 'Generates VS Code workspace settings, extension recommendations, and Java debugger attach config.'
+
+			vscodeDirectory.set(project.rootProject.layout.projectDirectory.dir('.vscode'))
+
+			recommendedExtensions.set([
+				'redhat.java',
+				'vscjava.vscode-gradle',
+				'vscjava.vscode-java-debug'
+			])
+
+			settings.automaticGradleBuildConfigUpdate.set(true)
+			settings.importGradleEnabled.set(true)
+			settings.useGradleWrapper.set(true)
+
+			launchConfig.name.set('Attach to Hytale Server')
+			launchConfig.hostName.set('localhost')
+			launchConfig.port.set(5005)
+		}
+
+		project.tasks.register('generateDevContainer', GenerateDevContainerTask) {
+			group = 'hytale'
+			description = 'Generates an optional VS Code Dev Container for Hytale plugin development.'
+
+			devContainerDirectory.set(project.rootProject.layout.projectDirectory.dir('.devcontainer'))
+
+			containerName.set("${project.rootProject.name} Hytale Dev")
+			baseImage.set('mcr.microsoft.com/devcontainers/java:1-25-bookworm')
+
+			vscodeExtensions.set([
+				'redhat.java',
+				'vscjava.vscode-gradle',
+				'vscjava.vscode-java-debug'
+			])
+
+			generateDockerfile.set(true)
+			runSetupAfterCreate.set(false)
+			mountGradleCache.set(true)
+		}
 	}
 }
