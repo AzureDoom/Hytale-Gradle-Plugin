@@ -23,7 +23,7 @@ abstract class GenerateDevContainerTask extends DefaultTask {
 	abstract Property<String> getBaseImage()
 
 	@Input
-	abstract ListProperty<String> getVSCodeExtensions()
+	abstract ListProperty<String> getVscodeExtensions()
 
 	@Input
 	abstract Property<Boolean> getGenerateDockerfile()
