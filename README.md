@@ -966,7 +966,7 @@ because dependencies declared in `vineCompileOnly`, `vineImplementation`, and
 
 ## Manifest dependency fields
 
-Use `manifestDependencies` when your mod requires another plugin/module to be present at runtime:
+Use `manifestDependencies` when your mod requires another plugin or module to be present at runtime.
 
 ```gradle
 hytaleTools {
@@ -975,11 +975,61 @@ hytaleTools {
 ```
 
 Use `manifestOptionalDependencies` when your mod can integrate with another plugin if it is present,
-but does not require it to load:
+but does not require that plugin in order to load.
 
 ```gradle
 hytaleTools {
     manifestOptionalDependencies = 'MoreMagicSpell:Rippod.Hexcode=*,Group:Name=Version'
+}
+```
+
+Manifest dependency values use this format:
+
+```text
+Group:Name=Version
+```
+
+Where:
+
+* `Group` is the dependency group or namespace.
+* `Name` is the dependency/plugin/module name.
+* `Version` is the required version or version range.
+* `*` means any compatible version.
+
+Multiple dependencies must be separated with commas and should not include spaces:
+
+```gradle
+hytaleTools {
+    manifestDependencies = 'GroupOne:DependencyOne=*,GroupTwo:DependencyTwo=1.0.0,GroupThree:DependencyThree=>=2.0.0'
+}
+```
+
+Do not write spaces after commas:
+
+```gradle
+// Correct
+manifestDependencies = 'Hytale:AssetModule=*,MoreMagicSpell:Rippod.Hexcode=*'
+
+// Incorrect
+manifestDependencies = 'Hytale:AssetModule=*, MoreMagicSpell:Rippod.Hexcode=*'
+```
+
+A dependency should be placed in `manifestDependencies` if your mod cannot function without it.
+A dependency should be placed in `manifestOptionalDependencies` if your mod only adds support for it when it is available.
+
+For example, if your mod directly requires Hexcode to load:
+
+```gradle
+hytaleTools {
+    manifestDependencies = 'Hytale:AssetModule=*,MoreMagicSpell:Rippod.Hexcode=*'
+}
+```
+
+If your mod only enables extra Hexcode integration when Hexcode is installed:
+
+```gradle
+hytaleTools {
+    manifestOptionalDependencies = 'MoreMagicSpell:Rippod.Hexcode=*'
 }
 ```
 
