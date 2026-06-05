@@ -945,15 +945,41 @@ plugins {
 
 ## Dependencies
 
+Use the Hytale-specific dependency configurations when possible when pulling other mods/plugins:
+
 ```gradle
 dependencies {
-    // Dependencies declared in `vineImplementation`, `vineCompileOnly`, and `vineDecompileTargets` 
-    // are included in the decompilation classpath (`vineDependencyJars`).
-    vineImplementation 'com.buuz135:MultipleHUD:1.0.6'
-    vineCompileOnly 'curse.maven:partyinfo-1429469:7526614'
-    
-    // Optional decompile targets for IDE source attachment
-    vineDecompileTargets 'com.buuz135:MultipleHUD:1.0.6'
+    // Runtime dependency: available when running the server locally
+    vineImplementation 'com.example:some-runtime-mod:1.0.0'
+
+    // Compile-time only dependency: available to your code, but not bundled
+    vineCompileOnly 'curse.maven:hexcodes-1448311:8166165'
+
+    // Optional IDE source attachment target
+    vineDecompileTargets 'curse.maven:hexcodes-1448311:8166165'
+}
+```
+
+`vineCompileOnly `is usually preferred over plain `compileOnly` for mod/plugin dependencies,
+because dependencies declared in `vineCompileOnly`, `vineImplementation`, and
+`vineDecompileTargets` can participate in the plugin’s decompilation/source attachment flow.
+
+## Manifest dependency fields
+
+Use `manifestDependencies` when your mod requires another plugin/module to be present at runtime:
+
+```gradle
+hytaleTools {
+    manifestDependencies = 'Hytale:AssetModule=*,MoreMagicSpell:Rippod.Hexcode=*,Group:Name=Version'
+}
+```
+
+Use `manifestOptionalDependencies` when your mod can integrate with another plugin if it is present,
+but does not require it to load:
+
+```gradle
+hytaleTools {
+    manifestOptionalDependencies = 'MoreMagicSpell:Rippod.Hexcode=*,Group:Name=Version'
 }
 ```
 
