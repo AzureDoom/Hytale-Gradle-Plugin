@@ -109,7 +109,8 @@ class HytalePlugin implements Plugin<Project> {
 				vineImplementation,
 				vineCompileOnly,
 				vineDecompileTargets,
-				assetsZipFileProvider
+				assetsZipFileProvider,
+				resolvedServerVersionProvider
 				)
 
 		def assetsBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/assets/hytale-assets.jar')

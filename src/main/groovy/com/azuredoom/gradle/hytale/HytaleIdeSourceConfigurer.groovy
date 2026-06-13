@@ -26,7 +26,8 @@ final class HytaleIdeSourceConfigurer {
 			NamedDomainObjectProvider<Configuration> vineImplementation,
 			NamedDomainObjectProvider<Configuration> vineCompileOnly,
 			NamedDomainObjectProvider<Configuration> vineDecompileTargets,
-			def assetsZipFileProvider
+			def assetsZipFileProvider,
+			Provider<String> resolvedServerVersionProvider
 	) {
 		def vineflowerJarFile = project.layout.file(project.provider { vineflowerTool.singleFile } as Provider<File>)
 		def serverJarFile = project.layout.file(project.provider { vineServerJar.get().singleFile } as Provider<File>)
@@ -49,6 +50,10 @@ final class HytaleIdeSourceConfigurer {
 		def serverBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/server/hytale-server.jar')
 		def assetsBinaryJar = project.layout.buildDirectory.file('generated-ide-binaries/assets/hytale-assets.jar')
 
+		def gradleUserHomeDirProvider = project.layout.dir(project.provider {
+			project.gradle.gradleUserHomeDir
+		})
+
 		project.tasks.register('decompileServerJar', DecompileServerJarTask) {
 			group = null
 			description = 'Decompile only com/hypixel/hytale from the Hytale Server jar into build/vineflower/hytale-server/'
@@ -59,6 +64,18 @@ final class HytaleIdeSourceConfigurer {
 			outputDirectory.set(decompiledServerDir)
 			tempDirectoryRoot.set(project.layout.buildDirectory.dir('tmp/vineflower-server'))
 			javaVersion.set(ext.javaVersion)
+			patchline.set(ext.patchline)
+			serverVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
+			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+
+			onlyIf("global decompile cache is stale or local output is missing") { t ->
+				DecompileServerJarTask task = t as DecompileServerJarTask
+				File stampFile = new File(task.resolveGlobalCacheDir(), '.complete')
+				File outDir    = task.outputDirectory.get().asFile
+				boolean cached    = stampFile.exists()
+				boolean populated = outDir.exists() && outDir.list({ d, n -> n.endsWith('.java') } as FilenameFilter)
+				!(cached && populated)
+			}
 		}
 
 		def injectServerJavadocsIntoDecompiledSources = project.tasks.register(
@@ -74,9 +91,17 @@ final class HytaleIdeSourceConfigurer {
 					outputDirectory.set(decompiledServerDir)
 					serverJavadocsUrl.set(ext.serverJavadocsUrl)
 					patchline.set(ext.patchline)
-					gradleUserHomeDirectory.set(project.layout.dir(project.provider {
-						project.gradle.gradleUserHomeDir
-					}))
+					serverVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
+					gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+
+					onlyIf("javadoc injection stamp not yet written for this version") { t ->
+						InjectServerJavadocsIntoDecompiledSourcesTask task = t as InjectServerJavadocsIntoDecompiledSourcesTask
+						File stampFile = new File(
+							task.gradleUserHomeDirectory.get().asFile,
+							"caches/hytale-javadocs/${task.patchline.get()}-${task.serverVersion.get()}.injected"
+						)
+						!stampFile.exists()
+					}
 				}
 
 		def copyServerBinary = project.tasks.register('copyServerBinary', CopyServerBinaryTask) {
@@ -97,6 +122,19 @@ final class HytaleIdeSourceConfigurer {
 
 			assetsZip.set(assetsZipFile)
 			outputJar.set(assetsBinaryJar)
+			patchline.set(ext.patchline)
+			serverVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
+			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+
+			onlyIf("global assets jar cache is stale or local output is missing") { t ->
+				GenerateAssetsBinaryTask task = t as GenerateAssetsBinaryTask
+				File cacheJar  = task.resolveGlobalCacheJar()
+				File stampFile = new File(cacheJar.parentFile, "${cacheJar.name}.complete")
+				File outFile   = task.outputJar.get().asFile
+				boolean cached    = stampFile.exists() && cacheJar.exists() && cacheJar.length() > 0
+				boolean populated = outFile.exists() && outFile.length() > 0
+				!(cached && populated)
+			}
 		}
 
 		Provider<Set<ResolvedArtifactResult>> serverArtifactsProvider = project.providers.provider {
@@ -185,7 +223,8 @@ final class HytaleIdeSourceConfigurer {
 					generatedSourcesMavenRepoDir,
 					generatedSourcesIvyRepoDir,
 					installDependencySourcesToRepo,
-					ext
+					ext,
+					gradleUserHomeDirProvider
 					)
 		}
 
@@ -229,13 +268,14 @@ final class HytaleIdeSourceConfigurer {
 			def generatedSourcesMavenRepoDir,
 			def generatedSourcesIvyRepoDir,
 			def installDependencySourcesToRepo,
-			HytaleExtension ext
+			HytaleExtension ext,
+			def gradleUserHomeDirProvider
 	) {
-		def artifactGroup = declaredDep.group
-		def artifactModule = declaredDep.name
-		def artifactVersion = declaredDep.version
+		def depGroup   = declaredDep.group
+		def depModule  = declaredDep.name
+		def depVersion = declaredDep.version
 
-		def safeName = "${artifactGroup}__${artifactModule}__${artifactVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
+		def safeName = "${depGroup}__${depModule}__${depVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
 		def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
 
 		def resolvedBinaryJarConfiguration = HytaleDependencySupport.detachedNonTransitiveConfiguration(
@@ -246,13 +286,13 @@ final class HytaleIdeSourceConfigurer {
 		def resolvedBinaryJar = project.layout.file(project.provider {
 			HytaleDependencySupport.singleFile(
 					resolvedBinaryJarConfiguration,
-					"${artifactGroup}:${artifactModule}:${artifactVersion}"
+					"${depGroup}:${depModule}:${depVersion}"
 					)
 		})
 
 		def decompileTask = project.tasks.register("decompile_${safeName}", DecompileDependencyJarTask) {
 			group = null
-			description = "Internal: Decompile dependency ${artifactGroup}:${artifactModule}:${artifactVersion}"
+			description = "Internal: Decompile dependency ${depGroup}:${depModule}:${depVersion}"
 
 			inputJar.set(resolvedBinaryJar)
 			vineflowerJar.set(vineflowerJarFile)
@@ -260,16 +300,29 @@ final class HytaleIdeSourceConfigurer {
 			outputDirectory.set(perArtifactDir)
 			tempDirectoryRoot.set(project.layout.buildDirectory.dir("tmp/vineflower-deps/${safeName}"))
 			javaVersion.set(ext.javaVersion)
+			groupId.set(depGroup)
+			artifactId.set(depModule)
+			artifactVersion.set(depVersion)
+			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+
+			onlyIf("global decompile cache is stale or local output is missing") { t ->
+				DecompileDependencyJarTask task = t as DecompileDependencyJarTask
+				File stampFile = new File(task.resolveGlobalCacheDir(), '.complete')
+				File outDir    = task.outputDirectory.get().asFile
+				boolean cached    = stampFile.exists()
+				boolean populated = outDir.exists() && outDir.list({ d, n -> n.endsWith('.java') } as FilenameFilter)
+				!(cached && populated)
+			}
 		}
 
 		def sourcesJarTask = project.tasks.register("sourcesJar_${safeName}", Jar) {
 			group = null
-			description = "Internal: Package decompiled sources for ${artifactGroup}:${artifactModule}:${artifactVersion}"
+			description = "Internal: Package decompiled sources for ${depGroup}:${depModule}:${depVersion}"
 
 			dependsOn(decompileTask)
 
-			archiveBaseName.set(artifactModule)
-			archiveVersion.set(artifactVersion)
+			archiveBaseName.set(depModule)
+			archiveVersion.set(depVersion)
 			archiveClassifier.set('sources')
 
 			destinationDirectory.set(project.layout.buildDirectory.dir("generated-sources-jars/dependencies/${safeName}"))
@@ -281,13 +334,13 @@ final class HytaleIdeSourceConfigurer {
 				InstallModuleSourcesToRepoTask
 				) {
 					group = null
-					description = "Internal: Install generated sources for ${artifactGroup}:${artifactModule}:${artifactVersion} into local repos"
+					description = "Internal: Install generated sources for ${depGroup}:${depModule}:${depVersion} into local repos"
 
 					dependsOn(sourcesJarTask)
 
-					groupId.set(artifactGroup)
-					moduleId.set(artifactModule)
-					moduleVersion.set(artifactVersion)
+					groupId.set(depGroup)
+					moduleId.set(depModule)
+					moduleVersion.set(depVersion)
 
 					binaryJar.set(resolvedBinaryJar)
 					sourcesJar.set(sourcesJarTask.flatMap { it.archiveFile })

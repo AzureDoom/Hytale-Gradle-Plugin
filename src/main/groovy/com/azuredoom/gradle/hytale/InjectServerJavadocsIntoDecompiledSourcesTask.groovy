@@ -24,6 +24,9 @@ abstract class InjectServerJavadocsIntoDecompiledSourcesTask extends DefaultTask
 	@Input
 	abstract Property<String> getPatchline()
 
+	@Input
+	abstract Property<String> getServerVersion()
+
 	@Internal
 	abstract DirectoryProperty getGradleUserHomeDirectory()
 
@@ -33,16 +36,40 @@ abstract class InjectServerJavadocsIntoDecompiledSourcesTask extends DefaultTask
 	@TaskAction
 	void inject() {
 		File sourceDir = sourceDirectory.get().asFile
-		File cacheDir = new File(
+		File javadocCacheDir = new File(
 				gradleUserHomeDirectory.get().asFile,
 				"caches/hytale-javadocs/${patchline.get()}"
 				)
 
+		File injectionStampFile = new File(
+				gradleUserHomeDirectory.get().asFile,
+				"caches/hytale-javadocs/${patchline.get()}-${serverVersion.get()}.injected"
+				)
+
+		if (injectionStampFile.exists()) {
+			logger.lifecycle(
+				"InjectServerJavadocs: skipping — already injected for {}-{} (stamp: {})",
+				patchline.get(), serverVersion.get(), injectionStampFile
+				)
+			return
+		}
+
 		HytaleSourceJavadocInjector.inject(
 				sourceDir,
 				serverJavadocsUrl.get(),
-				cacheDir,
+				javadocCacheDir,
 				logger
 				)
+
+		try {
+			injectionStampFile.parentFile?.mkdirs()
+			BasicUtils.atomicWrite(injectionStampFile, "${patchline.get()}-${serverVersion.get()}")
+			logger.lifecycle(
+				"InjectServerJavadocs: wrote injection stamp for {}-{}",
+				patchline.get(), serverVersion.get()
+				)
+		} catch (Exception e) {
+			logger.warn("InjectServerJavadocs: failed to write injection stamp (non-fatal): {}", e.message)
+		}
 	}
 }

@@ -1,8 +1,12 @@
 package com.azuredoom.gradle.hytale
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -26,10 +30,32 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 	@OutputFile
 	abstract RegularFileProperty getOutputJar()
 
+	@Input
+	abstract Property<String> getServerVersion()
+
+	@Input
+	abstract Property<String> getPatchline()
+
+	@Internal
+	abstract DirectoryProperty getGradleUserHomeDirectory()
+
 	@TaskAction
 	void generate() {
 		def assetsZipFile = assetsZip.get().asFile
 		def outFile = outputJar.get().asFile
+
+		File globalCacheJar  = resolveGlobalCacheJar()
+		File globalStampFile = new File(globalCacheJar.parentFile, "${globalCacheJar.name}.complete")
+
+		if (globalStampFile.exists() && globalCacheJar.exists() && globalCacheJar.length() > 0) {
+			logger.lifecycle(
+				"GenerateAssetsBinary: global cache hit for {}-{}, copying cached jar",
+				patchline.get(), serverVersion.get()
+			)
+			outFile.parentFile.mkdirs()
+			Files.copy(globalCacheJar.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+			return
+		}
 
 		logger.lifecycle("Generating Hytale assets binary jar...")
 		logger.lifecycle("Assets zip: ${assetsZipFile} (${BasicUtils.formatBytes(assetsZipFile.length())})")
@@ -87,6 +113,26 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 				"${assetEntriesWritten} asset entries written, " +
 				"${duplicateEntriesSkipped} duplicates skipped)"
 				)
+
+		populateGlobalCache(outFile, globalCacheJar, globalStampFile)
+	}
+
+	File resolveGlobalCacheJar() {
+		return new File(
+			gradleUserHomeDirectory.get().asFile,
+			"caches/hytale-assets/${patchline.get()}-${serverVersion.get()}-assets-binary.jar"
+		)
+	}
+
+	private void populateGlobalCache(File builtJar, File cacheJar, File stampFile) {
+		try {
+			cacheJar.parentFile.mkdirs()
+			Files.copy(builtJar.toPath(), cacheJar.toPath(), StandardCopyOption.REPLACE_EXISTING)
+			BasicUtils.atomicWrite(stampFile, "${patchline.get()}-${serverVersion.get()}")
+			logger.lifecycle("GenerateAssetsBinary: cached assets jar to {}", cacheJar)
+		} catch (Exception e) {
+			logger.warn("GenerateAssetsBinary: failed to write global cache (non-fatal): {}", e.message)
+		}
 	}
 
 	private static void deleteIfExistsQuietly(File file) {
