@@ -408,9 +408,13 @@ This plugin is designed to work with modern Gradle features:
 
 Tasks are categorized as follows:
 
-**Cacheable:**
-- `DecompileDependencyJarTask`
-- `DecompileServerJarTask`
+**Globally cached (Gradle user home):**
+- `DecompileServerJarTask` — keyed by patchline + server version under `~/.gradle/caches/hytale-decompiled/`
+- `DecompileDependencyJarTask` — keyed by Maven coordinates under `~/.gradle/caches/hytale-decompiled/dependencies/`
+- `GenerateAssetsBinaryTask` — keyed by patchline + server version under `~/.gradle/caches/hytale-assets/`
+- `InjectServerJavadocsIntoDecompiledSourcesTask` — stamp keyed by patchline + server version under `~/.gradle/caches/hytale-javadocs/`
+
+These tasks run once per version across all projects sharing the same Gradle user home. Subsequent projects skip the work entirely via `onlyIf` guards — no Vineflower run, no 3 GiB zip repack.
 
 **Not cacheable (by design):**
 - `downloadAssetsZip` (network + auth dependent)
@@ -1387,6 +1391,20 @@ rm -rf ~/.gradle/caches/hytale-javadocs/release
 ```
 
 The injector only adds comments where a matching hosted Javadoc page and member documentation can be found.
+
+To force a full regeneration including the global caches:
+
+```bash
+rm -rf build/vineflower
+rm -rf build/generated-sources-jars
+rm -rf build/generated-sources-m2
+rm -rf build/generated-sources-ivy
+rm -rf ~/.gradle/caches/hytale-decompiled
+rm -rf ~/.gradle/caches/hytale-javadocs/release
+./gradlew prepareDecompiledSourcesForIde --rerun-tasks
+```
+
+Only clear `~/.gradle/caches/hytale-decompiled` if you want to force a full re-decompile across all projects. Deleting it will also affect other projects on the same machine until they regenerate the cache.
 
 ### `runServer` fails because assets are missing
 
