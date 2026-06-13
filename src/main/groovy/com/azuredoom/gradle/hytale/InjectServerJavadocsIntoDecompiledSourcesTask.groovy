@@ -48,9 +48,9 @@ abstract class InjectServerJavadocsIntoDecompiledSourcesTask extends DefaultTask
 
 		if (injectionStampFile.exists()) {
 			logger.lifecycle(
-				"InjectServerJavadocs: skipping — already injected for {}-{} (stamp: {})",
-				patchline.get(), serverVersion.get(), injectionStampFile
-				)
+					"InjectServerJavadocs: skipping — already injected for {}-{} (stamp: {})",
+					patchline.get(), serverVersion.get(), injectionStampFile
+					)
 			return
 		}
 
@@ -65,9 +65,9 @@ abstract class InjectServerJavadocsIntoDecompiledSourcesTask extends DefaultTask
 			injectionStampFile.parentFile?.mkdirs()
 			BasicUtils.atomicWrite(injectionStampFile, "${patchline.get()}-${serverVersion.get()}")
 			logger.lifecycle(
-				"InjectServerJavadocs: wrote injection stamp for {}-{}",
-				patchline.get(), serverVersion.get()
-				)
+					"InjectServerJavadocs: wrote injection stamp for {}-{}",
+					patchline.get(), serverVersion.get()
+					)
 		} catch (Exception e) {
 			logger.warn("InjectServerJavadocs: failed to write injection stamp (non-fatal): {}", e.message)
 		}

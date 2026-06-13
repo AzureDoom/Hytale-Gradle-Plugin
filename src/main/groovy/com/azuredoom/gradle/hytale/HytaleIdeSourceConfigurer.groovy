@@ -97,9 +97,9 @@ final class HytaleIdeSourceConfigurer {
 					onlyIf("javadoc injection stamp not yet written for this version") { t ->
 						InjectServerJavadocsIntoDecompiledSourcesTask task = t as InjectServerJavadocsIntoDecompiledSourcesTask
 						File stampFile = new File(
-							task.gradleUserHomeDirectory.get().asFile,
-							"caches/hytale-javadocs/${task.patchline.get()}-${task.serverVersion.get()}.injected"
-						)
+								task.gradleUserHomeDirectory.get().asFile,
+								"caches/hytale-javadocs/${task.patchline.get()}-${task.serverVersion.get()}.injected"
+								)
 						!stampFile.exists()
 					}
 				}

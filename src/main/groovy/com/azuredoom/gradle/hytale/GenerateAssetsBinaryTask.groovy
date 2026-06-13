@@ -49,9 +49,9 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 
 		if (globalStampFile.exists() && globalCacheJar.exists() && globalCacheJar.length() > 0) {
 			logger.lifecycle(
-				"GenerateAssetsBinary: global cache hit for {}-{}, copying cached jar",
-				patchline.get(), serverVersion.get()
-			)
+					"GenerateAssetsBinary: global cache hit for {}-{}, copying cached jar",
+					patchline.get(), serverVersion.get()
+					)
 			outFile.parentFile.mkdirs()
 			Files.copy(globalCacheJar.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
 			return
@@ -119,9 +119,9 @@ abstract class GenerateAssetsBinaryTask extends DefaultTask {
 
 	File resolveGlobalCacheJar() {
 		return new File(
-			gradleUserHomeDirectory.get().asFile,
-			"caches/hytale-assets/${patchline.get()}-${serverVersion.get()}-assets-binary.jar"
-		)
+				gradleUserHomeDirectory.get().asFile,
+				"caches/hytale-assets/${patchline.get()}-${serverVersion.get()}-assets-binary.jar"
+				)
 	}
 
 	private void populateGlobalCache(File builtJar, File cacheJar, File stampFile) {

@@ -100,9 +100,9 @@ abstract class DecompileDependencyJarTask extends DefaultTask {
 
 	File resolveGlobalCacheDir() {
 		return new File(
-			gradleUserHomeDirectory.get().asFile,
-			"caches/hytale-decompiled/dependencies/${groupId.get()}/${artifactId.get()}/${artifactVersion.get()}"
-		)
+				gradleUserHomeDirectory.get().asFile,
+				"caches/hytale-decompiled/dependencies/${groupId.get()}/${artifactId.get()}/${artifactVersion.get()}"
+				)
 	}
 
 	private void populateGlobalCache(File sourceDir, File cacheDir, File stampFile) {
@@ -123,7 +123,7 @@ abstract class DecompileDependencyJarTask extends DefaultTask {
 				File dstFile = new File(dst, src.toPath().relativize(srcFile.toPath()).toString())
 				dstFile.parentFile?.mkdirs()
 				Files.copy(srcFile.toPath(), dstFile.toPath(),
-					StandardCopyOption.REPLACE_EXISTING)
+						StandardCopyOption.REPLACE_EXISTING)
 			}
 		}
 	}

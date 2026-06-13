@@ -107,9 +107,9 @@ abstract class DecompileServerJarTask extends DefaultTask {
 
 	File resolveGlobalCacheDir() {
 		return new File(
-			gradleUserHomeDirectory.get().asFile,
-			"caches/hytale-decompiled/${patchline.get()}-${serverVersion.get()}/server"
-		)
+				gradleUserHomeDirectory.get().asFile,
+				"caches/hytale-decompiled/${patchline.get()}-${serverVersion.get()}/server"
+				)
 	}
 
 	private void populateGlobalCache(File sourceDir, File cacheDir, File stampFile) {
@@ -130,7 +130,7 @@ abstract class DecompileServerJarTask extends DefaultTask {
 				File dstFile = new File(dst, src.toPath().relativize(srcFile.toPath()).toString())
 				dstFile.parentFile?.mkdirs()
 				Files.copy(srcFile.toPath(), dstFile.toPath(),
-					StandardCopyOption.REPLACE_EXISTING)
+						StandardCopyOption.REPLACE_EXISTING)
 			}
 		}
 	}
