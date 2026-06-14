@@ -72,6 +72,12 @@ gradlePlugin {
 				'modding',
 				'gradle-plugin'
 			])
+
+			compatibility(it) {
+				features {
+					configurationCache = true
+				}
+			}
 		}
 	}
 }
