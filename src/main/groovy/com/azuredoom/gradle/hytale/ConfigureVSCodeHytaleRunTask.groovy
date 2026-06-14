@@ -12,7 +12,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
 @CacheableTask
-abstract class GenerateVSCodeConfigTask extends DefaultTask {
+abstract class ConfigureVSCodeHytaleRunTask extends DefaultTask {
 
 	@OutputDirectory
 	abstract DirectoryProperty getVscodeDirectory()

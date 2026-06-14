@@ -164,7 +164,7 @@ final class HytaleCoreTaskRegistrar {
 			})
 		}
 
-		project.tasks.register('generateVSCodeConfig', GenerateVSCodeConfigTask) {
+		project.tasks.register('configureVSCodeHytaleRun', ConfigureVSCodeHytaleRunTask) {
 			group = 'hytale'
 			description = 'Generates VS Code workspace settings, extension recommendations, and Java debugger attach config.'
 

@@ -322,7 +322,7 @@ The design keeps:
 Generate recommended VS Code project files:
 
 ```bash
-./gradlew generateVSCodeConfig
+./gradlew configureVSCodeHytaleRun
 ```
 
 This creates:
