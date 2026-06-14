@@ -45,7 +45,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		def result = GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateVSCodeConfig', '--stacktrace')
+				.withArguments('configureVSCodeHytaleRun', '--stacktrace')
 				.build()
 
 		then:
@@ -55,7 +55,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		new File(testProjectDir, '.vscode/launch.json').exists()
 	}
 
-	def "generateVSCodeConfig writes recommended Java and Gradle extensions"() {
+	def "configureVSCodeHytaleRun writes recommended Java and Gradle extensions"() {
 		given:
 		setupBasicProject()
 
@@ -63,7 +63,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateVSCodeConfig', '--stacktrace')
+				.withArguments('configureVSCodeHytaleRun', '--stacktrace')
 				.build()
 
 		then:
@@ -73,7 +73,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		extensions.recommendations.contains('vscjava.vscode-java-debug')
 	}
 
-	def "generateVSCodeConfig writes gradle-aware vscode settings"() {
+	def "configureVSCodeHytaleRun writes gradle-aware vscode settings"() {
 		given:
 		setupBasicProject()
 
@@ -81,7 +81,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateVSCodeConfig', '--stacktrace')
+				.withArguments('configureVSCodeHytaleRun', '--stacktrace')
 				.build()
 
 		then:
@@ -91,7 +91,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		settings.'java.import.gradle.wrapper.enabled' == true
 	}
 
-	def "generateVSCodeConfig writes Java attach launch configuration"() {
+	def "configureVSCodeHytaleRun writes Java attach launch configuration"() {
 		given:
 		setupBasicProject()
 
@@ -99,7 +99,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateVSCodeConfig', '--stacktrace')
+				.withArguments('configureVSCodeHytaleRun', '--stacktrace')
 				.build()
 
 		then:
@@ -115,7 +115,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		config.port == 5005
 	}
 
-	def "generateDevContainer creates devcontainer json and dockerfile by default"() {
+	def "generateHytaleDevContainer creates devcontainer json and dockerfile by default"() {
 		given:
 		setupBasicProject('devcontainer-default-test')
 
@@ -123,7 +123,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		def result = GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateDevContainer', '--stacktrace')
+				.withArguments('generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		then:
@@ -132,7 +132,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		new File(testProjectDir, '.devcontainer/Dockerfile').exists()
 	}
 
-	def "generateDevContainer writes default dockerfile-backed devcontainer config"() {
+	def "generateHytaleDevContainer writes default dockerfile-backed devcontainer config"() {
 		given:
 		setupBasicProject('devcontainer-content-test')
 
@@ -140,7 +140,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateDevContainer', '--stacktrace')
+				.withArguments('generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		then:
@@ -160,7 +160,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		!devcontainer.containsKey('image')
 	}
 
-	def "generateDevContainer writes dockerfile with configured base image"() {
+	def "generateHytaleDevContainer writes dockerfile with configured base image"() {
 		given:
 		setupBasicProject('devcontainer-dockerfile-test')
 
@@ -168,7 +168,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateDevContainer', '--stacktrace')
+				.withArguments('generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		then:
@@ -181,13 +181,13 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		dockerfile.contains('USER vscode')
 	}
 
-	def "generateDevContainer can generate image-based config without dockerfile"() {
+	def "generateHytaleDevContainer can generate image-based config without dockerfile"() {
 		given:
 		setupBasicProject('devcontainer-image-test')
 
 		new File(testProjectDir, 'build.gradle') << '''
 
-            tasks.named('generateDevContainer', com.azuredoom.gradle.hytale.GenerateDevContainerTask) {
+            tasks.named('generateHytaleDevContainer', com.azuredoom.gradle.hytale.GenerateHytaleDevContainerTask) {
                 generateDockerfile.set(false)
                 baseImage.set('mcr.microsoft.com/devcontainers/java:1-25-bookworm')
             }
@@ -197,7 +197,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		def result = GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateDevContainer', '--stacktrace')
+				.withArguments('generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		then:
@@ -210,13 +210,13 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		!new File(testProjectDir, '.devcontainer/Dockerfile').exists()
 	}
 
-	def "generateDevContainer can include setup postCreateCommand when enabled"() {
+	def "generateHytaleDevContainer can include setup postCreateCommand when enabled"() {
 		given:
 		setupBasicProject('devcontainer-post-create-test')
 
 		new File(testProjectDir, 'build.gradle') << '''
 
-            tasks.named('generateDevContainer', com.azuredoom.gradle.hytale.GenerateDevContainerTask) {
+            tasks.named('generateHytaleDevContainer', com.azuredoom.gradle.hytale.GenerateHytaleDevContainerTask) {
                 runSetupAfterCreate.set(true)
             }
         '''
@@ -225,7 +225,7 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateDevContainer', '--stacktrace')
+				.withArguments('generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		then:
@@ -241,18 +241,18 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		def first = GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateVSCodeConfig', 'generateDevContainer', '--stacktrace')
+				.withArguments('configureVSCodeHytaleRun', 'generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		def second = GradleRunner.create()
 				.withProjectDir(testProjectDir)
 				.withPluginClasspath()
-				.withArguments('generateVSCodeConfig', 'generateDevContainer', '--stacktrace')
+				.withArguments('configureVSCodeHytaleRun', 'generateHytaleDevContainer', '--stacktrace')
 				.build()
 
 		then:
 		first.output.contains('BUILD SUCCESSFUL')
-		second.output.contains(':generateVSCodeConfig UP-TO-DATE')
-		second.output.contains(':generateDevContainer UP-TO-DATE')
+		second.output.contains(':configureVSCodeHytaleRun UP-TO-DATE')
+		second.output.contains(':generateHytaleDevContainer UP-TO-DATE')
 	}
 }
