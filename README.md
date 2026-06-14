@@ -22,6 +22,10 @@ This plugin replaces manual setup tasks such as:
 
 ## Quickstart
 
+Need a new mod project? Use the [template generator](https://template.azuredoom.com/).
+
+This Gradle plugin assumes you already have a project and focuses on Hytale-specific Gradle tasks: manifests, assets, server runs, source attachment, diagnostics, and workspace orchestration.
+
 ```gradle
 plugins {
     id 'java'
