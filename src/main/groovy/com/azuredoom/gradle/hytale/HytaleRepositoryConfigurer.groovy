@@ -65,6 +65,8 @@ final class HytaleRepositoryConfigurer {
 				filter.includeGroup('modtale')
 			}
 		}
+
+		addModifoldRepo(project)
 	}
 
 	private static String resolveActivePatchline(Provider<String> patchlineProvider) {
@@ -108,6 +110,26 @@ final class HytaleRepositoryConfigurer {
 		project.repositories.maven { MavenArtifactRepository repo ->
 			repo.name = repoName
 			repo.url = project.uri(repoUrl)
+		}
+	}
+
+	private static void addModifoldRepo(Project project) {
+		project.repositories.exclusiveContent { spec ->
+			spec.forRepository {
+				project.repositories.ivy { IvyArtifactRepository repo ->
+					repo.name = 'Modifold'
+					repo.url = project.uri('https://api.modifold.com')
+					repo.patternLayout { layout ->
+						layout.artifact('projects/[module]/versions/[revision]/download')
+					}
+					repo.metadataSources { sources ->
+						sources.artifact()
+					}
+				}
+			}
+			spec.filter { filter ->
+				filter.includeGroup('modifold')
+			}
 		}
 	}
 }

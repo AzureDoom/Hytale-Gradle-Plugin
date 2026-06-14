@@ -933,6 +933,7 @@ The plugin automatically adds these repositories:
 - CurseMaven
 - AzureDoom Maven
 - Modtale (exclusive Ivy content for group `modtale`)
+- Modifold (exclusive Ivy content for group `modifold`)
 
 You do not need to declare them manually.
 
@@ -1005,6 +1006,15 @@ dependencies {
 
     // Optional IDE source attachment target
     vineDecompileTargets 'curse.maven:hexcodes-1448311:8166165'
+    
+    // Example of Modtale dependency.
+    // Project_ID found on right side of project
+    // Version can be found from Changelog button
+    vineImplementation 'modtale:Project_ID:Version@jar'
+    
+    // Example of Modifold dependency. 
+    // Can be found from link like so: https://modifold.com/mod/projectSlug/version/versionID
+    vineImplementation 'modifold:projectSlug:versionID'
 }
 ```
 
