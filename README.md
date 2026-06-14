@@ -350,7 +350,7 @@ Then use the generated Attach to Hytale Server VS Code launch configuration.
 Generate an optional Dev Container:
 
 ```bash
-./gradlew generateDevContainer
+./gradlew generateHytaleDevContainer
 ```
 
 This creates `.devcontainer/devcontainer.json` and `.devcontainer/Dockerfile`.

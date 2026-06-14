@@ -185,7 +185,7 @@ final class HytaleCoreTaskRegistrar {
 			launchConfig.port.set(5005)
 		}
 
-		project.tasks.register('generateDevContainer', GenerateDevContainerTask) {
+		project.tasks.register('generateHytaleDevContainer', GenerateHytaleDevContainerTask) {
 			group = 'hytale'
 			description = 'Generates an optional VS Code Dev Container for Hytale plugin development.'
 

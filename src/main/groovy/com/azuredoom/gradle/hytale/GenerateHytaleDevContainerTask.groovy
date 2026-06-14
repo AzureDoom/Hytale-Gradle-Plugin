@@ -11,7 +11,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
 @CacheableTask
-abstract class GenerateDevContainerTask extends DefaultTask {
+abstract class GenerateHytaleDevContainerTask extends DefaultTask {
 
 	@OutputDirectory
 	abstract DirectoryProperty getDevContainerDirectory()
