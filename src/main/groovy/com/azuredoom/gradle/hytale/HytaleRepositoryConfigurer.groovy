@@ -2,6 +2,7 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
+import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 
@@ -11,10 +12,6 @@ final class HytaleRepositoryConfigurer {
 	static final String HYTALE_GROUP = 'com.hypixel.hytale'
 	static final String RELEASE_REPO_URL = 'https://maven.hytale.com/release'
 	static final String PRE_RELEASE_REPO_URL = 'https://maven.hytale.com/pre-release'
-
-	static void configure(Project project, Provider<?> generatedSourcesMavenRepoDir, Provider<?> generatedSourcesIvyRepoDir) {
-		configure(project, generatedSourcesMavenRepoDir, generatedSourcesIvyRepoDir, null)
-	}
 
 	static void configure(Project project,
 			Provider<?> generatedSourcesMavenRepoDir,
@@ -48,25 +45,11 @@ final class HytaleRepositoryConfigurer {
 		addMavenRepo(project, 'AzureDoom Maven', 'https://maven.azuredoom.com/mods')
 		addMavenRepo(project, 'Hytale Modding Maven', 'https://maven.hytalemodding.dev/releases')
 
-		project.repositories.exclusiveContent { spec ->
-			spec.forRepository {
-				project.repositories.ivy { IvyArtifactRepository repo ->
-					repo.name = 'Modtale'
-					repo.url = project.uri('https://api.modtale.net/api/v1')
-					repo.patternLayout { layout ->
-						layout.artifact('projects/[module]/versions/[revision]/download')
-					}
-					repo.metadataSources { sources ->
-						sources.artifact()
-					}
-				}
-			}
-			spec.filter { filter ->
-				filter.includeGroup('modtale')
-			}
-		}
-
+		addModtaleRepo(project)
 		addModifoldRepo(project)
+
+		applyAliasSubstitutions(project, 'modtale')
+		applyAliasSubstitutions(project, 'modifold')
 	}
 
 	private static String resolveActivePatchline(Provider<String> patchlineProvider) {
@@ -113,6 +96,26 @@ final class HytaleRepositoryConfigurer {
 		}
 	}
 
+	private static void addModtaleRepo(Project project) {
+		project.repositories.exclusiveContent { spec ->
+			spec.forRepository {
+				project.repositories.ivy { IvyArtifactRepository repo ->
+					repo.name = 'Modtale'
+					repo.url = project.uri('https://api.modtale.net/api/v1')
+					repo.patternLayout { layout ->
+						layout.artifact('projects/[module]/versions/[revision]/download')
+					}
+					repo.metadataSources { sources ->
+						sources.artifact()
+					}
+				}
+			}
+			spec.filter { filter ->
+				filter.includeGroup('modtale')
+			}
+		}
+	}
+
 	private static void addModifoldRepo(Project project) {
 		project.repositories.exclusiveContent { spec ->
 			spec.forRepository {
@@ -129,6 +132,27 @@ final class HytaleRepositoryConfigurer {
 			}
 			spec.filter { filter ->
 				filter.includeGroup('modifold')
+			}
+		}
+	}
+
+	private static void applyAliasSubstitutions(Project project, String group) {
+		project.configurations.configureEach { config ->
+			config.resolutionStrategy.dependencySubstitution { substitutions ->
+				substitutions.all { dependency ->
+					def requested = dependency.requested
+					if (!(requested instanceof ModuleComponentSelector)) return
+						if (requested.group != group) return
+
+						String module = requested.module
+					int underscore = module.indexOf('_')
+					if (underscore <= 0 || underscore >= module.length() - 1) return
+
+						String resolvedModule = module.substring(underscore + 1)
+					dependency.useTarget(
+							substitutions.module("${group}:${resolvedModule}:${requested.version}")
+							)
+				}
 			}
 		}
 	}
