@@ -1087,7 +1087,7 @@ The plugin automatically adds the Hytale server dependency based on:
 
 ```groovy
 hytaleTools {
-    hytaleVersion = '0.+'
+  hytaleVersion = '0.+'
 }
 ```
 
@@ -1104,8 +1104,8 @@ and makes it available on `compileOnly`. You **do not need to declare this manua
 
 ```groovy
 hytaleTools {
-    hytaleVersion = '0.+'   // latest 0.x build on the configured patchline
-    patchline     = 'release'
+  hytaleVersion = '0.+'   // latest 0.x build on the configured patchline
+  patchline     = 'release'
 }
 ```
 
@@ -1195,7 +1195,7 @@ If you want to use a different version of the Hytale server:
 
 ```groovy
 dependencies {
-    vineServerJar 'com.example:custom-server:1.0.0'
+  vineServerJar 'com.example:custom-server:1.0.0'
 }
 ```
 
@@ -1222,7 +1222,7 @@ By default, the runtime is bundled into your mod jar (similar to a lightweight s
 You can disable this behavior:
 ```groovy
 hytaleTools {
-    bundleAssetEditorRuntime = false
+  bundleAssetEditorRuntime = false
 }
 ```
 
@@ -1370,7 +1370,7 @@ hytaleDoctor prints a summary of:
 - configured `hytaleVersion` and `patchline`
 - manifest path and run directory
 - resolved asset wrapper path and effective `Assets.zip` path
-    (local override path when `hytaleHomeOverride` is set, otherwise the Gradle cache path
+  (local override path when `hytaleHomeOverride` is set, otherwise the Gradle cache path
 - auth token cache path
 - resolved `vineServerJar` files
 - declared `vineImplementation`, `vineCompileOnly`, and `vineDecompileTargets` dependencies
