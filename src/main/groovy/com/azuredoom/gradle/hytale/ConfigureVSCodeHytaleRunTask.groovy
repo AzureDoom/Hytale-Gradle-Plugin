@@ -53,7 +53,58 @@ abstract class ConfigureVSCodeHytaleRunTask extends DefaultTask {
 				]
 				)
 
+		writeJson(
+				new File(dir, 'tasks.json'),
+				vscodeTasks()
+				)
+
 		logger.lifecycle("Generated VS Code configuration in ${dir}")
+	}
+
+	private static Map<String, Object> vscodeTasks() {
+		return [
+			version: '2.0.0',
+			tasks  : [
+				gradleTask(
+				'Clean Hytale Generated Files',
+				'./gradlew cleanHytaleGenerated',
+				'Deletes local generated Hytale build outputs.'
+				),
+				gradleTask(
+				'Clean Hytale Assets Cache',
+				'./gradlew cleanHytaleAssetsCache',
+				'Deletes cached Hytale assets from the Gradle user home.'
+				),
+				gradleTask(
+				'Clean Hytale Global Cache',
+				'./gradlew cleanHytaleGlobalCache -PconfirmCleanHytaleGlobalCache=${input:confirmCleanHytaleGlobalCache}',
+				'Deletes global Hytale decompile and javadoc caches from the Gradle user home.'
+				)
+			],
+			inputs : [
+				[
+					id         : 'confirmCleanHytaleGlobalCache',
+					type       : 'promptString',
+					description: 'This deletes the global Hytale cache. Type true to confirm.',
+					default    : 'false'
+				]
+			]
+		]
+	}
+
+	private static Map<String, Object> gradleTask(String label, String command, String detail, List<String> problemMatcher = []) {
+		return [
+			label         : label,
+			type          : 'shell',
+			command       : command,
+			group         : 'build',
+			detail        : detail,
+			problemMatcher: problemMatcher,
+			presentation  : [
+				reveal: 'always',
+				panel : 'dedicated'
+			]
+		]
 	}
 
 	private static void writeJson(File file, Object value) {

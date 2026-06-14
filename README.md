@@ -334,6 +334,7 @@ This creates:
 - `.vscode/extensions.json`
 - `.vscode/settings.json`
 - `.vscode/launch.json`
+- `.vscode/tasks.json` with common Hytale Gradle tasks, including cache-cleanup tasks
 
 For source attachment, run:
 
@@ -393,6 +394,42 @@ This means:
 
 If `generateAssetsBinary = false`, the plugin still resolves `Assets.zip` for local runs,
 but skips generating the large `hytale-assets` IDE binary jar.
+
+## Cleaning Generated Files and Caches
+
+The plugin provides cleanup tasks for generated Hytale development outputs and caches.
+
+```bash
+./gradlew cleanHytaleGenerated
+./gradlew cleanHytaleAssetsCache
+./gradlew cleanHytaleGlobalCache
+```
+
+Use `cleanHytaleGenerated` when you want to remove project-local generated output, such as generated source jars and generated local source repositories.
+
+Use `cleanHytaleAssetsCache` when you want to remove the cached Hytale `Assets.zip` / generated assets cache under the Gradle user home. This is useful when assets look stale, or you need the plugin to resolve them again.
+
+Use `cleanHytaleGlobalCache` only when you want to clear global Hytale caches under the Gradle user home, such as decompiled source and injected Javadoc caches. Because this can affect other Hytale projects on the same machine, the task requires confirmation.
+
+Interactive confirmation:
+
+```bash
+./gradlew cleanHytaleGlobalCache
+```
+
+When prompted, type:
+
+```text
+clean global hytale cache
+```
+
+For non-interactive environments, pass the confirmation property explicitly:
+
+```bash
+./gradlew cleanHytaleGlobalCache -PconfirmCleanHytaleGlobalCache=true
+```
+
+Generated VS Code tasks from `configureVSCodeHytaleRun` include these cleanup commands. The global cache cleanup task asks for confirmation before running.
 
 ## Version Compatibility
 
@@ -779,6 +816,9 @@ If no sub-plugins are declared, the `SubPlugins` key is omitted from the manifes
 | `decompileServerJar`                        | internal | Decompiles Hytale server sources                                | Internal source pipeline           |
 | `injectServerJavadocsIntoDecompiledSources` | internal | Injects hosted Hytale API docs into decompiled server sources   | Internal source pipeline           |
 | `setupHytaleDev`                            | `hytale` | Prepares IDE sources and downloads assets                       | First-time setup                   |
+| `cleanHytaleGenerated`                      | `hytale` | Removes project-local Hytale generated outputs                  | Regenerate IDE/source artifacts    |
+| `cleanHytaleAssetsCache`                    | `hytale` | Removes cached Hytale assets / generated assets cache           | Refresh stale assets               |
+| `cleanHytaleGlobalCache`                    | `hytale` | Removes global Hytale decompile and Javadoc caches              | Force full global regeneration     |
 | `hytaleJvmDoctor`                           | `hytale` | Prints JVM debug / hot swap diagnostics                         | Debugging hot swap setup           |
 
 ## IDE Source Attachment

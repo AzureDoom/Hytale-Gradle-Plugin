@@ -2,10 +2,12 @@ package com.azuredoom.gradle.hytale
 
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 
@@ -26,6 +28,58 @@ final class HytaleCoreTaskRegistrar {
 			TaskProvider<? extends Task> prepareDecompiledSourcesForIde,
 			Provider<String> resolvedServerVersionProvider
 	) {
+
+		project.tasks.register('cleanHytaleGenerated', Delete) {
+			group = 'hytale'
+			description = 'Deletes local generated Hytale sources, IDE binaries, and temporary generation outputs.'
+
+			delete(
+					project.layout.buildDirectory.dir('vineflower'),
+					project.layout.buildDirectory.dir('generated-sources-m2'),
+					project.layout.buildDirectory.dir('generated-sources-ivy'),
+					project.layout.buildDirectory.dir('generated-sources-jars'),
+					project.layout.buildDirectory.dir('generated-ide-binaries'),
+					project.layout.buildDirectory.dir('tmp/vineflower-server'),
+					project.layout.buildDirectory.dir('tmp/vineflower-deps')
+					)
+		}
+
+		project.tasks.register('cleanHytaleAssetsCache', Delete) {
+			group = 'hytale'
+			description = 'Deletes cached Hytale assets and generated assets binaries from the Gradle user home.'
+
+			delete(new File(project.gradle.gradleUserHomeDir, 'caches/hytale-assets'))
+		}
+
+		project.tasks.register('cleanHytaleGlobalCache', Delete) {
+			group = 'hytale'
+			description = 'Deletes global Hytale decompile and javadoc caches from the Gradle user home.'
+
+			delete(
+					new File(project.gradle.gradleUserHomeDir, 'caches/hytale-decompiled'),
+					new File(project.gradle.gradleUserHomeDir, 'caches/hytale-javadocs')
+					)
+
+			doFirst {
+				String confirmation = project.providers.gradleProperty('confirmCleanHytaleGlobalCache').orNull
+				if (confirmation?.equalsIgnoreCase('true')) {
+					return
+				}
+
+				Console console = System.console()
+				if (console != null) {
+					String response = console.readLine(
+							'cleanHytaleGlobalCache deletes shared Hytale caches from your Gradle user home. Type "clean global hytale cache" to continue: '
+							)
+					if (response == 'clean global hytale cache') {
+						return
+					}
+				}
+
+				throw new GradleException('Refusing to clean the global Hytale cache without confirmation. Re-run with -PconfirmCleanHytaleGlobalCache=true to confirm.')
+			}
+		}
+
 		project.tasks.register('createManifestIfMissing', CreateManifestIfMissingTask) {
 			group = null
 			description = 'Creates src/main/resources/manifest.json with a default structure when it is missing.'
