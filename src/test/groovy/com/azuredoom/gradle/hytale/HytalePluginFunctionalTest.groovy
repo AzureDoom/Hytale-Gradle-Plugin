@@ -13,12 +13,19 @@ class HytalePluginFunctionalTest extends Specification {
 	@TempDir
 	File testProjectDir
 
+	String localRepoUri
+
+	def setup() {
+		def repo = new File(testProjectDir, 'test-m2')
+		createMavenRepoModule(repo, 'com.hypixel.hytale', 'Server', '1.0.0')
+		localRepoUri = repo.toURI().toString()
+	}
+
 	def "auto injects default server dependency into vineServerJar and compileOnly when resolved"() {
 		given:
 		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'auto-server-dep-test'
         '''
-		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
 
 		new File(testProjectDir, 'build.gradle') << """
             plugins {
@@ -30,7 +37,7 @@ class HytalePluginFunctionalTest extends Specification {
             version = '1.0.0'
 
             repositories {
-                maven { url = uri('${localRepo.toURI()}') }
+                maven { url = uri('${localRepoUri}') }
             }
 
             hytaleTools {
@@ -66,7 +73,6 @@ class HytalePluginFunctionalTest extends Specification {
             rootProject.name = 'explicit-server-dep-test'
         '''
 		def localRepo = new File(testProjectDir, 'test-m2')
-		createMavenRepoModule(localRepo, 'com.hypixel.hytale', 'Server', '1.0.0')
 		createMavenRepoModule(localRepo, 'com.example', 'custom-server', '9.9.9')
 
 		new File(testProjectDir, 'build.gradle') << """
@@ -213,8 +219,6 @@ class HytalePluginFunctionalTest extends Specification {
             rootProject.name = 'javadocjar-test'
         '''
 
-		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
-
 		new File(testProjectDir, 'build.gradle') << """
             plugins {
                 id 'java'
@@ -225,7 +229,7 @@ class HytalePluginFunctionalTest extends Specification {
             version = '1.0.0'
 
             repositories {
-                maven { url = uri('${localRepo.toURI()}') }
+                maven { url = uri('${localRepoUri}') }
             }
 
             java {
@@ -415,7 +419,7 @@ class HytalePluginFunctionalTest extends Specification {
 		rootProject.name = 'runserver-assets-arg-test'
 	'''
 
-		new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'build.gradle') << """
 import com.azuredoom.gradle.hytale.RunServerTask
 import com.azuredoom.gradle.hytale.JvmDevRuntimeSupport
 import org.gradle.api.tasks.TaskAction
@@ -427,6 +431,10 @@ plugins {
 
 group = 'com.example'
 version = '1.0.0'
+
+repositories {
+    maven { url = uri("${localRepoUri}") }
+}
 
 hytaleTools {
     hytaleVersion = '1.0.0'
@@ -485,7 +493,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 	classpath.from(files())
 	workingDir = layout.projectDirectory.asFile
 }
-'''
+"""
 
 		when:
 		def result = GradleRunner.create()
@@ -514,7 +522,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 		rootProject.name = 'runserver-prerun-test'
 	'''
 
-		new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'build.gradle') << """
 		plugins {
 			id 'java'
 			id 'com.azuredoom.hytale-tools'
@@ -522,6 +530,10 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 
 		group = 'com.example'
 		version = '1.0.0'
+
+		repositories {
+			maven { url = uri("${localRepoUri}") }
+		}
 
 		tasks.register('generateDevResources') {
 			doLast {
@@ -542,7 +554,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 				println 'RUN_SERVER_DEPS=' + deps.join(',')
 			}
 		}
-	'''
+	"""
 
 		when:
 		def result = GradleRunner.create()
@@ -563,7 +575,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 		rootProject.name = 'runserver-no-prerun-test'
 	'''
 
-		new File(testProjectDir, 'build.gradle') << '''
+		new File(testProjectDir, 'build.gradle') << """
 		plugins {
 			id 'java'
 			id 'com.azuredoom.hytale-tools'
@@ -571,6 +583,10 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 
 		group = 'com.example'
 		version = '1.0.0'
+
+		repositories {
+			maven { url = uri("${localRepoUri}") }
+		}
 
 		hytaleTools {
 			hytaleVersion = '1.0.0'
@@ -585,7 +601,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 				println 'RUN_SERVER_DEPS=' + deps.join(',')
 			}
 		}
-	'''
+	"""
 
 		when:
 		def result = GradleRunner.create()
@@ -705,8 +721,6 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
 		new File(testProjectDir, 'settings.gradle') << '''
             rootProject.name = 'doctor-test'
         '''
-		def localRepo = createMavenRepoModule('com.hypixel.hytale', 'Server', '1.0.0')
-
 		new File(testProjectDir, 'build.gradle') << """
             plugins {
                 id 'java'
@@ -717,7 +731,7 @@ tasks.register('inspectRunServerArgs', InspectRunServerTask) {
             version = '1.0.0'
 
             repositories {
-                maven { url = uri('${localRepo.toURI()}') }
+                maven { url = uri('${localRepoUri}') }
             }
 
             hytaleTools {
