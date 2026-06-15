@@ -1,6 +1,8 @@
 package com.azuredoom.gradle.hytale
 
+import groovy.json.JsonSlurper
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.provider.Provider
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.repositories.IvyArtifactRepository
@@ -12,7 +14,8 @@ final class HytaleRepositoryConfigurer {
 	static final String HYTALE_GROUP = 'com.hypixel.hytale'
 	static final String RELEASE_REPO_URL = 'https://maven.hytale.com/release'
 	static final String PRE_RELEASE_REPO_URL = 'https://maven.hytale.com/pre-release'
-
+	static final String MODTALE_API_BASE = 'https://api.modtale.net'
+	
 	static void configure(Project project,
 			Provider<?> generatedSourcesMavenRepoDir,
 			Provider<?> generatedSourcesIvyRepoDir,
@@ -45,11 +48,122 @@ final class HytaleRepositoryConfigurer {
 		addMavenRepo(project, 'AzureDoom Maven', 'https://maven.azuredoom.com/mods')
 		addMavenRepo(project, 'Hytale Modding Maven', 'https://maven.hytalemodding.dev/releases')
 
-		addModtaleRepo(project)
+		setupModtaleResolver(project)
 		addModifoldRepo(project)
 
 		applyAliasSubstitutions(project, 'modtale')
 		applyAliasSubstitutions(project, 'modifold')
+	}
+
+	private static void setupModtaleResolver(Project project) {
+		File mavenCache = project.layout.buildDirectory.dir('modtale-maven-cache').get().asFile
+
+		project.repositories.exclusiveContent { spec ->
+			spec.forRepository {
+				project.repositories.maven { MavenArtifactRepository repo ->
+					repo.name = 'Modtale Local Cache'
+					repo.url = mavenCache.toURI()
+				}
+			}
+			spec.filter { filter ->
+				filter.includeGroup('modtale')
+			}
+		}
+
+		project.afterEvaluate {
+			project.configurations.each { Configuration config ->
+				config.dependencies.each { dep ->
+					if (dep.group != 'modtale') return
+
+						String rawModule = dep.name
+					int underscore = rawModule.indexOf('_')
+					String projectId = (underscore > 0 && underscore < rawModule.length() - 1)
+							? rawModule.substring(underscore + 1)
+							: rawModule
+					String version = dep.version
+
+					File artifactDir = new File(mavenCache, "modtale/${projectId}/${version}")
+					File cachedJar   = new File(artifactDir, "${projectId}-${version}.jar")
+					File cachedPom   = new File(artifactDir, "${projectId}-${version}.pom")
+
+					if (cachedJar.exists() && cachedPom.exists()) return
+
+						project.logger.lifecycle("[Modtale] Resolving ${projectId}:${version}...")
+
+					try {
+						String apiUrl = "${MODTALE_API_BASE}/api/v1/projects/${projectId}/versions/${version}/download-url"
+						String downloadUrl = fetchJsonDownloadUrl(apiUrl, project)
+
+						if (downloadUrl.startsWith('/')) {
+							downloadUrl = "${MODTALE_API_BASE}/api/v1${downloadUrl}"
+						}
+
+						artifactDir.mkdirs()
+
+						project.logger.lifecycle("[Modtale] Downloading from ${downloadUrl}")
+						streamToFile(downloadUrl, cachedJar)
+
+						cachedPom.text = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>modtale</groupId>
+  <artifactId>${projectId}</artifactId>
+  <version>${version}</version>
+  <packaging>jar</packaging>
+</project>
+"""
+						project.logger.lifecycle("[Modtale] Cached to ${cachedJar}")
+					} catch (Exception e) {
+						throw new RuntimeException("[Modtale] Failed to resolve ${projectId}:${version}: ${e.message}", e)
+					}
+				}
+			}
+		}
+	}
+
+	private static String fetchJsonDownloadUrl(String apiUrl, Project project) {
+		HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl).toURL().openConnection()
+		conn.setRequestMethod('GET')
+		conn.setRequestProperty('Accept', 'application/json')
+		conn.setInstanceFollowRedirects(true)
+		conn.connect()
+
+		int code = conn.responseCode
+		if (code != 200) {
+			String body = ''
+			try {
+				body = conn.errorStream?.text
+			} catch (ignored) {}
+			throw new RuntimeException("HTTP ${code} from ${apiUrl}: ${body}")
+		}
+
+		String body = conn.inputStream.text
+		project.logger.lifecycle("[Modtale] download-url response: ${body}")
+
+		def json = new JsonSlurper().parseText(body)
+		String url = json.downloadUrl as String
+		if (!url) throw new RuntimeException("No downloadUrl field in response: ${body}")
+		return url
+	}
+
+	private static void streamToFile(String fileUrl, File dest) {
+		HttpURLConnection conn = (HttpURLConnection) URI.create(fileUrl).toURL().openConnection()
+		conn.setInstanceFollowRedirects(true)
+		conn.connect()
+
+		int code = conn.responseCode
+		if (code != 200) {
+			String body = ''
+			try {
+				body = conn.errorStream?.text
+			} catch (ignored) {}
+			throw new RuntimeException("HTTP ${code} from ${fileUrl}: ${body}")
+		}
+
+		conn.inputStream.withStream { is ->
+			dest.withOutputStream { os -> os << is }
+		}
 	}
 
 	private static String resolveActivePatchline(Provider<String> patchlineProvider) {
@@ -93,26 +207,6 @@ final class HytaleRepositoryConfigurer {
 		project.repositories.maven { MavenArtifactRepository repo ->
 			repo.name = repoName
 			repo.url = project.uri(repoUrl)
-		}
-	}
-
-	private static void addModtaleRepo(Project project) {
-		project.repositories.exclusiveContent { spec ->
-			spec.forRepository {
-				project.repositories.ivy { IvyArtifactRepository repo ->
-					repo.name = 'Modtale'
-					repo.url = project.uri('https://api.modtale.net/api/v1')
-					repo.patternLayout { layout ->
-						layout.artifact('projects/[module]/versions/[revision]/download')
-					}
-					repo.metadataSources { sources ->
-						sources.artifact()
-					}
-				}
-			}
-			spec.filter { filter ->
-				filter.includeGroup('modtale')
-			}
 		}
 	}
 
