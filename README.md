@@ -1011,7 +1011,7 @@ dependencies {
     // Alias can be anything but `_`, usually good to name the mod being used here. Ex: `LevelingCore`
     // ProjectID found on right side of project
     // Version can be found from Changelog button
-    vineImplementation 'modtale:Alias_ProjectID:Version@jar'
+    vineImplementation 'modtale:Alias_ProjectID:Version'
     
     // Example of Modifold dependency. 
     // Alias can be anything but `_`, usually good to name the mod being used here. Ex: `LevelingCore`

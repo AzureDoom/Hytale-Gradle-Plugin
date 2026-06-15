@@ -15,7 +15,7 @@ final class HytaleRepositoryConfigurer {
 	static final String RELEASE_REPO_URL = 'https://maven.hytale.com/release'
 	static final String PRE_RELEASE_REPO_URL = 'https://maven.hytale.com/pre-release'
 	static final String MODTALE_API_BASE = 'https://api.modtale.net'
-	
+
 	static void configure(Project project,
 			Provider<?> generatedSourcesMavenRepoDir,
 			Provider<?> generatedSourcesIvyRepoDir,
