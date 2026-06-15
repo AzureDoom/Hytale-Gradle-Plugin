@@ -1006,15 +1006,17 @@ dependencies {
 
     // Optional IDE source attachment target
     vineDecompileTargets 'curse.maven:hexcodes-1448311:8166165'
-    
+
     // Example of Modtale dependency.
-    // Project_ID found on right side of project
+    // Alias can be anything but `_`, usually good to name the mod being used here. Ex: `LevelingCore`
+    // ProjectID found on right side of project
     // Version can be found from Changelog button
-    vineImplementation 'modtale:Project_ID:Version@jar'
+    vineImplementation 'modtale:Alias_ProjectID:Version@jar'
     
     // Example of Modifold dependency. 
+    // Alias can be anything but `_`, usually good to name the mod being used here. Ex: `LevelingCore`
     // Can be found from link like so: https://modifold.com/mod/projectSlug/version/versionID
-    vineImplementation 'modifold:projectSlug:versionID'
+    vineImplementation 'modifold:Alias_projectSlug:versionID'
 }
 ```
 
