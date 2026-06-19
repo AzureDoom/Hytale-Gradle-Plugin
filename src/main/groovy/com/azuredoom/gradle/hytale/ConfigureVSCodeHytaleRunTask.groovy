@@ -79,7 +79,28 @@ abstract class ConfigureVSCodeHytaleRunTask extends DefaultTask {
 				'Clean Hytale Global Cache',
 				'./gradlew cleanHytaleGlobalCache -PconfirmCleanHytaleGlobalCache=${input:confirmCleanHytaleGlobalCache}',
 				'Deletes global Hytale decompile and javadoc caches from the Gradle user home.'
-				)
+				),
+				gradleTask(
+				'Hytale: setupHytaleDev',
+				'./gradlew setupHytaleDev',
+				'Prepares IDE sources and downloads assets.'
+				),
+				gradleTask(
+				'Hytale: updatePluginManifest',
+				'./gradlew updatePluginManifest',
+				'Rewrites manifest from Gradle config.'
+				),
+				gradleTask(
+				'Hytale: hytaleDoctor',
+				'./gradlew hytaleDoctor',
+				'Prints plugin, manifest, asset, and dependency diagnostics.'
+				),
+				gradleTask(
+				'Hytale: hytaleJvmDoctor',
+				'./gradlew hytaleJvmDoctor',
+				'Prints JVM debug / hot swap diagnostics.'
+				),
+				runServerTask()
 			],
 			inputs : [
 				[
@@ -110,6 +131,33 @@ abstract class ConfigureVSCodeHytaleRunTask extends DefaultTask {
 	private static void writeJson(File file, Object value) {
 		file.parentFile.mkdirs()
 		file.text = JsonOutput.prettyPrint(JsonOutput.toJson(value)) + System.lineSeparator()
+	}
+
+	private static Map<String, Object> runServerTask() {
+		return [
+			label        : 'Hytale: runServer',
+			type         : 'shell',
+			command      : './gradlew runServer -Ddebug=true',
+			group        : 'build',
+			detail       : 'Launches local Hytale server in debug mode.',
+			isBackground : true,
+			problemMatcher: [
+				owner: 'hytale',
+				pattern: [
+					regexp : '^(.*)$',
+					message: 1
+				],
+				background: [
+					activeOnStart: true,
+					beginsPattern: '.*',
+					endsPattern  : 'Listening for transport dt_socket at address:.*'
+				]
+			],
+			presentation : [
+				reveal: 'always',
+				panel : 'dedicated'
+			]
+		]
 	}
 
 	static abstract class VSCodeSettings {
@@ -144,10 +192,11 @@ abstract class ConfigureVSCodeHytaleRunTask extends DefaultTask {
 		Map<String, Object> asAttachConfiguration() {
 			return [
 				type       : 'java',
-				name       : name.get(),
+				name       : 'Hytale: runServer',
 				request    : 'attach',
 				hostName   : hostName.get(),
-				port       : port.get()
+				port       : port.get(),
+				preLaunchTask: "Hytale: runServer"
 			]
 		}
 	}
