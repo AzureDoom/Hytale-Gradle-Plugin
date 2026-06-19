@@ -110,9 +110,10 @@ class VSCodeGeneratorFunctionalTest extends Specification {
 		def config = launch.configurations[0]
 		config.type == 'java'
 		config.request == 'attach'
-		config.name == 'Attach to Hytale Server'
+		config.name == 'Hytale: runServer'
 		config.hostName == 'localhost'
 		config.port == 5005
+		config.preLaunchTask == 'Hytale: runServer'
 	}
 
 	def "generateHytaleDevContainer creates devcontainer json and dockerfile by default"() {
