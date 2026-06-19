@@ -334,7 +334,7 @@ This creates:
 - `.vscode/extensions.json`
 - `.vscode/settings.json`
 - `.vscode/launch.json`
-- `.vscode/tasks.json` with common Hytale Gradle tasks, including cache-cleanup tasks
+- `.vscode/tasks.json` with common Hytale Gradle tasks
 
 For source attachment, run:
 
@@ -342,13 +342,7 @@ For source attachment, run:
 ./gradlew prepareDecompiledSourcesForIde
 ```
 
-To debug the local Hytale server:
-
-```bash
-./gradlew runServer -Ddebug=true -Dhotswap=true
-```
-
-Then use the generated Attach to Hytale Server VS Code launch configuration.
+To debug the local Hytale server use the generated launch configuration `Hytale: runServer`, which launches and sets the server to debug mode.
 
 ### Optional Dev Container
 
