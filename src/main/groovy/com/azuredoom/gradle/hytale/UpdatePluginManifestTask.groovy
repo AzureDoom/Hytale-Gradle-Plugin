@@ -58,13 +58,17 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 		def subPluginList = new JsonSlurper().parseText(subPlugins.getOrElse('[]')) as List
 		if (subPluginList) {
 			manifestJson.SubPlugins = subPluginList.collect { sp ->
-				[
-					Name             : sp.Name,
-					Main             : sp.Main,
-					ServerVersion    : sp.ServerVersion ?: resolvedVersion,
-					DisabledByDefault: sp.DisabledByDefault ?: false,
-					IncludesAssetPack: sp.IncludesAssetPack ?: false
-				]
+				def entry = new LinkedHashMap<String, Object>(sp as Map)
+				if (!entry.containsKey('ServerVersion')) {
+					entry.ServerVersion = resolvedVersion
+				}
+				if (!entry.containsKey('DisabledByDefault')) {
+					entry.DisabledByDefault = false
+				}
+				if (!entry.containsKey('IncludesAssetPack')) {
+					entry.IncludesAssetPack = false
+				}
+				entry
 			}
 		} else {
 			manifestJson.remove('SubPlugins')

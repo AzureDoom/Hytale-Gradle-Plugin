@@ -47,8 +47,14 @@ hytaleTools {
     modId = 'examplemod'
     mainClass = 'com.example.mods.ExampleMod'
     
-    // Optional: declare sub-plugins bundled with this mod
+    // Optional: declare sub-plugins bundled with this mod (positional style)
     subPlugin('MyFeature', 'com.example.mods.feature.MyFeaturePlugin')
+    // Or use the map style to set any manifest field (Description, Authors, Website, etc.)
+    // subPlugin([ Name: 'MyFeature', Main: 'com.example.mods.feature.MyFeaturePlugin', Description: 'My feature' ])
+
+    // Optional: declare load ordering
+    // loadBefore 'otherpluginname'
+    // loadBefore 'anotherplugin', '>=2.0.0'
 
     // Optional: enabled by default. Injects hosted Hytale API docs into
     // generated Vineflower server sources for easier IDE browsing.
@@ -742,13 +748,17 @@ Do not use commas or pipe characters inside an individual author value, because 
 
 The plugin supports declaring sub-plugins that are bundled within your main mod. Sub-plugins appear in `manifest.json` as a `SubPlugins` array and are loaded by the server alongside the parent mod.
 
-Use the `subPlugin(...)` DSL method in your `hytaleTools` block:
+Use the `subPlugin(...)` DSL method in your `hytaleTools` block. Two call styles are supported:
+
+### Positional style
+
+Quick shorthand for the most common fields:
 
 ```gradle
 hytaleTools {
     modId = 'mymod'
     mainClass = 'com.example.mods.MyMod'
- 
+
     subPlugin('Forestry', 'com.example.mods.forestry.ForestryPlugin')
     subPlugin('Economy', 'com.example.mods.economy.EconomyPlugin', true, false)
     // Pin a specific server version for this sub-plugin instead of inheriting the parent's:
@@ -756,7 +766,7 @@ hytaleTools {
 }
 ```
 
-### `subPlugin` parameters
+#### Positional parameters
 
 | Parameter           | Type      | Default | Description                                                                                       |
 |---------------------|-----------|---------|---------------------------------------------------------------------------------------------------|
@@ -766,7 +776,44 @@ hytaleTools {
 | `includesAssetPack` | `boolean` | `false` | Whether this sub-plugin includes an asset pack                                                    |
 | `serverVersion`     | `String`  | `null`  | Optional server version override. When omitted, the parent mod's manifest `ServerVersion` is used |
 
-Each declared sub-plugin is written into `manifest.json` with the parent manifest `ServerVersion` automatically applied unless a sub-plugin-specific `serverVersion` is provided:
+### Map style
+
+Pass a map of manifest fields directly. This supports all properties that Hytale accepts in a sub-plugin entry — `Name`, `Main`, `Description`, `Authors`, `Website`, `ServerVersion`, `DisabledByDefault`, `IncludesAssetPack`, `Dependencies`, `OptionalDependencies`, and any future fields the server may support. `Name` and `Main` are required; all others are optional.
+
+```gradle
+hytaleTools {
+    modId = 'mymod'
+    mainClass = 'com.example.mods.MyMod'
+
+    subPlugin([
+        Name              : 'Forestry',
+        Main              : 'com.example.mods.forestry.ForestryPlugin',
+        Description       : 'Adds forestry mechanics to the server',
+        Authors           : [
+            [ Name: 'Alice', Email: 'alice@example.com', Url: 'https://alice.example.com' ],
+            [ Name: 'Bob',   Email: 'bob@example.com' ]
+        ],
+        Website           : 'https://example.com/forestry',
+        DisabledByDefault : false
+    ])
+    
+    subPlugin([
+        Name              : 'Economy',
+        Main              : 'com.example.mods.economy.EconomyPlugin',
+        Description       : 'Optional economy system — enable per server as needed',
+        Authors           : [
+            [ Name: 'Charlie', Email: 'charlie@example.com', Url: 'https://charlie.example.com' ]
+        ],
+        DisabledByDefault : true
+    ])
+}
+```
+
+Any fields not supplied in the map are given safe defaults when written to the manifest (`ServerVersion` inherits from the parent, `DisabledByDefault` and `IncludesAssetPack` default to `false`).
+
+### Manifest output
+
+Each declared sub-plugin is written into `manifest.json`. The parent manifest `ServerVersion` is applied automatically to any sub-plugin that does not specify its own:
 
 ```json
 {
@@ -774,6 +821,9 @@ Each declared sub-plugin is written into `manifest.json` with the parent manifes
     {
       "Name": "Forestry",
       "Main": "com.example.mods.forestry.ForestryPlugin",
+      "Description": "Adds forestry mechanics to the server",
+      "Authors": [{ "Name": "Alice" }],
+      "Website": "https://example.com/forestry",
       "ServerVersion": ">=0.5.2",
       "DisabledByDefault": false,
       "IncludesAssetPack": false
@@ -781,6 +831,7 @@ Each declared sub-plugin is written into `manifest.json` with the parent manifes
     {
       "Name": "Economy",
       "Main": "com.example.mods.economy.EconomyPlugin",
+      "Description": "Optional economy system — enable per server as needed",
       "ServerVersion": ">=0.5.2",
       "DisabledByDefault": true,
       "IncludesAssetPack": false
@@ -1286,9 +1337,11 @@ hytaleTools {
     disabledByDefault = project.disabled_by_default.toString().toBoolean()
     includesPack = project.includes_pack.toString().toBoolean()
     
-    // Optional: declare sub-plugins
+    // Optional: declare sub-plugins (positional style)
     subPlugin('Forestry', 'com.example.mods.forestry.ForestryPlugin')
     // subPlugin(name, main, disabledByDefault, includesAssetPack, serverVersion)
+    // Or use the map style for full manifest field control:
+    // subPlugin([ Name: 'Forestry', Main: '...', Description: 'Adds forestry', DisabledByDefault: false ])
     
     serverArgs = ['--allow-op', '--disable-sentry']
     serverJvmArgs = ['-Xms1G', '-Xmx2G']
