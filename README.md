@@ -699,6 +699,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `useHotswapAgent`                 | `Boolean`      |                                `true` | No       | Enables bundled HotswapAgent integration when available                                                                                                                                                               |
 | `hotswapAgentPath`                | `String`       |                                 empty | No       | Optional path to an external HotswapAgent jar used when `hotSwapEnabled` and `useHotswapAgent` are true                                                                                                               |
 | `jbrHome`                         | `String`       |                                 empty | No       | Optional path to a JetBrains Runtime installation                                                                                                                                                                     |
+| `loadBefore`                      | `List<Map>`    |                                  `[]` | No       | Plugins this mod must be loaded before (see [Load Ordering](#load-ordering))                                                                                                                                          |
 | `subPlugins`                      | `List<Map>`    |                                  `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                                                                                                                                     |
 
 ### Author / Credits Formatting
@@ -743,6 +744,72 @@ This writes:
 `Email` and `Url` are optional. `Authors` is also optional during validation for compatibility with handwritten or older manifests, but when it is present it must be an array of author objects. Each author object must have a non-blank `Name`.
 
 Do not use commas or pipe characters inside an individual author value, because commas separate authors and pipes separate author fields.
+
+## Load Ordering
+
+The plugin supports declaring load-ordering constraints via `loadBefore`. When set, Hytale will ensure this plugin is loaded before the named plugin(s).
+
+### Main manifest
+
+Use the `loadBefore` DSL method in your `hytaleTools` block:
+
+```gradle
+hytaleTools {
+    modId = 'mymod'
+    mainClass = 'com.example.mods.MyMod'
+
+    // Load before any version of another plugin
+    loadBefore 'otherpluginname'
+
+    // Load before a specific version range
+    loadBefore 'anotherplugin', '>=2.0.0'
+}
+```
+
+This writes the following into `manifest.json`:
+
+```json
+{
+  "LoadBefore": [
+    {
+      "name": "otherpluginname",
+      "version": "*"
+    },
+    {
+      "name": "anotherplugin",
+      "version": ">=2.0.0"
+    }
+  ]
+}
+```
+
+If no `loadBefore` entries are declared, the `LoadBefore` key is omitted from the manifest entirely.
+
+### `loadBefore` parameters
+
+| Parameter | Type     | Default | Description                                                              |
+|-----------|----------|---------|--------------------------------------------------------------------------|
+| `name`    | `String` | —       | The name of the plugin this plugin must be loaded before                 |
+| `version` | `String` | `*`     | Optional version constraint. Defaults to `*` (any version) when omitted  |
+
+### Sub-plugins
+
+Load ordering can also be declared per sub-plugin by including a `LoadBefore` list in the sub-plugin map:
+
+```gradle
+subPlugin([
+    Name       : 'Economy',
+    Main       : 'com.example.mods.economy.EconomyPlugin',
+    LoadBefore : [
+        [ name: 'otherpluginname', version: '*' ],
+        [ name: 'anotherplugin',   version: '>=2.0.0' ]
+    ]
+])
+```
+
+Each entry follows the same `name` / `version` format as the main manifest. Version defaults to `*` when omitted.
+
+---
 
 ## SubPlugins
 
@@ -1342,6 +1409,10 @@ hytaleTools {
     // subPlugin(name, main, disabledByDefault, includesAssetPack, serverVersion)
     // Or use the map style for full manifest field control:
     // subPlugin([ Name: 'Forestry', Main: '...', Description: 'Adds forestry', DisabledByDefault: false ])
+
+    // Optional: declare load ordering
+    // loadBefore 'otherpluginname'
+    // loadBefore 'anotherplugin', '>=2.0.0'
     
     serverArgs = ['--allow-op', '--disable-sentry']
     serverJvmArgs = ['-Xms1G', '-Xmx2G']

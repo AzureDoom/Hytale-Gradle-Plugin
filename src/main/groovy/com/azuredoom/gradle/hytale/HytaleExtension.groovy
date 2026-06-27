@@ -31,7 +31,60 @@ abstract class HytaleExtension {
 	abstract Property<Boolean> getBundleAssetEditorRuntime()
 	abstract Property<Boolean> getGenerateAssetsBinary()
 
+	abstract Property<String> getLoadBefore()
+
 	abstract Property<String> getSubPlugins()
+
+	/**
+	 * Declares that this plugin must be loaded <em>before</em> another plugin.
+	 *
+	 * <pre>
+	 * loadBefore 'otherpluginname'               // any version
+	 * loadBefore 'otherpluginname', '>=1.2.0'    // specific version range
+	 * </pre>
+	 *
+	 * @param name    The name of the plugin this plugin must load before.
+	 * @param version Optional version constraint. Defaults to {@code "*"} (any version).
+	 */
+	void loadBefore(String name, String version = '*') {
+		def current = getLoadBefore().getOrElse('[]')
+		def list = new JsonSlurper().parseText(current) as List
+		list << [ name: name, version: version ]
+		getLoadBefore().set(JsonOutput.toJson(list))
+	}
+
+	/**
+	 * Declares a sub-plugin bundled with this mod using an explicit map of manifest fields.
+	 *
+	 * The map may contain any manifest property supported by Hytale sub-plugins:
+	 *   Name, Main, Description, Authors, Website, ServerVersion,
+	 *   DisabledByDefault, IncludesAssetPack, Dependencies, OptionalDependencies,
+	 *   LoadBefore, etc.
+	 *
+	 * <pre>
+	 * subPlugin([
+	 *   Name: "My Plugin",
+	 *   Description: "A custom description",
+	 *   Main: "com.example.MyPlugin",
+	 *   DisabledByDefault: true,
+	 *   LoadBefore: [[ name: 'otherplugin', version: '*' ]]
+	 * ])
+	 * </pre>
+	 *
+	 * @param properties Map of manifest field names to values for this sub-plugin.
+	 *                   Must include at least {@code Name} and {@code Main}.
+	 */
+	void subPlugin(Map<String, Object> properties) {
+		if (!properties.containsKey('Name') || !properties.containsKey('Main')) {
+			throw new IllegalArgumentException(
+			"subPlugin() map must contain at least 'Name' and 'Main' keys. Got: ${properties.keySet()}"
+			)
+		}
+		def current = getSubPlugins().getOrElse('[]')
+		def list = new JsonSlurper().parseText(current) as List
+		list << new LinkedHashMap<String, Object>(properties)
+		getSubPlugins().set(JsonOutput.toJson(list))
+	}
 
 	/**
 	 * Declares a sub-plugin bundled with this mod.

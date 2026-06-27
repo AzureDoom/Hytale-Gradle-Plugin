@@ -31,6 +31,7 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 	@Input abstract Property<String> getMainClass()
 	@Input abstract Property<Boolean> getIncludesPack()
 	@Input abstract Property<String> getCurseforgeId()
+	@Input abstract Property<String> getLoadBefore()
 	@Input abstract Property<String> getSubPlugins()
 
 	@TaskAction
@@ -54,6 +55,15 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 			CurseForge: curseforgeId.orNull
 		]
 
+		def loadBeforeList = new JsonSlurper().parseText(loadBefore.getOrElse('[]')) as List
+		if (loadBeforeList) {
+			manifestJson.LoadBefore = loadBeforeList.collect { entry ->
+				[ name: entry.name, version: entry.version ?: '*' ]
+			}
+		} else {
+			manifestJson.remove('LoadBefore')
+		}
+
 		def resolvedVersion = manifestServerVersion.get()
 		def subPluginList = new JsonSlurper().parseText(subPlugins.getOrElse('[]')) as List
 		if (subPluginList) {
@@ -67,6 +77,11 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 				}
 				if (!entry.containsKey('IncludesAssetPack')) {
 					entry.IncludesAssetPack = false
+				}
+				if (entry.containsKey('LoadBefore') && entry.LoadBefore instanceof List) {
+					entry.LoadBefore = (entry.LoadBefore as List).collect { lb ->
+						[ name: lb.name, version: lb.version ?: '*' ]
+					}
 				}
 				entry
 			}
