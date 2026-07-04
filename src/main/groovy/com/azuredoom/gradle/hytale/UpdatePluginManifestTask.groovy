@@ -31,8 +31,8 @@ abstract class UpdatePluginManifestTask extends DefaultTask {
 	@Input abstract Property<String> getMainClass()
 	@Input abstract Property<Boolean> getIncludesPack()
 	@Input abstract Property<String> getCurseforgeId()
-	@Input abstract Property<String> getLoadBefore()
-	@Input abstract Property<String> getSubPlugins()
+	@Input @Optional abstract Property<String> getLoadBefore()
+	@Input @Optional abstract Property<String> getSubPlugins()
 
 	@TaskAction
 	void updateManifest() {
