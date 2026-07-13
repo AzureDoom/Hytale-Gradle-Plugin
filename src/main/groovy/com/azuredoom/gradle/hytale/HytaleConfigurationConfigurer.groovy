@@ -33,6 +33,18 @@ final class HytaleConfigurationConfigurer {
 		vineDependencyJars.canBeConsumed = false
 		vineDependencyJars.canBeResolved = true
 
+		def vineMod = project.configurations.maybeCreate('vineMod')
+		vineMod.canBeConsumed = false
+		vineMod.canBeResolved = false
+
+		def vineModJars = project.configurations.maybeCreate('vineModJars')
+		vineModJars.canBeConsumed = false
+		vineModJars.canBeResolved = true
+
+		def vineImplementationJars = project.configurations.maybeCreate('vineImplementationJars')
+		vineImplementationJars.canBeConsumed = false
+		vineImplementationJars.canBeResolved = true
+
 		def hytaleBundledRuntime = project.configurations.maybeCreate('hytaleBundledRuntime')
 		hytaleBundledRuntime.canBeConsumed = false
 		hytaleBundledRuntime.canBeResolved = true
@@ -46,5 +58,7 @@ final class HytaleConfigurationConfigurer {
 		compileOnly.extendsFrom(vineCompileOnly, vineServerJar, hytaleAssets)
 		vineDependencyJars.extendsFrom(vineDecompileTargets, vineCompileOnly, vineImplementation)
 		vineDecompileClasspath.extendsFrom(vineCompileOnly, vineImplementation, vineServerJar)
+		vineModJars.extendsFrom(vineMod)
+		vineImplementationJars.extendsFrom(vineImplementation)
 	}
 }

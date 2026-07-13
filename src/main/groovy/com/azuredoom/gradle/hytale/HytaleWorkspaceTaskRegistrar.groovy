@@ -53,18 +53,53 @@ final class HytaleWorkspaceTaskRegistrar {
 				})
 			}
 
-			def stageAllModAssets = project.tasks.register('stageAllModAssets', StageAllModAssetsTask) { t ->
+			def workspaceRuntimeClasspathDirectory =
+					project.layout.buildDirectory.dir(
+							'hytale-vine-runtime/workspace-classpath'
+					)
+
+			def stageAllModAssets = project.tasks.register(
+					'stageAllModAssets',
+					StageAllModAssetsTask
+			) { t ->
 				t.group = 'hytale'
-				t.description = 'Stages all Hytale mod asset packs into the root run directory.'
+				t.description =
+						'Stages all Hytale mod asset packs and external dependencies.'
 
 				t.projectPaths.set(metadata.projectPaths)
 				t.manifestGroups.set(metadata.manifestGroups)
 				t.modIds.set(metadata.modIds)
-				t.assetSourceDirectoryPaths.set(metadata.assetSourceDirectoryPaths)
+				t.assetSourceDirectoryPaths.set(
+						metadata.assetSourceDirectoryPaths
+				)
 				t.expectedHytaleVersion.set(metadata.expectedHytaleVersion)
 				t.expectedPatchline.set(metadata.expectedPatchline)
-				t.runDirectory.set(project.layout.projectDirectory.dir('run'))
-				t.modsDirectory.set(project.layout.projectDirectory.dir('run/mods'))
+
+				t.runDirectory.set(
+						project.layout.projectDirectory.dir('run')
+				)
+
+				t.modsDirectory.set(
+						project.layout.projectDirectory.dir('run/mods')
+				)
+
+				t.vineRuntimeClasspathDirectory.set(
+						workspaceRuntimeClasspathDirectory
+				)
+
+				projectPaths.each { path ->
+					def modProject = project.project(path)
+
+					t.vineModJars.from(
+							modProject.configurations.named('vineModJars')
+					)
+
+					t.vineImplementationJars.from(
+							modProject.configurations.named(
+									'vineImplementationJars'
+							)
+					)
+				}
 			}
 
 			def hostDownloadAssetsZip = hostProject.tasks.named('downloadAssetsZip')
@@ -97,14 +132,54 @@ final class HytaleWorkspaceTaskRegistrar {
 
 				projectPaths.each { path ->
 					def subproject = project.project(path)
-					def sourceSets = subproject.extensions.getByType(SourceSetContainer)
+
+					def sourceSets = subproject.extensions.getByType(
+							SourceSetContainer
+					)
+
 					def main = sourceSets.named('main').get()
 
+					def implementationJars = subproject.configurations
+							.named('vineImplementationJars')
+							.get()
+
+					def runtimeWithoutProjectOutputOrVineImplementation =
+							main.runtimeClasspath -
+									main.output -
+									implementationJars
+
 					t.classpath(main.output.classesDirs)
-					t.classpath(main.compileClasspath)
+					t.classpath(main.output.resourcesDir)
+
+					t.classpath(
+							runtimeWithoutProjectOutputOrVineImplementation
+					)
 				}
 
-				t.classpath(hostProject.configurations.named('vineServerJar').get())
+				t.classpath(project.provider {
+					File root = workspaceRuntimeClasspathDirectory.get().asFile
+
+					if (!root.isDirectory()) {
+						return []
+					}
+
+					File[] directories = root.listFiles()
+
+					if (directories == null) {
+						return []
+					}
+
+					return directories
+							.findAll { it.isDirectory() }
+							.sort { left, right ->
+								left.name <=> right.name
+							}
+							.toList()
+				})
+
+				t.classpath(
+						hostProject.configurations.named('vineServerJar').get()
+				)
 			}
 		}
 	}

@@ -41,6 +41,10 @@ final class HytaleRunTaskRegistrar {
 				runDirectory.set(ext.runDirectory)
 				assetPackSourceDirectory.set(ext.assetPackSourceDirectory)
 				assetPackRunDirectory.set(ext.assetPackRunDirectory)
+
+				vineModJars.from(project.configurations.named('vineModJars'))
+				vineImplementationJars.from(project.configurations.named('vineImplementationJars'))
+				vineRuntimeClasspathDir.set(project.layout.buildDirectory.dir('hytale-vine-runtime/classpath'))
 			}
 
 			project.tasks.register('runServer', RunServerTask) {
@@ -54,8 +58,10 @@ final class HytaleRunTaskRegistrar {
 
 				def sourceSets = project.extensions.getByType(SourceSetContainer)
 				def main = sourceSets.named('main').get()
+				def vineImplementationJars = project.configurations.named('vineImplementationJars').get()
+				def vineRuntimeClasspathDir = project.layout.buildDirectory.dir('hytale-vine-runtime/classpath')
 
-				def runtimeWithoutMainOutput = main.runtimeClasspath - main.output
+				def runtimeWithoutMainOutput = main.runtimeClasspath - main.output - vineImplementationJars
 
 				mainClass.set('com.hypixel.hytale.Main')
 				classpath.from(project.files(
@@ -64,6 +70,10 @@ final class HytaleRunTaskRegistrar {
 						runtimeWithoutMainOutput,
 						vineServerJar
 						))
+				classpath.from(project.provider {
+					def root = vineRuntimeClasspathDir.get().asFile
+					root.isDirectory() ? (root.listFiles().findAll { it.isDirectory() } as List) : []
+				})
 				projectDirectory.set(project.layout.projectDirectory)
 				workingDir(ext.runDirectory.map { it.asFile })
 
