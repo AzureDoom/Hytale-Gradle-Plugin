@@ -1111,7 +1111,7 @@ Each optional repository has a matching toggle:
 
 Disabling `disableModtaleResolver` or `disableModifoldRepo` also disables that group's alias substitution (e.g. `modtale:Name_ProjectID:Version` resolution), since the substitution has nothing to resolve against once its repository is removed.
 
-The gradle property form is useful for a global override (e.g. in `gradle.properties` or CI) without editing every mod project's `build.gradle`:
+The Gradle property form is useful for a global override (e.g. in `gradle.properties` or CI) without editing every mod project's `build.gradle`:
 
 ```properties
 hytools.repos.disableCurseMaven=true
