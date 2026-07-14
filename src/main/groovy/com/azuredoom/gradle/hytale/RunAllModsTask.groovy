@@ -60,6 +60,8 @@ abstract class RunAllModsTask extends JavaExec {
 			'--disable-sentry'
 		])
 
+		standardInput = System.in
+
 		super.exec()
 	}
 
