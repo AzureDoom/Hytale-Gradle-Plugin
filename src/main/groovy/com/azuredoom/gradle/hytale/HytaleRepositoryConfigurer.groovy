@@ -19,7 +19,8 @@ final class HytaleRepositoryConfigurer {
 	static void configure(Project project,
 			Provider<?> generatedSourcesMavenRepoDir,
 			Provider<?> generatedSourcesIvyRepoDir,
-			Provider<String> patchlineProvider) {
+			Provider<String> patchlineProvider,
+			HytaleExtension ext) {
 		project.repositories.mavenCentral()
 
 		project.repositories.maven { MavenArtifactRepository repo ->
@@ -42,17 +43,30 @@ final class HytaleRepositoryConfigurer {
 
 		addHytaleServerRepos(project, patchlineProvider)
 
-		addMavenRepo(project, 'Hytale-Mods.info Maven', 'https://maven.hytale-mods.dev/releases')
-		addMavenRepo(project, 'PlaceholderAPI', 'https://repo.helpch.at/releases/')
-		addMavenRepo(project, 'CurseMaven', 'https://cursemaven.com')
-		addMavenRepo(project, 'AzureDoom Maven', 'https://maven.azuredoom.com/mods')
-		addMavenRepo(project, 'Hytale Modding Maven', 'https://maven.hytalemodding.dev/releases')
+		if (!ext.disableHytaleModsInfoMaven.get()) {
+			addMavenRepo(project, 'Hytale-Mods.info Maven', 'https://maven.hytale-mods.dev/releases')
+		}
+		if (!ext.disablePlaceholderApiMaven.get()) {
+			addMavenRepo(project, 'PlaceholderAPI', 'https://repo.helpch.at/releases/')
+		}
+		if (!ext.disableCurseMaven.get()) {
+			addMavenRepo(project, 'CurseMaven', 'https://cursemaven.com')
+		}
+		if (!ext.disableAzureDoomMaven.get()) {
+			addMavenRepo(project, 'AzureDoom Maven', 'https://maven.azuredoom.com/mods')
+		}
+		if (!ext.disableHytaleModdingMaven.get()) {
+			addMavenRepo(project, 'Hytale Modding Maven', 'https://maven.hytalemodding.dev/releases')
+		}
 
-		setupModtaleResolver(project)
-		addModifoldRepo(project)
-
-		applyAliasSubstitutions(project, 'modtale')
-		applyAliasSubstitutions(project, 'modifold')
+		if (!ext.disableModtaleResolver.get()) {
+			setupModtaleResolver(project)
+			applyAliasSubstitutions(project, 'modtale')
+		}
+		if (!ext.disableModifoldRepo.get()) {
+			addModifoldRepo(project)
+			applyAliasSubstitutions(project, 'modifold')
+		}
 	}
 
 	private static void setupModtaleResolver(Project project) {

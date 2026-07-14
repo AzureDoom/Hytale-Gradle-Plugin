@@ -25,7 +25,8 @@ class HytalePlugin implements Plugin<Project> {
 				project,
 				generatedSourcesMavenRepoDir,
 				generatedSourcesIvyRepoDir,
-				ext.patchline
+				ext.patchline,
+				ext
 				)
 		HytaleConfigurationConfigurer.configure(project)
 

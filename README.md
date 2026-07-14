@@ -729,6 +729,13 @@ Because manifest generation and validation are wired into the build, most projec
 | `jbrHome`                         | `String`       |                                 empty | No       | Optional path to a JetBrains Runtime installation                                                                                                                                                                     |
 | `loadBefore`                      | `List<Map>`    |                                  `[]` | No       | Plugins this mod must be loaded before (see [Load Ordering](#load-ordering))                                                                                                                                          |
 | `subPlugins`                      | `List<Map>`    |                                  `[]` | No       | Sub-plugins bundled with this mod (see [SubPlugins](#subplugins))                                                                                                                                                     |
+| `disableHytaleModsInfoMaven`      | `Boolean`      |                               `false` | No       | Disables the `Hytale-Mods.info Maven` repository (see [Repositories](#repositories))                                                                                                                                  |
+| `disablePlaceholderApiMaven`      | `Boolean`      |                               `false` | No       | Disables the `PlaceholderAPI` repository (see [Repositories](#repositories))                                                                                                                                          |
+| `disableCurseMaven`               | `Boolean`      |                               `false` | No       | Disables the `CurseMaven` repository (see [Repositories](#repositories))                                                                                                                                              |
+| `disableAzureDoomMaven`           | `Boolean`      |                               `false` | No       | Disables the `AzureDoom Maven` repository (see [Repositories](#repositories))                                                                                                                                         |
+| `disableHytaleModdingMaven`       | `Boolean`      |                               `false` | No       | Disables the `Hytale Modding Maven` repository (see [Repositories](#repositories))                                                                                                                                    |
+| `disableModtaleResolver`          | `Boolean`      |                               `false` | No       | Disables the Modtale API-backed resolver and its `modtale` alias substitution (see [Repositories](#repositories))                                                                                                     |
+| `disableModifoldRepo`             | `Boolean`      |                               `false` | No       | Disables the Modifold repository and its `modifold` alias substitution (see [Repositories](#repositories))                                                                                                            |
 
 ### Author / Credits Formatting
 
@@ -1079,6 +1086,38 @@ You do not need to declare them manually.
 
 > **Note on patchlines:**
 > Both Hytale server repos are registered, but `com.hypixel.hytale` artifacts are only served by the repo matching the configured `patchline`. The other repo is restricted with `excludeGroup('com.hypixel.hytale')` so dynamic selectors like `0.+` never cross patchlines. Other artifacts that happen to live in either repo are unaffected.
+
+### Disabling a Repository
+
+If one of the optional mavens is temporarily unreachable and is blocking dependency resolution, you can disable it without waiting for a plugin update:
+
+```gradle
+hytaleTools {
+    disableCurseMaven = true
+}
+```
+
+Each optional repository has a matching toggle:
+
+| Repository               | Extension property           | Gradle property                            |
+|--------------------------|------------------------------|--------------------------------------------|
+| `Hytale-Mods.info Maven` | `disableHytaleModsInfoMaven` | `hytools.repos.disableHytaleModsInfoMaven` |
+| `PlaceholderAPI`         | `disablePlaceholderApiMaven` | `hytools.repos.disablePlaceholderApiMaven` |
+| `CurseMaven`             | `disableCurseMaven`          | `hytools.repos.disableCurseMaven`          |
+| `AzureDoom Maven`        | `disableAzureDoomMaven`      | `hytools.repos.disableAzureDoomMaven`      |
+| `Hytale Modding Maven`   | `disableHytaleModdingMaven`  | `hytools.repos.disableHytaleModdingMaven`  |
+| Modtale resolver         | `disableModtaleResolver`     | `hytools.repos.disableModtaleResolver`     |
+| Modifold                 | `disableModifoldRepo`        | `hytools.repos.disableModifoldRepo`        |
+
+Disabling `disableModtaleResolver` or `disableModifoldRepo` also disables that group's alias substitution (e.g. `modtale:Name_ProjectID:Version` resolution), since the substitution has nothing to resolve against once its repository is removed.
+
+The gradle property form is useful for a global override (e.g. in `gradle.properties` or CI) without editing every mod project's `build.gradle`:
+
+```properties
+hytools.repos.disableCurseMaven=true
+```
+
+`Maven Central`, `Hytale Server Release`, and `Hytale Server Pre-Release` are always added and cannot be disabled, since core plugin functionality depends on them.
 
 ## Configurations
 
@@ -1650,6 +1689,24 @@ Check both the Gradle configuration and the plugin manifest:
 6. Remove stale manual copies from `run/mods`; plugin-managed staged entries are cleaned automatically, but unrelated files are intentionally preserved.
 
 A compile dependency alone does not establish Hytale plugin load ordering. The Gradle dependency and the manifest dependency serve different purposes.
+
+### Build fails because a maven repository is unreachable
+
+If a build fails with a connection error or timeout pointing at one of the optional mavens (CurseMaven, AzureDoom Maven, PlaceholderAPI, Hytale Modding Maven, Hytale-Mods.info Maven), the Modtale resolver, or Modifold, that host is likely temporarily down. Disable it while it recovers:
+
+```gradle
+hytaleTools {
+    disableCurseMaven = true
+}
+```
+
+Or globally via `gradle.properties`, without touching individual mod build scripts:
+
+```properties
+hytools.repos.disableCurseMaven=true
+```
+
+See [Repositories](#repositories) for the full list of toggles. Note that disabling a repository does not remove any dependencies you've declared against it — if the build then fails to resolve, that dependency simply cannot resolve until the repository is re-enabled or the outage passes.
 
 ### Missing `hytaleVersion`
 

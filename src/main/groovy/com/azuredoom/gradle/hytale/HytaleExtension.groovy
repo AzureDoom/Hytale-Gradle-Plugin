@@ -35,6 +35,14 @@ abstract class HytaleExtension {
 
 	abstract Property<String> getSubPlugins()
 
+	abstract Property<Boolean> getDisableHytaleModsInfoMaven()
+	abstract Property<Boolean> getDisablePlaceholderApiMaven()
+	abstract Property<Boolean> getDisableCurseMaven()
+	abstract Property<Boolean> getDisableAzureDoomMaven()
+	abstract Property<Boolean> getDisableHytaleModdingMaven()
+	abstract Property<Boolean> getDisableModtaleResolver()
+	abstract Property<Boolean> getDisableModifoldRepo()
+
 	/**
 	 * Declares that this plugin must be loaded <em>before</em> another plugin.
 	 *
@@ -181,6 +189,62 @@ abstract class HytaleExtension {
 	}
 	void disabledByDefault(boolean v) {
 		getDisabledByDefault().set(v)
+	}
+
+	/**
+	 * Disables the 'Hytale-Mods.info Maven' repository. Useful if that maven host is
+	 * temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disableHytaleModsInfoMaven(boolean v) {
+		getDisableHytaleModsInfoMaven().set(v)
+	}
+
+	/**
+	 * Disables the 'PlaceholderAPI' repository. Useful if that maven host is
+	 * temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disablePlaceholderApiMaven(boolean v) {
+		getDisablePlaceholderApiMaven().set(v)
+	}
+
+	/**
+	 * Disables the 'CurseMaven' repository. Useful if that maven host is
+	 * temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disableCurseMaven(boolean v) {
+		getDisableCurseMaven().set(v)
+	}
+
+	/**
+	 * Disables the 'AzureDoom Maven' repository. Useful if that maven host is
+	 * temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disableAzureDoomMaven(boolean v) {
+		getDisableAzureDoomMaven().set(v)
+	}
+
+	/**
+	 * Disables the 'Hytale Modding Maven' repository. Useful if that maven host is
+	 * temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disableHytaleModdingMaven(boolean v) {
+		getDisableHytaleModdingMaven().set(v)
+	}
+
+	/**
+	 * Disables the Modtale API-backed resolver repository. Useful if the Modtale
+	 * API is temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disableModtaleResolver(boolean v) {
+		getDisableModtaleResolver().set(v)
+	}
+
+	/**
+	 * Disables the Modifold repository. Useful if the Modifold API is
+	 * temporarily unreachable and is blocking dependency resolution.
+	 */
+	void disableModifoldRepo(boolean v) {
+		getDisableModifoldRepo().set(v)
 	}
 	void includesPack(boolean v) {
 		getIncludesPack().set(v)

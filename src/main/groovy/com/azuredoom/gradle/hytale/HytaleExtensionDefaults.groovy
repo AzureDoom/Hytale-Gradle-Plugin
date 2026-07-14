@@ -30,6 +30,28 @@ final class HytaleExtensionDefaults {
 		ext.manifestOptionalDependencies.convention(project.providers.gradleProperty('manifest_opt_dependencies').orElse(''))
 		ext.curseforgeId.convention(project.providers.gradleProperty('curseforgeID').orElse(''))
 		ext.disabledByDefault.convention(project.providers.gradleProperty('disabled_by_default').map { it.toBoolean() }.orElse(false))
+
+		ext.disableHytaleModsInfoMaven.convention(
+				project.providers.gradleProperty('hytools.repos.disableHytaleModsInfoMaven').map { it.toBoolean() }.orElse(false)
+				)
+		ext.disablePlaceholderApiMaven.convention(
+				project.providers.gradleProperty('hytools.repos.disablePlaceholderApiMaven').map { it.toBoolean() }.orElse(false)
+				)
+		ext.disableCurseMaven.convention(
+				project.providers.gradleProperty('hytools.repos.disableCurseMaven').map { it.toBoolean() }.orElse(false)
+				)
+		ext.disableAzureDoomMaven.convention(
+				project.providers.gradleProperty('hytools.repos.disableAzureDoomMaven').map { it.toBoolean() }.orElse(false)
+				)
+		ext.disableHytaleModdingMaven.convention(
+				project.providers.gradleProperty('hytools.repos.disableHytaleModdingMaven').map { it.toBoolean() }.orElse(false)
+				)
+		ext.disableModtaleResolver.convention(
+				project.providers.gradleProperty('hytools.repos.disableModtaleResolver').map { it.toBoolean() }.orElse(false)
+				)
+		ext.disableModifoldRepo.convention(
+				project.providers.gradleProperty('hytools.repos.disableModifoldRepo').map { it.toBoolean() }.orElse(false)
+				)
 		ext.includesPack.convention(project.providers.gradleProperty('includes_pack').map { it.toBoolean() }.orElse(false))
 		ext.manifestFile.convention(project.layout.projectDirectory.file('src/main/resources/manifest.json'))
 		ext.runDirectory.convention(project.layout.projectDirectory.dir('run'))
