@@ -375,6 +375,8 @@ The plugin separates compile-time visibility, runtime class loading, plugin disc
 vineServerJar ────────────────> compileOnly / compileClasspath
 vineCompileOnly ──────────────> compileOnly / compileClasspath
 vineImplementation ───────────> implementation / runtimeClasspath
+requiredDependency ───────────> implementation / runtimeClasspath
+optionalDependency ───────────> compileOnly / compileClasspath
 vineDecompileTargets ─────────> IDE decompilation targets
 
 vineMod ──────────────────────> run/mods as a complete plugin jar
@@ -393,6 +395,8 @@ At a high level:
 - `vineServerJar` provides the Hytale server API and server runtime.
 - `vineCompileOnly` is for dependencies needed to compile but not needed for the local runtime.
 - `vineImplementation` is for dependencies needed at compile time and during local server runs.
+- `requiredDependency` is a convenience alias for a required dependency: it is available through `implementation`, participates in dependency decompilation/source attachment, and should correspond to an entry in `manifestDependencies`.
+- `optionalDependency` is a convenience alias for an optional integration: it is available through `compileOnly`, participates in dependency decompilation/source attachment, and should correspond to an entry in `manifestOptionalDependencies`.
 - A `vineImplementation` jar containing a root-level `manifest.json` is treated as a Hytale plugin: the complete jar is copied into `run/mods`, and its contents are also expanded into an isolated runtime-classpath directory so its classes are visible to the shared JVM classloader.
 - A `vineImplementation` jar without `manifest.json` is treated as a normal library and is expanded onto the shared runtime classpath without being placed in `run/mods`.
 - `vineMod` is for a runtime plugin that should be copied into `run/mods` as a jar but should not be added to the shared application classpath.
@@ -656,7 +660,7 @@ The plugin can automatically detect JetBrains Runtime installations from common 
 
 ## `prepareDecompiledSourcesForIde`
 
-Decompiles the server jar and all dependencies declared in `vineImplementation`, `vineCompileOnly`, or `vineDecompileTargets` into `build/generated-sources-m2` and `build/generated-sources-ivy`.
+Decompiles the server jar and all dependencies declared in `vineImplementation`, `vineCompileOnly`, `requiredDependency`, `optionalDependency`, or `vineDecompileTargets` into `build/generated-sources-m2` and `build/generated-sources-ivy`.
 
 This is useful for IDE source attachment. For the Hytale server jar, the plugin also injects hosted Hytale Server API Javadocs into the generated Vineflower sources by default, so documentation can appear directly in IDE source views instead of only through external Javadoc lookup.
 
@@ -1087,11 +1091,15 @@ The plugin creates Hytale-facing dependency configurations together with interna
 | `vineServerJar`        | Hytale server binary; auto-injected unless you declare one explicitly                                                                 |
 | `vineImplementation`   | Compile/runtime dependency. Plugins are staged into `run/mods` and the shared classpath; ordinary libraries are shared-classpath only |
 | `vineCompileOnly`      | Compile-time dependency that is not staged for local runtime                                                                          |
+| `requiredDependency`   | Alias for a required compile/runtime dependency; extends `implementation` and participates in decompilation                           |
+| `optionalDependency`   | Alias for an optional compile-time integration; extends `compileOnly` and participates in decompilation                               |
 | `vineMod`              | Runtime Hytale plugin copied into `run/mods` as a complete jar, without adding it to the shared classpath                             |
 | `vineDecompileTargets` | Extra dependencies to decompile for IDE source attachment                                                                             |
 | `hytaleBundledRuntime` | Runtime dependency automatically added and optionally bundled into the final mod jar                                                  |
 
 Internal configurations such as `vineImplementationJars`, `vineModJars`, `vineDependencyJars`, `vineDecompileClasspath`, and `vineflowerTool` support resolution, staging, and decompilation. Projects normally declare dependencies using the public configurations above.
+
+`requiredDependency` and `optionalDependency` are dependency-bucket aliases. They do not automatically edit `manifest.json`; you must still declare the matching plugin identifiers in `manifestDependencies` or `manifestOptionalDependencies`.
 
 `compileOnly` automatically includes:
 
@@ -1099,7 +1107,11 @@ Internal configurations such as `vineImplementationJars`, `vineModJars`, `vineDe
 - `vineServerJar`
 - `hytaleAssets` for IDE asset browsing
 
-`implementation` includes `vineImplementation`, allowing those dependencies to compile and run without placing the original jars directly on the launch classpath.
+`implementation` includes `vineImplementation`, `requiredDependency`, and `hytaleBundledRuntime`.
+
+`compileOnly` includes `vineCompileOnly`, `optionalDependency`, `vineServerJar`, and `hytaleAssets`.
+
+Both aliases also feed the decompilation/source-attachment configurations.
 
 This lets you write mods against the Hytale server API without manually declaring the server dependency.
 
@@ -1143,6 +1155,14 @@ dependencies {
     // Its classes are not added to the shared launch classpath.
     vineMod 'com.example:some-isolated-plugin:1.0.0'
 
+    // Required dependency alias: available to compile and run locally.
+    // Also add its plugin identifier to manifestDependencies.
+    requiredDependency 'com.example:required-plugin:1.0.0'
+
+    // Optional dependency alias: compile-time only for optional integrations.
+    // Also add its plugin identifier to manifestOptionalDependencies.
+    optionalDependency 'com.example:optional-plugin:1.0.0'
+
     // Compile-time only: visible to your code, but not staged for a local run.
     vineCompileOnly 'curse.maven:hexcodes-1448311:8166165'
 
@@ -1158,6 +1178,39 @@ dependencies {
 }
 ```
 
+### Required and optional dependency aliases
+
+The plugin provides two convenience configurations for expressing dependency intent in Gradle:
+
+```gradle
+dependencies {
+    requiredDependency 'com.example:economy-api:1.2.0'
+    optionalDependency 'com.example:placeholder-api:2.0.0'
+}
+
+hytaleTools {
+    manifestDependencies = 'Example:Economy=*'
+    manifestOptionalDependencies = 'Example:PlaceholderAPI=*'
+}
+```
+
+`requiredDependency`:
+
+- extends `implementation`
+- is available while compiling and running the project
+- participates in dependency decompilation and IDE source attachment
+- represents a dependency your plugin cannot operate without
+
+`optionalDependency`:
+
+- extends `compileOnly`
+- is available while compiling optional integration code
+- is not automatically placed on the runtime classpath by this alias
+- participates in dependency decompilation and IDE source attachment
+- represents an integration your plugin can operate without
+
+These aliases describe Gradle classpath behavior only. They do not infer Hytale manifest identifiers from Maven coordinates and do not automatically write `Dependencies` or `OptionalDependencies` into `manifest.json`.
+
 ### Choosing between `vineImplementation` and `vineMod`
 
 Use `vineImplementation` when your own code directly references classes from the dependency or when the dependency is a normal library. During development, the plugin determines the jar type by checking for a root-level `manifest.json`:
@@ -1170,7 +1223,7 @@ Use `vineMod` when the dependency only needs to be discovered and loaded by Hyta
 
 Do not declare the same plugin through both configurations. The workspace staging task also rejects different dependencies that resolve to the same filename, because only one file can occupy that path in `run/mods`.
 
-`vineCompileOnly` is usually preferred over plain `compileOnly` for Hytale mod/plugin dependencies because it participates in the plugin's decompilation and source-attachment pipeline.
+`vineCompileOnly`, `requiredDependency`, and `optionalDependency` are usually preferred over plain Gradle dependency buckets for Hytale plugin integrations because they participate in the plugin's decompilation and source-attachment pipeline.
 
 ## Runtime Dependency Loading
 
@@ -1194,7 +1247,7 @@ These directories are recreated during staging. Do not store manual files in the
 
 ## Manifest dependency fields
 
-Use `manifestDependencies` when your mod requires another plugin or module to be present at runtime.
+Use `manifestDependencies` when your mod requires another plugin or module to be present at runtime. The `requiredDependency` Gradle alias is the matching classpath-oriented convenience configuration, but it does not update this manifest field automatically.
 
 ```gradle
 hytaleTools {
@@ -1203,7 +1256,7 @@ hytaleTools {
 ```
 
 Use `manifestOptionalDependencies` when your mod can integrate with another plugin if it is present,
-but does not require that plugin in order to load.
+but does not require that plugin in order to load. The `optionalDependency` Gradle alias provides compile-time visibility for that integration, but it does not update this manifest field automatically.
 
 ```gradle
 hytaleTools {
@@ -1559,13 +1612,31 @@ hytaleDoctor prints a summary of:
   (local override path when `hytaleHomeOverride` is set, otherwise the Gradle cache path
 - auth token cache path
 - resolved `vineServerJar` files
-- declared `vineImplementation`, `vineCompileOnly`, and `vineDecompileTargets` dependencies
+- declared `vineImplementation`, `vineCompileOnly`, `requiredDependency`, `optionalDependency`, and `vineDecompileTargets` dependencies
 
 Use it when:
 - runServer fails
 - assets are missing
 - manifest values look wrong
 - expected dependency sources are not showing up
+
+### A required or optional alias does not update the manifest
+
+`requiredDependency` and `optionalDependency` configure Gradle classpaths only. They cannot derive the Hytale manifest group, plugin name, or accepted version range from arbitrary Maven coordinates.
+
+Declare both sides explicitly:
+
+```gradle
+dependencies {
+    requiredDependency 'com.example:economy-plugin:1.2.0'
+    optionalDependency 'com.example:placeholder-plugin:2.0.0'
+}
+
+hytaleTools {
+    manifestDependencies = 'Example:Economy=*'
+    manifestOptionalDependencies = 'Example:Placeholder=*'
+}
+```
 
 ### A dependency plugin cannot be found or its API is not loaded
 

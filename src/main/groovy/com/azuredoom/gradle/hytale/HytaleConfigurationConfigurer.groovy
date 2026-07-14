@@ -54,10 +54,18 @@ final class HytaleConfigurationConfigurer {
 		hytaleAssets.canBeConsumed = false
 		hytaleAssets.canBeResolved = false
 
-		implementation.extendsFrom(vineImplementation, hytaleBundledRuntime)
-		compileOnly.extendsFrom(vineCompileOnly, vineServerJar, hytaleAssets)
-		vineDependencyJars.extendsFrom(vineDecompileTargets, vineCompileOnly, vineImplementation)
-		vineDecompileClasspath.extendsFrom(vineCompileOnly, vineImplementation, vineServerJar)
+		def requiredDependency = project.configurations.maybeCreate('requiredDependency')
+		requiredDependency.canBeConsumed = false
+		requiredDependency.canBeResolved = false
+
+		def optionalDependency = project.configurations.maybeCreate('optionalDependency')
+		optionalDependency.canBeConsumed = false
+		optionalDependency.canBeResolved = false
+
+		implementation.extendsFrom(vineImplementation, hytaleBundledRuntime, requiredDependency)
+		compileOnly.extendsFrom(vineCompileOnly, vineServerJar, hytaleAssets, optionalDependency)
+		vineDependencyJars.extendsFrom(vineDecompileTargets, vineCompileOnly, vineImplementation, requiredDependency, optionalDependency)
+		vineDecompileClasspath.extendsFrom(vineCompileOnly, vineImplementation, vineServerJar, requiredDependency, optionalDependency)
 		vineModJars.extendsFrom(vineMod)
 		vineImplementationJars.extendsFrom(vineImplementation)
 	}
