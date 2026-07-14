@@ -97,9 +97,9 @@ hytaleTools {
 }
 ```
 
-Or via gradle.properties:
+Or from the command line:
 
-```txt
+```bash
 ./gradlew runServer -Ddebug=true -Dhotswap=true
 ```
 
@@ -227,11 +227,15 @@ to any build.gradle that is calling the kotlin plugin.
 
 ## How It Works
 
-- The **workspace plugin** (`hytale-workspace`) only applies to the root project
-- Each **mod project** applies `hytale-tools` independently
-- Non-mod projects (e.g. `common`) remain standard Gradle modules
-- Workspace tasks operate only on projects listed in `modProjects`
-- The workspace plugin does **not** automatically apply the mod plugin
+- The **workspace plugin** (`hytale-workspace`) only applies to the root project.
+- Each **mod project** applies `hytale-tools` independently.
+- Non-mod projects (for example, `common`) remain standard Gradle modules.
+- Workspace tasks operate only on projects listed in `modProjects`. When `modProjects` is omitted, the workspace discovers subprojects that apply `com.azuredoom.hytale-tools`.
+- The workspace plugin does **not** automatically apply the mod plugin.
+- `stageAllModAssets` depends on each mod project's `classes` and `validateManifest` tasks.
+- Each workspace mod is staged as a directory under `run/mods/<manifest_group>_<mod_id>/`. Its resources and compiled class outputs are linked into that directory, with a file-copy fallback when links are unavailable.
+- `runAllMods` launches one server using those staged plugin directories plus a shared runtime classpath for `vineImplementation` dependencies.
+- Workspace plugin identifiers must be unique by `manifestGroup:modId`.
 
 ---
 
@@ -301,14 +305,15 @@ project(':modA') {
 
 ---
 
-## Notes
+## Workspace Runtime Notes
 
-- All mod projects must resolve to the same `hytaleVersion` and `patchline`
-  (after applying workspace defaults and/or local overrides)
-- `runAllMods` fails early if versions mismatch
-- Asset packs are staged into `run/mods/`
-- Symlinks are used when possible, with copy fallback
-- `common` should not apply the plugin unless it is a real mod
+- All workspace mod projects must use the same configured `hytaleVersion` and `patchline` after workspace defaults and local overrides are applied.
+- `runAllMods` fails early when versions or patchlines differ, a workspace plugin identifier is duplicated, a resource directory is missing, or no compiled class output exists.
+- Workspace mods are staged into `run/mods/` as development directories containing linked resources and compiled classes; they are not built and copied as project jars for the development run.
+- Symbolic links are preferred for individual files. On Windows, the plugin also attempts hard links before falling back to copying.
+- A copy fallback disables live updates for the copied file until the staging task runs again.
+- `common` should not apply the plugin unless it is itself a loadable Hytale plugin.
+- Stale entries created by previous staging runs are tracked with internal index files and removed automatically.
 
 ---
 
@@ -364,22 +369,35 @@ The Dev Container is optional and mainly useful for contributors who want a repr
 
 ## Dependency Flow
 
-The following diagram shows how plugin configurations feed into compilation and decompilation:
-```
-vineServerJar ─┐
-               ├──> compileOnly ───> compileClasspath
-vineCompileOnly┘
+The plugin separates compile-time visibility, runtime class loading, plugin discovery, and IDE source generation:
 
-vineImplementation ─────┐
-vineCompileOnly   ──────┼──> vineDependencyJars ───> decompilation
-vineDecompileTargets ───┘
+```text
+vineServerJar ────────────────> compileOnly / compileClasspath
+vineCompileOnly ──────────────> compileOnly / compileClasspath
+vineImplementation ───────────> implementation / runtimeClasspath
+vineDecompileTargets ─────────> IDE decompilation targets
+
+vineMod ──────────────────────> run/mods as a complete plugin jar
+
+vineImplementation plugin jar
+  (contains manifest.json) ───> run/mods as a complete plugin jar
+                            └─> exploded shared runtime classpath
+                                (manifest.json omitted)
+
+vineImplementation library jar
+  (no manifest.json) ─────────> exploded shared runtime classpath only
 ```
 
 At a high level:
-- `vineServerJar` provides the Hytale server API
-- `vineCompileOnly` and `vineImplementation` define your dependencies
-- `vineDecompileTargets` controls which dependencies get source attachment
-- Hytale `Assets.zip` (for IDE asset browsing)
+
+- `vineServerJar` provides the Hytale server API and server runtime.
+- `vineCompileOnly` is for dependencies needed to compile but not needed for the local runtime.
+- `vineImplementation` is for dependencies needed at compile time and during local server runs.
+- A `vineImplementation` jar containing a root-level `manifest.json` is treated as a Hytale plugin: the complete jar is copied into `run/mods`, and its contents are also expanded into an isolated runtime-classpath directory so its classes are visible to the shared JVM classloader.
+- A `vineImplementation` jar without `manifest.json` is treated as a normal library and is expanded onto the shared runtime classpath without being placed in `run/mods`.
+- `vineMod` is for a runtime plugin that should be copied into `run/mods` as a jar but should not be added to the shared application classpath.
+- `vineDecompileTargets` controls additional dependencies that receive generated source attachment.
+- Hytale `Assets.zip` can be exposed separately for IDE asset browsing.
 
 ### Assets in IDEs
 
@@ -536,9 +554,15 @@ Hytale installation as a fallback and caches the found `Assets.zip`.
 ### `runServer`
 
 Launches a local Hytale server using:
-- your project output
-- your runtime classpath
+
+- the current project's compiled class directories and resource source directories directly
+- the project's runtime classpath, excluding the current project output and raw `vineImplementation` jars
+- staged/exploded `vineImplementation` runtime-classpath directories
+- complete `vineMod` jars in `run/mods`
+- complete `vineImplementation` plugin jars in `run/mods`
 - the resolved Hytale server jar
+
+Before launch, `prepareRunServer` validates the manifest, stages dependencies, and links the configured asset-pack source directory into the run directory.
 
 ### Customizing `runServer`
 
@@ -654,7 +678,7 @@ What happens during normal development:
 
 1. `updatePluginManifest` writes manifest values from Gradle configuration, if missing `createManifestIfMissing` creates a default.
 2. `validateManifest` runs before `processResources`, ensuring the manifest is generated and checked as part of the build.
-3. `runServer` prepares the run directory, downloads assets if needed, and launches the server.
+3. `runServer` prepares the run directory, downloads assets if needed, stages plugin dependencies, expands runtime libraries/classes, links the current project's resources, and launches the server.
 
 Because manifest generation and validation are wired into the build, most projects do not need to invoke those tasks manually.
 
@@ -677,7 +701,7 @@ Because manifest generation and validation are wired into the build, most projec
 | `modDescription`                  | `String`       |                                 empty | No       | Manifest description                                                                                                                                                                                                  |
 | `modUrl`                          | `String`       |                                 empty | No       | Manifest project URL                                                                                                                                                                                                  |
 | `mainClass`                       | `String`       |                                 empty | Yes      | Plugin entrypoint                                                                                                                                                                                                     |
-| `modCredits`                      | `String`       |                          'replace_me' | No       | Manifest authors/credits. Use `Name`, `Name                                                                                                                                                                           |Email`, or `Name|Email|Url`; separate multiple authors with commas. Email and Url are optional.                                      |
+| `modCredits`                      | `String`       |                        `'replace_me'` | No       | Manifest authors/credits. Entries use `Name`, `Name\|Email`, or `Name\|Email\|Url`; separate authors with commas.                                                                                                     |
 | `manifestDependencies`            | `String`       |                `Hytale:AssetModule=*` | No       | Required manifest deps                                                                                                                                                                                                |
 | `manifestOptionalDependencies`    | `String`       |                                 empty | No       | Optional manifest deps                                                                                                                                                                                                |
 | `curseforgeId`                    | `String`       |                                 empty | No       | CurseForge project id                                                                                                                                                                                                 |
@@ -911,27 +935,27 @@ If no sub-plugins are declared, the `SubPlugins` key is omitted from the manifes
 
 ## Task Reference
 
-| Task                                        | Group    | Purpose                                                         | Typical Use                        |
-|---------------------------------------------|----------|-----------------------------------------------------------------|------------------------------------|
-| `createManifestIfMissing`                   | `hytale` | Creates a starter manifest if missing                           | First setup                        |
-| `updatePluginManifest`                      | `hytale` | Rewrites manifest from Gradle config                            | Normal dev/build                   |
-| `updateAllPluginManifests`                  | `hytale` | Rewrites manifests for all Hytale subprojects                   | Multi-project manifest sync        |
-| `downloadAssetsZip`                         | `hytale` | Authenticates and fetches assets                                | Before first run / troubleshooting |
-| `hytaleDoctor`                              | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics      | Troubleshooting                    |
-| `runServer`                                 | `hytale` | Launches local Hytale server                                    | Single-project dev loop            |
-| `runAllMods`                                | `hytale` | Launches one shared server with all mod subprojects             | Multi-project dev loop             |
-| `stageAllModAssets`                         | `hytale` | Stages each mod's asset pack into the root `run/mods` directory | Multi-project run preparation      |
-| `prepareDecompiledSourcesForIde`            | `hytale` | Generates source jars for IDE attachment                        | IDE setup                          |
-| `validateManifest`                          | internal | Verifies generated manifest values                              | Runs automatically                 |
-| `validateAllManifests`                      | `hytale` | Verifies manifests for all Hytale subprojects                   | Multi-project validation           |
-| `prepareRunServer`                          | internal | Sets up run directory and mod assets                            | Runs automatically                 |
-| `decompileServerJar`                        | internal | Decompiles Hytale server sources                                | Internal source pipeline           |
-| `injectServerJavadocsIntoDecompiledSources` | internal | Injects hosted Hytale API docs into decompiled server sources   | Internal source pipeline           |
-| `setupHytaleDev`                            | `hytale` | Prepares IDE sources and downloads assets                       | First-time setup                   |
-| `cleanHytaleGenerated`                      | `hytale` | Removes project-local Hytale generated outputs                  | Regenerate IDE/source artifacts    |
-| `cleanHytaleAssetsCache`                    | `hytale` | Removes cached Hytale assets / generated assets cache           | Refresh stale assets               |
-| `cleanHytaleGlobalCache`                    | `hytale` | Removes global Hytale decompile and Javadoc caches              | Force full global regeneration     |
-| `hytaleJvmDoctor`                           | `hytale` | Prints JVM debug / hot swap diagnostics                         | Debugging hot swap setup           |
+| Task                                        | Group    | Purpose                                                              | Typical Use                        |
+|---------------------------------------------|----------|----------------------------------------------------------------------|------------------------------------|
+| `createManifestIfMissing`                   | `hytale` | Creates a starter manifest if missing                                | First setup                        |
+| `updatePluginManifest`                      | `hytale` | Rewrites manifest from Gradle config                                 | Normal dev/build                   |
+| `updateAllPluginManifests`                  | `hytale` | Rewrites manifests for all Hytale subprojects                        | Multi-project manifest sync        |
+| `downloadAssetsZip`                         | `hytale` | Authenticates and fetches assets                                     | Before first run / troubleshooting |
+| `hytaleDoctor`                              | `hytale` | Prints plugin, manifest, asset, and dependency diagnostics           | Troubleshooting                    |
+| `runServer`                                 | `hytale` | Launches local Hytale server                                         | Single-project dev loop            |
+| `runAllMods`                                | `hytale` | Launches one shared server with all mod subprojects                  | Multi-project dev loop             |
+| `stageAllModAssets`                         | `hytale` | Stages workspace resources/classes and external runtime dependencies | Multi-project run preparation      |
+| `prepareDecompiledSourcesForIde`            | `hytale` | Generates source jars for IDE attachment                             | IDE setup                          |
+| `validateManifest`                          | internal | Verifies generated manifest values                                   | Runs automatically                 |
+| `validateAllManifests`                      | `hytale` | Verifies manifests for all Hytale subprojects                        | Multi-project validation           |
+| `prepareRunServer`                          | internal | Stages dependencies and links the project into the run directory     | Runs automatically                 |
+| `decompileServerJar`                        | internal | Decompiles Hytale server sources                                     | Internal source pipeline           |
+| `injectServerJavadocsIntoDecompiledSources` | internal | Injects hosted Hytale API docs into decompiled server sources        | Internal source pipeline           |
+| `setupHytaleDev`                            | `hytale` | Prepares IDE sources and downloads assets                            | First-time setup                   |
+| `cleanHytaleGenerated`                      | `hytale` | Removes project-local Hytale generated outputs                       | Regenerate IDE/source artifacts    |
+| `cleanHytaleAssetsCache`                    | `hytale` | Removes cached Hytale assets / generated assets cache                | Refresh stale assets               |
+| `cleanHytaleGlobalCache`                    | `hytale` | Removes global Hytale decompile and Javadoc caches                   | Force full global regeneration     |
+| `hytaleJvmDoctor`                           | `hytale` | Prints JVM debug / hot swap diagnostics                              | Debugging hot swap setup           |
 
 ## IDE Source Attachment
 
@@ -1044,7 +1068,7 @@ The plugin automatically adds these repositories:
 - PlaceholderAPI
 - CurseMaven
 - AzureDoom Maven
-- Modtale (exclusive Ivy content for group `modtale`)
+- Modtale local Maven cache/resolver (exclusive content for group `modtale`, populated through the Modtale API)
 - Modifold (exclusive Ivy content for group `modifold`)
 
 You do not need to declare them manually.
@@ -1054,28 +1078,28 @@ You do not need to declare them manually.
 
 ## Configurations
 
-The plugin automatically creates:
-
-- `vineDecompileTargets`
-- `vineDecompileClasspath`
-- `vineServerJar`
-- `vineDependencyJars`
-- `vineflowerTool`
+The plugin creates Hytale-facing dependency configurations together with internal resolvable configurations used for staging and source generation.
 
 ### Configuration Overview
 
-| Configuration        | Purpose                                                       |
-|----------------------|---------------------------------------------------------------|
-| vineServerJar        | Hytale server binary (auto-injected)                          |
-| vineImplementation   | Runtime dependencies                                          |
-| vineCompileOnly      | Compile-time only dependencies                                |
-| vineDecompileTargets | Extra dependencies to decompile for IDE sources               |
-| hytaleBundledRuntime | Runtime dependency automatically added and optionally bundled |
+| Configuration          | Purpose                                                                                                                               |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| `vineServerJar`        | Hytale server binary; auto-injected unless you declare one explicitly                                                                 |
+| `vineImplementation`   | Compile/runtime dependency. Plugins are staged into `run/mods` and the shared classpath; ordinary libraries are shared-classpath only |
+| `vineCompileOnly`      | Compile-time dependency that is not staged for local runtime                                                                          |
+| `vineMod`              | Runtime Hytale plugin copied into `run/mods` as a complete jar, without adding it to the shared classpath                             |
+| `vineDecompileTargets` | Extra dependencies to decompile for IDE source attachment                                                                             |
+| `hytaleBundledRuntime` | Runtime dependency automatically added and optionally bundled into the final mod jar                                                  |
+
+Internal configurations such as `vineImplementationJars`, `vineModJars`, `vineDependencyJars`, `vineDecompileClasspath`, and `vineflowerTool` support resolution, staging, and decompilation. Projects normally declare dependencies using the public configurations above.
 
 `compileOnly` automatically includes:
+
 - `vineCompileOnly`
 - `vineServerJar`
-- `hytaleAssets` (Assets.zip for IDE browsing)
+- `hytaleAssets` for IDE asset browsing
+
+`implementation` includes `vineImplementation`, allowing those dependencies to compile and run without placing the original jars directly on the launch classpath.
 
 This lets you write mods against the Hytale server API without manually declaring the server dependency.
 
@@ -1106,35 +1130,67 @@ plugins {
 
 ## Dependencies
 
-Use the Hytale-specific dependency configurations when possible when pulling other mods/plugins:
+Use the Hytale-specific configurations for plugin and library dependencies:
 
 ```gradle
 dependencies {
-    // Runtime dependency: available when running the server locally
-    vineImplementation 'com.example:some-runtime-mod:1.0.0'
+    // Required by your code and by the local development server.
+    // If the jar contains manifest.json, it is treated as a Hytale plugin.
+    // Otherwise, it is treated as a normal runtime library.
+    vineImplementation 'com.example:some-runtime-plugin-or-library:1.0.0'
 
-    // Compile-time only dependency: available to your code, but not bundled
+    // Runtime plugin only: copied to run/mods as a complete jar.
+    // Its classes are not added to the shared launch classpath.
+    vineMod 'com.example:some-isolated-plugin:1.0.0'
+
+    // Compile-time only: visible to your code, but not staged for a local run.
     vineCompileOnly 'curse.maven:hexcodes-1448311:8166165'
 
-    // Optional IDE source attachment target
+    // Optional IDE source-attachment target.
     vineDecompileTargets 'curse.maven:hexcodes-1448311:8166165'
 
-    // Example of Modtale dependency.
-    // Alias can be anything but `_`, usually good to name the mod being used here. Ex: `LevelingCore`
-    // ProjectID found on right side of project
-    // Version can be found from Changelog button
-    vineImplementation 'modtale:Alias_ProjectID:Version'
-    
-    // Example of Modifold dependency. 
-    // Alias can be anything but `_`, usually good to name the mod being used here. Ex: `LevelingCore`
-    // Can be found from link like so: https://modifold.com/mod/projectSlug/version/versionID
-    vineImplementation 'modifold:Alias_projectSlug:versionID'
+    // Modtale: the text before `_` is an optional readable alias.
+    // The resolver strips the alias and downloads ProjectID:Version through the Modtale API.
+    vineImplementation 'modtale:LevelingCore_ProjectID:Version'
+
+    // Modifold: the text before `_` is an optional readable alias.
+    vineImplementation 'modifold:LevelingCore_projectSlug:versionID'
 }
 ```
 
-`vineCompileOnly `is usually preferred over plain `compileOnly` for mod/plugin dependencies,
-because dependencies declared in `vineCompileOnly`, `vineImplementation`, and
-`vineDecompileTargets` can participate in the plugin’s decompilation/source attachment flow.
+### Choosing between `vineImplementation` and `vineMod`
+
+Use `vineImplementation` when your own code directly references classes from the dependency or when the dependency is a normal library. During development, the plugin determines the jar type by checking for a root-level `manifest.json`:
+
+- **Plugin jar:** copied intact to `run/mods` for Hytale plugin discovery and expanded into its own shared-runtime directory, excluding the plugin manifest from that expanded copy.
+- **Library jar:** expanded into its own shared-runtime directory only.
+- Signature files under `META-INF` (`.SF`, `.RSA`, and `.DSA`) are omitted from expanded copies.
+
+Use `vineMod` when the dependency only needs to be discovered and loaded by Hytale as a plugin and your project does not need its classes on the shared JVM classpath.
+
+Do not declare the same plugin through both configurations. The workspace staging task also rejects different dependencies that resolve to the same filename, because only one file can occupy that path in `run/mods`.
+
+`vineCompileOnly` is usually preferred over plain `compileOnly` for Hytale mod/plugin dependencies because it participates in the plugin's decompilation and source-attachment pipeline.
+
+## Runtime Dependency Loading
+
+The local run tasks intentionally avoid placing the original `vineImplementation` jars directly on the Java launch classpath. Instead, each dependency is expanded into a separate directory under the generated Vine runtime-classpath area, and those directories are added to the server classpath.
+
+This prevents a plugin dependency from being represented only as an ordinary JVM jar while still preserving the complete plugin jar in `run/mods` for manifest discovery. It also prevents the expanded runtime copy's `manifest.json` from being mistaken for another plugin.
+
+For a single-project run, generated runtime entries are placed under:
+
+```text
+build/hytale-vine-runtime/classpath/
+```
+
+For a workspace run, they are placed under:
+
+```text
+build/hytale-vine-runtime/workspace-classpath/
+```
+
+These directories are recreated during staging. Do not store manual files in them.
 
 ## Manifest dependency fields
 
@@ -1510,6 +1566,19 @@ Use it when:
 - assets are missing
 - manifest values look wrong
 - expected dependency sources are not showing up
+
+### A dependency plugin cannot be found or its API is not loaded
+
+Check both the Gradle configuration and the plugin manifest:
+
+1. Use `vineImplementation` when your code references the dependency's classes and the dependency must run locally.
+2. Use `vineMod` only when the plugin should be installed into `run/mods` without shared-classpath access.
+3. Ensure the dependency jar contains `manifest.json` at the root. Without it, `vineImplementation` treats the jar as a normal library and does not copy it into `run/mods`.
+4. Declare the runtime dependency in your own `manifestDependencies` when Hytale must load it before your plugin.
+5. Run `./gradlew prepareRunServer --info` or `./gradlew stageAllModAssets --info` and look for whether the dependency was logged as a plugin or a library.
+6. Remove stale manual copies from `run/mods`; plugin-managed staged entries are cleaned automatically, but unrelated files are intentionally preserved.
+
+A compile dependency alone does not establish Hytale plugin load ordering. The Gradle dependency and the manifest dependency serve different purposes.
 
 ### Missing `hytaleVersion`
 
