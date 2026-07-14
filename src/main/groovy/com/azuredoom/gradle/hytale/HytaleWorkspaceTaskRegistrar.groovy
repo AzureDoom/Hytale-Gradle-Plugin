@@ -151,19 +151,27 @@ final class HytaleWorkspaceTaskRegistrar {
 
 				projectPaths.each { path ->
 					def subproject = project.project(path)
-					def sourceSets = subproject.extensions.getByType(SourceSetContainer)
+					def sourceSets =
+							subproject.extensions.getByType(SourceSetContainer)
 					def main = sourceSets.named('main').get()
 
-					def implementationJars = subproject.configurations
-							.named('vineImplementationJars')
-							.get()
+					def vineImplementationJars =
+							subproject.configurations.named(
+							'vineImplementationJars'
+							).get()
 
-					def runtimeWithoutProjectOutputOrVineImplementation =
+					def runtimeWithoutMainOutput =
 							main.runtimeClasspath -
 							main.output -
-							implementationJars
+							vineImplementationJars
 
-					t.classpath(runtimeWithoutProjectOutputOrVineImplementation)
+					t.classpath(
+							subproject.files(
+							main.output.classesDirs,
+							main.resources.srcDirs,
+							runtimeWithoutMainOutput
+							)
+							)
 				}
 
 				t.classpath(project.provider {
