@@ -55,63 +55,82 @@ final class HytaleWorkspaceTaskRegistrar {
 
 			def workspaceRuntimeClasspathDirectory =
 					project.layout.buildDirectory.dir(
-							'hytale-vine-runtime/workspace-classpath'
+					'hytale-vine-runtime/workspace-classpath'
 					)
 
 			def stageAllModAssets = project.tasks.register(
 					'stageAllModAssets',
 					StageAllModAssetsTask
-			) { t ->
-				t.group = 'hytale'
-				t.description =
-						'Stages all Hytale mod asset packs and external dependencies.'
+					) { t ->
+						t.group = 'hytale'
+						t.description =
+								'Stages all Hytale workspace plugins and external dependencies.'
 
-				t.projectPaths.set(metadata.projectPaths)
-				t.manifestGroups.set(metadata.manifestGroups)
-				t.modIds.set(metadata.modIds)
-				t.assetSourceDirectoryPaths.set(
-						metadata.assetSourceDirectoryPaths
-				)
-				t.expectedHytaleVersion.set(metadata.expectedHytaleVersion)
-				t.expectedPatchline.set(metadata.expectedPatchline)
+						t.outputs.upToDateWhen { false }
 
-				t.runDirectory.set(
-						project.layout.projectDirectory.dir('run')
-				)
+						t.projectPaths.set(metadata.projectPaths)
+						t.manifestGroups.set(metadata.manifestGroups)
+						t.modIds.set(metadata.modIds)
+						t.assetSourceDirectoryPaths.set(
+								metadata.assetSourceDirectoryPaths
+								)
+						t.classOutputDirectoryPaths.set(
+								metadata.classOutputDirectoryPaths
+								)
+						t.classOutputDirectoryCounts.set(
+								metadata.classOutputDirectoryCounts
+								)
+						t.expectedHytaleVersion.set(metadata.expectedHytaleVersion)
+						t.expectedPatchline.set(metadata.expectedPatchline)
 
-				t.modsDirectory.set(
-						project.layout.projectDirectory.dir('run/mods')
-				)
+						t.runDirectory.set(
+								project.layout.projectDirectory.dir('run')
+								)
 
-				t.vineRuntimeClasspathDirectory.set(
-						workspaceRuntimeClasspathDirectory
-				)
+						t.modsDirectory.set(
+								project.layout.projectDirectory.dir('run/mods')
+								)
 
-				projectPaths.each { path ->
-					def modProject = project.project(path)
+						t.vineRuntimeClasspathDirectory.set(
+								workspaceRuntimeClasspathDirectory
+								)
 
-					t.vineModJars.from(
-							modProject.configurations.named('vineModJars')
-					)
+						projectPaths.each { path ->
+							def modProject = project.project(path)
 
-					t.vineImplementationJars.from(
-							modProject.configurations.named(
+							t.vineModJars.from(
+									modProject.configurations.named('vineModJars')
+									)
+
+							t.vineImplementationJars.from(
+									modProject.configurations.named(
 									'vineImplementationJars'
+									)
+									)
+						}
+					}
+
+			stageAllModAssets.configure { t ->
+				t.dependsOn(projectPaths.collect { path ->
+					project.project(path).tasks.named(
+							JavaPlugin.CLASSES_TASK_NAME
 							)
-					)
-				}
+				})
+
+				t.dependsOn(projectPaths.collect { path ->
+					project.project(path).tasks.named(
+							'validateManifest'
+							)
+				})
 			}
 
 			def hostDownloadAssetsZip = hostProject.tasks.named('downloadAssetsZip')
 
 			project.tasks.register('runAllMods', RunAllModsTask) { t ->
 				t.group = 'hytale'
-				t.description = 'Runs one Hytale server with all Hytale mod subprojects on the classpath.'
+				t.description = 'Runs one Hytale server with all Hytale workspace plugins.'
 
 				t.dependsOn(stageAllModAssets)
-				t.dependsOn(projectPaths.collect { path ->
-					project.project(path).tasks.named(JavaPlugin.CLASSES_TASK_NAME)
-				})
 				t.dependsOn(project.provider {
 					hostExt.hytaleHomeOverride.orNull?.trim() ? [] : [hostDownloadAssetsZip]
 				})
@@ -132,11 +151,7 @@ final class HytaleWorkspaceTaskRegistrar {
 
 				projectPaths.each { path ->
 					def subproject = project.project(path)
-
-					def sourceSets = subproject.extensions.getByType(
-							SourceSetContainer
-					)
-
+					def sourceSets = subproject.extensions.getByType(SourceSetContainer)
 					def main = sourceSets.named('main').get()
 
 					def implementationJars = subproject.configurations
@@ -145,15 +160,10 @@ final class HytaleWorkspaceTaskRegistrar {
 
 					def runtimeWithoutProjectOutputOrVineImplementation =
 							main.runtimeClasspath -
-									main.output -
-									implementationJars
+							main.output -
+							implementationJars
 
-					t.classpath(main.output.classesDirs)
-					t.classpath(main.output.resourcesDir)
-
-					t.classpath(
-							runtimeWithoutProjectOutputOrVineImplementation
-					)
+					t.classpath(runtimeWithoutProjectOutputOrVineImplementation)
 				}
 
 				t.classpath(project.provider {
@@ -171,15 +181,13 @@ final class HytaleWorkspaceTaskRegistrar {
 
 					return directories
 							.findAll { it.isDirectory() }
-							.sort { left, right ->
-								left.name <=> right.name
-							}
+							.sort { left, right -> left.name <=> right.name }
 							.toList()
 				})
 
 				t.classpath(
 						hostProject.configurations.named('vineServerJar').get()
-				)
+						)
 			}
 		}
 	}
@@ -201,19 +209,25 @@ final class HytaleWorkspaceTaskRegistrar {
 		if (paths == null || paths.isEmpty()) {
 			throw new GradleException(
 			"No Hytale workspace mod projects were found. " +
-			"Set hytaleWorkspace.modProjects or apply 'com.azuredoom.hytale-tools' to subprojects you want included."
+			"Set hytaleWorkspace.modProjects or apply " +
+			"'com.azuredoom.hytale-tools' to subprojects you want included."
 			)
 		}
 
 		return paths
 	}
 
-	private static WorkspaceMetadata collectWorkspaceMetadata(Project root, List<String> projectPaths) {
+	private static WorkspaceMetadata collectWorkspaceMetadata(
+			Project root,
+			List<String> projectPaths
+	) {
 		def projects = projectPaths.collect { root.project(it) }
-
 		def firstExt = projects.first().extensions.getByType(HytaleExtension)
+
 		if (!firstExt.hytaleVersion.isPresent()) {
-			throw new GradleException("runAllMods requires hytaleVersion to be set on all Hytale subprojects.")
+			throw new GradleException(
+			"runAllMods requires hytaleVersion to be set on all Hytale subprojects."
+			)
 		}
 
 		String expectedVersion = firstExt.hytaleVersion.get()
@@ -222,6 +236,9 @@ final class HytaleWorkspaceTaskRegistrar {
 		List<String> manifestGroups = []
 		List<String> modIds = []
 		List<String> assetSourceDirectoryPaths = []
+		List<String> classOutputDirectoryPaths = []
+		List<Integer> classOutputDirectoryCounts = []
+		Set<String> pluginIdentifiers = new LinkedHashSet<>()
 
 		projects.each { modProject ->
 			def ext = modProject.extensions.getByType(HytaleExtension)
@@ -229,24 +246,53 @@ final class HytaleWorkspaceTaskRegistrar {
 			if (ext.hytaleVersion.orNull != expectedVersion) {
 				throw new GradleException(
 				"All Hytale subprojects must use the same hytaleVersion for runAllMods. " +
-				"Expected '${expectedVersion}' but '${modProject.path}' uses '${ext.hytaleVersion.orNull}'."
+				"Expected '${expectedVersion}' but '${modProject.path}' uses " +
+				"'${ext.hytaleVersion.orNull}'."
 				)
 			}
 
 			if (ext.patchline.orNull != expectedPatchline) {
 				throw new GradleException(
 				"All Hytale subprojects must use the same patchline for runAllMods. " +
-				"Expected '${expectedPatchline}' but '${modProject.path}' uses '${ext.patchline.orNull}'."
+				"Expected '${expectedPatchline}' but '${modProject.path}' uses " +
+				"'${ext.patchline.orNull}'."
 				)
 			}
+
+			String manifestGroup = ext.manifestGroup.get()
+			String modId = ext.modId.get()
+			String pluginIdentifier = "${manifestGroup}:${modId}"
+
+			if (!pluginIdentifiers.add(pluginIdentifier)) {
+				throw new GradleException(
+				"Duplicate workspace plugin identifier '${pluginIdentifier}'. " +
+				"Each workspace project must use a unique manifest group and mod ID."
+				)
+			}
+
+			def sourceSets = modProject.extensions.getByType(SourceSetContainer)
+			def main = sourceSets.named('main').get()
+
+			List<String> classDirectories = main.output.classesDirs.files
+					.collect { File directory -> directory.absolutePath }
+					.sort()
+
+			if (classDirectories.isEmpty()) {
+				throw new GradleException(
+				"Workspace project '${modProject.path}' has no main class output directories."
+				)
+			}
+
+			classOutputDirectoryCounts.add(classDirectories.size())
+			classOutputDirectoryPaths.addAll(classDirectories)
 
 			File sourceDirFile = ext.assetPackSourceDirectory.get().asFile
 			if (!sourceDirFile.exists()) {
 				sourceDirFile = new File(modProject.projectDir, 'src/main/resources')
 			}
 
-			manifestGroups.add(ext.manifestGroup.get())
-			modIds.add(ext.modId.get())
+			manifestGroups.add(manifestGroup)
+			modIds.add(modId)
 			assetSourceDirectoryPaths.add(sourceDirFile.absolutePath)
 		}
 
@@ -256,7 +302,9 @@ final class HytaleWorkspaceTaskRegistrar {
 				expectedPatchline: expectedPatchline,
 				manifestGroups: manifestGroups,
 				modIds: modIds,
-				assetSourceDirectoryPaths: assetSourceDirectoryPaths
+				assetSourceDirectoryPaths: assetSourceDirectoryPaths,
+				classOutputDirectoryPaths: classOutputDirectoryPaths,
+				classOutputDirectoryCounts: classOutputDirectoryCounts
 				)
 	}
 
@@ -288,5 +336,7 @@ final class HytaleWorkspaceTaskRegistrar {
 		List<String> manifestGroups
 		List<String> modIds
 		List<String> assetSourceDirectoryPaths
+		List<String> classOutputDirectoryPaths
+		List<Integer> classOutputDirectoryCounts
 	}
 }

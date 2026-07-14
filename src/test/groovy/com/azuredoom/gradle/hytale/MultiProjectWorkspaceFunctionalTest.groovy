@@ -4,6 +4,8 @@ import org.gradle.testkit.runner.GradleRunner
 import spock.lang.Specification
 import spock.lang.TempDir
 
+import java.util.jar.JarOutputStream
+
 class MultiProjectWorkspaceFunctionalTest extends Specification {
 
 	@TempDir
@@ -166,7 +168,21 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
             }
         """)
 
+		writeFile(
+				"modA/src/main/java/com/example/mods/moda/ModA.java",
+				"""
+        package com.example.mods.moda;
+
+        public class ModA {}
+        """
+				)
+
 		writeFile("modA/src/main/resources/test.txt", "hello")
+
+		createFakeServerArtifact(
+				new File(testProjectDir, 'modA'),
+				'1.0.0'
+				)
 
 		when:
 		def result = GradleRunner.create()
@@ -281,5 +297,42 @@ class MultiProjectWorkspaceFunctionalTest extends Specification {
 		manifest.text.contains('"Group": "com.example.child"')
 		!manifest.text.contains('"Group": "com.example.root"')
 		manifest.text.contains('"ServerVersion": ">=1.0.0"')
+	}
+
+	private static void createFakeServerArtifact(
+			File projectDir,
+			String version = '1.0.0'
+	) {
+		File moduleDir = new File(
+				projectDir,
+				"build/generated-sources-m2/" +
+				"com/hypixel/hytale/Server/${version}"
+				)
+
+		moduleDir.mkdirs()
+
+		new File(
+				moduleDir,
+				"Server-${version}.pom"
+				).text = """
+        <project xmlns="http://maven.apache.org/POM/4.0.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+          <modelVersion>4.0.0</modelVersion>
+          <groupId>com.hypixel.hytale</groupId>
+          <artifactId>Server</artifactId>
+          <version>${version}</version>
+          <packaging>jar</packaging>
+        </project>
+    """.stripIndent().trim()
+
+		File jarFile = new File(
+				moduleDir,
+				"Server-${version}.jar"
+				)
+
+		new JarOutputStream(
+				new FileOutputStream(jarFile)
+				).close()
 	}
 }

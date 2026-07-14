@@ -186,6 +186,16 @@ exit 0
 		given:
 		writeWorkspaceBuildForStageAllModAssets()
 
+		createFakeServerArtifact(
+				new File(testProjectDir, 'modA'),
+				'1.0.0'
+				)
+
+		createFakeServerArtifact(
+				new File(testProjectDir, 'modB'),
+				'1.0.0'
+				)
+
 		writeFile('modA/src/main/resources/test-a.txt', 'hello-a')
 		writeFile('modB/src/main/resources/test-b.txt', 'hello-b')
 

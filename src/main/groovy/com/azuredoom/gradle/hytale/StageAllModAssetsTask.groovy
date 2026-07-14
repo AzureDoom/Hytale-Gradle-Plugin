@@ -20,8 +20,12 @@ import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-@DisableCachingByDefault(because = "Stages mod assets by creating symlinks, junctions, or copying files depending on platform and filesystem support")
+@DisableCachingByDefault(because = "Stages development plugins using links and mutable run-directory state")
 abstract class StageAllModAssetsTask extends DefaultTask {
+
+	private static final String WORKSPACE_INDEX = '.vine-staged-workspace'
+	private static final String VINE_MOD_INDEX = '.vine-staged-mods'
+	private static final String VINE_IMPLEMENTATION_INDEX = '.vine-staged-impl'
 
 	@Input
 	abstract ListProperty<String> getProjectPaths()
@@ -34,6 +38,12 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 
 	@Input
 	abstract ListProperty<String> getAssetSourceDirectoryPaths()
+
+	@Input
+	abstract ListProperty<String> getClassOutputDirectoryPaths()
+
+	@Input
+	abstract ListProperty<Integer> getClassOutputDirectoryCounts()
 
 	@Input
 	abstract Property<String> getExpectedHytaleVersion()
@@ -61,184 +71,398 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 		List<String> sourceDirPaths = assetSourceDirectoryPaths.get()
 		List<String> groups = manifestGroups.get()
 		List<String> ids = modIds.get()
+		List<String> flattenedClassPaths = classOutputDirectoryPaths.get()
+		List<Integer> classDirectoryCounts = classOutputDirectoryCounts.get()
 
-		if (sourceDirPaths.size() != groups.size() || sourceDirPaths.size() != ids.size()) {
-			throw new GradleException("Workspace asset metadata is inconsistent.")
-		}
+		validateWorkspaceMetadata(
+				sourceDirPaths,
+				groups,
+				ids,
+				flattenedClassPaths,
+				classDirectoryCounts
+				)
+
+		List<List<String>> classDirPathGroups = rebuildClassPathGroups(
+				flattenedClassPaths,
+				classDirectoryCounts
+				)
 
 		File runDirFile = runDirectory.get().asFile
 		File modsDirFile = modsDirectory.get().asFile
 		runDirFile.mkdirs()
 		modsDirFile.mkdirs()
 
+		cleanupIndexedEntries(modsDirFile, WORKSPACE_INDEX)
+		List<String> stagedWorkspaceDirectories = []
+
 		for (int i = 0; i < sourceDirPaths.size(); i++) {
-			File sourceDirFile = new File(sourceDirPaths[i])
-			if (!sourceDirFile.exists()) {
-				throw new GradleException("Asset pack source directory does not exist: ${sourceDirFile}")
+			File resourcesDirectory = new File(sourceDirPaths[i])
+			List<File> configuredClassDirectories = classDirPathGroups[i]
+					.collect { String path -> new File(path) }
+
+			if (!resourcesDirectory.isDirectory()) {
+				throw new GradleException(
+				"Workspace resource directory does not exist: ${resourcesDirectory}"
+				)
 			}
 
-			Path sourceDir = sourceDirFile.toPath().toAbsolutePath().normalize()
-			Path targetDir = new File(
-					modsDirFile,
-					"${groups[i].replace('.', '_')}_${ids[i]}"
-					).toPath().toAbsolutePath().normalize()
+			List<File> existingClassDirectories = configuredClassDirectories
+					.findAll { File directory -> directory.isDirectory() }
 
-			if (Files.exists(targetDir, LinkOption.NOFOLLOW_LINKS)) {
-				deleteRecursively(targetDir)
+			if (existingClassDirectories.isEmpty()) {
+				throw new GradleException(
+				"Workspace project ${groups[i]}:${ids[i]} has no existing " +
+				"class output directories. Expected one of: ${configuredClassDirectories}. " +
+				"Ensure stageAllModAssets depends on the project's classes task."
+				)
 			}
 
-			targetDir.parent.toFile().mkdirs()
-			copyDirectory(sourceDir, targetDir)
-			logger.lifecycle("Copied asset pack ${sourceDir} -> ${targetDir}")
+			String targetName = "${groups[i].replace('.', '_')}_${ids[i]}"
+			stagedWorkspaceDirectories.add(targetName)
+
+			Path targetDirectory = new File(modsDirFile, targetName)
+					.toPath()
+					.toAbsolutePath()
+					.normalize()
+
+			List<Path> classDirectoryPaths = existingClassDirectories
+					.collect { File directory ->
+						directory.toPath().toAbsolutePath().normalize()
+					}
+
+			stageWorkspacePlugin(
+					resourcesDirectory.toPath().toAbsolutePath().normalize(),
+					classDirectoryPaths,
+					targetDirectory
+					)
+
+			logger.lifecycle(
+					"Staged workspace plugin ${groups[i]}:${ids[i]} with " +
+					"${classDirectoryPaths.size()} class output(s) -> ${targetDirectory}"
+					)
 		}
 
-		stageVineMods(modsDirFile)
+		writeIndex(modsDirFile, WORKSPACE_INDEX, stagedWorkspaceDirectories)
+
+		Map<String, String> stagedDependencyJars = [:]
+		stageVineMods(modsDirFile, stagedDependencyJars)
 
 		File runtimeClasspathDir = vineRuntimeClasspathDirectory.get().asFile
-		stageVineImplementation(modsDirFile, runtimeClasspathDir)
+		stageVineImplementation(
+				modsDirFile,
+				runtimeClasspathDir,
+				stagedDependencyJars
+				)
 	}
 
-	private void stageVineMods(File modsDir) {
-		modsDir.mkdirs()
-		File index = new File(modsDir, '.vine-staged-mods')
-
-		if (index.exists()) {
-			index.readLines().findAll { !it.trim().isEmpty() }.each { String name ->
-				File stale = new File(modsDir, name)
-				if (stale.isFile()) {
-					Files.deleteIfExists(stale.toPath())
-				}
-			}
-			Files.deleteIfExists(index.toPath())
+	private static void validateWorkspaceMetadata(
+			List<String> sourceDirPaths,
+			List<String> groups,
+			List<String> ids,
+			List<String> flattenedClassPaths,
+			List<Integer> classDirectoryCounts
+	) {
+		if (sourceDirPaths.size() != groups.size() ||
+				sourceDirPaths.size() != ids.size() ||
+				sourceDirPaths.size() != classDirectoryCounts.size()) {
+			throw new GradleException(
+			"Workspace plugin metadata is inconsistent: " +
+			"sources=${sourceDirPaths.size()}, " +
+			"classCounts=${classDirectoryCounts.size()}, " +
+			"groups=${groups.size()}, ids=${ids.size()}"
+			)
 		}
 
+		if (classDirectoryCounts.any { Integer count -> count == null || count < 0 }) {
+			throw new GradleException(
+			"Workspace class-output counts may not contain null or negative values: " +
+			"${classDirectoryCounts}"
+			)
+		}
+
+		int expectedClassPathCount = classDirectoryCounts.sum(0) as int
+		if (flattenedClassPaths.size() != expectedClassPathCount) {
+			throw new GradleException(
+			"Workspace class-output metadata is inconsistent: " +
+			"paths=${flattenedClassPaths.size()}, expected=${expectedClassPathCount}"
+			)
+		}
+	}
+
+	private static List<List<String>> rebuildClassPathGroups(
+			List<String> flattenedClassPaths,
+			List<Integer> classDirectoryCounts
+	) {
+		List<List<String>> result = []
+		int offset = 0
+
+		for (Integer count : classDirectoryCounts) {
+			result.add(
+					new ArrayList<>(
+					flattenedClassPaths.subList(offset, offset + count)
+					)
+					)
+			offset += count
+		}
+
+		return result
+	}
+
+	private void stageWorkspacePlugin(
+			Path resourcesDirectory,
+			List<Path> classesDirectories,
+			Path targetDirectory
+	) {
+		if (Files.exists(targetDirectory, LinkOption.NOFOLLOW_LINKS)) {
+			deleteRecursively(targetDirectory)
+		}
+
+		Files.createDirectories(targetDirectory)
+		linkDirectoryContents(resourcesDirectory, targetDirectory, 'resources')
+
+		for (Path classesDirectory : classesDirectories) {
+			linkDirectoryContents(classesDirectory, targetDirectory, 'classes')
+		}
+
+		Path manifest = targetDirectory.resolve('manifest.json')
+		if (!Files.isRegularFile(manifest)) {
+			throw new GradleException(
+			"Workspace plugin is missing manifest.json after staging: ${targetDirectory}"
+			)
+		}
+	}
+
+	protected void linkDirectoryContents(
+			Path sourceDirectory,
+			Path targetDirectory,
+			String contentType
+	) {
+		Files.createDirectories(targetDirectory)
+
+		Files.list(sourceDirectory).withCloseable { stream ->
+			Iterator<Path> entries = stream.iterator()
+
+			while (entries.hasNext()) {
+				Path sourceEntry = entries.next()
+				Path targetEntry = targetDirectory.resolve(
+						sourceEntry.fileName.toString()
+						)
+
+				if (Files.isDirectory(sourceEntry)) {
+					if (Files.exists(targetEntry, LinkOption.NOFOLLOW_LINKS) &&
+							!Files.isDirectory(
+							targetEntry,
+							LinkOption.NOFOLLOW_LINKS
+							)) {
+						throw new GradleException(
+						"Workspace ${contentType} collision at '${targetEntry}'."
+						)
+					}
+
+					Files.createDirectories(targetEntry)
+
+					linkDirectoryContents(
+							sourceEntry,
+							targetEntry,
+							contentType
+							)
+
+					continue
+				}
+
+				if (Files.exists(targetEntry, LinkOption.NOFOLLOW_LINKS)) {
+					throw new GradleException(
+					"Workspace ${contentType} file collision at '${targetEntry}'."
+					)
+				}
+
+				createFileLinkOrCopy(
+						sourceEntry,
+						targetEntry,
+						contentType
+						)
+			}
+		}
+	}
+
+	protected void createFileLinkOrCopy(
+			Path source,
+			Path target,
+			String contentType
+	) {
+		try {
+			Files.createSymbolicLink(target, source)
+			logger.lifecycle(
+					"Linked workspace ${contentType}: ${target} -> ${source}"
+					)
+			return
+		} catch (UnsupportedOperationException exception) {
+			logLinkFailure(source, target, exception)
+		} catch (IOException exception) {
+			logLinkFailure(source, target, exception)
+		} catch (SecurityException exception) {
+			logLinkFailure(source, target, exception)
+		}
+
+		if (isWindows()) {
+			try {
+				Files.createLink(target, source)
+				logger.lifecycle(
+						"Hard-linked workspace ${contentType}: ${target} -> ${source}"
+						)
+				return
+			} catch (Exception exception) {
+				logger.info(
+						"Could not create hard link ${target} -> ${source}: " +
+						"${exception.message}"
+						)
+			}
+		}
+
+		Files.createDirectories(target.parent)
+		Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING)
+
+		logger.warn(
+				"Copied workspace ${contentType} because linking was unavailable: " +
+				"${source} -> ${target}. Live reload is disabled for this file."
+				)
+	}
+
+	private void logLinkFailure(Path source, Path target, Exception exception) {
+		logger.info(
+				"Could not create symbolic link ${target} -> ${source}: ${exception.message}"
+				)
+	}
+
+	private void stageVineMods(
+			File modsDir,
+			Map<String, String> stagedDependencyJars
+	) {
+		modsDir.mkdirs()
+		cleanupIndexedEntries(modsDir, VINE_MOD_INDEX)
+
 		List<String> staged = []
-		vineModJars.files.findAll { it.name.endsWith('.jar') }.each { File jar ->
-			File dest = new File(modsDir, jar.name)
-			Files.copy(jar.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
+		List<File> modFiles = vineModJars.files
+				.findAll { it.name.endsWith('.jar') }
+				.sort { left, right -> left.absolutePath <=> right.absolutePath }
+
+		for (File jar : modFiles) {
+			validateDependencyJarName(jar, stagedDependencyJars)
+
+			File destination = new File(modsDir, jar.name)
+			Files.copy(
+					jar.toPath(),
+					destination.toPath(),
+					StandardCopyOption.REPLACE_EXISTING
+					)
+
 			staged.add(jar.name)
 			logger.lifecycle("Staged vine mod into run/mods: ${jar.name}")
 		}
 
-		if (!staged.isEmpty()) {
-			index.text = staged.join(System.lineSeparator())
-		}
+		writeIndex(modsDir, VINE_MOD_INDEX, staged)
 	}
 
 	private void stageVineImplementation(
 			File modsDir,
-			File classpathRoot
+			File classpathRoot,
+			Map<String, String> stagedDependencyJars
 	) {
 		modsDir.mkdirs()
-
-		File index = new File(modsDir, '.vine-staged-impl')
-
-		if (index.exists()) {
-			List<String> staleNames = index.readLines()
-					.findAll { !it.trim().isEmpty() }
-
-			for (String name : staleNames) {
-				File stale = new File(modsDir, name)
-
-				if (stale.exists()) {
-					deleteRecursively(stale.toPath())
-				}
-			}
-
-			Files.deleteIfExists(index.toPath())
-		}
+		cleanupIndexedEntries(modsDir, VINE_IMPLEMENTATION_INDEX)
 
 		if (classpathRoot.exists()) {
 			deleteRecursively(classpathRoot.toPath())
 		}
-
 		classpathRoot.mkdirs()
 
 		List<String> stagedPluginJars = []
 		Set<String> processedFiles = new HashSet<>()
+		Map<String, String> classpathDirectoryOwners = [:]
 
 		List<File> implementationFiles = vineImplementationJars.files
 				.findAll { it.name.endsWith('.jar') }
-				.sort { left, right ->
-					left.absolutePath <=> right.absolutePath
-				}
+				.sort { left, right -> left.absolutePath <=> right.absolutePath }
 
 		for (File jar : implementationFiles) {
 			String canonicalPath = jar.canonicalPath
-
-			// The same dependency may be inherited by several workspace projects.
 			if (!processedFiles.add(canonicalPath)) {
 				continue
 			}
 
 			Map manifest = readPluginManifest(jar)
-
 			String directoryName = safeDirectoryName(
 					jar.name.replaceFirst(/\.jar$/, '')
-			)
+					)
 
-			File classpathDirectory = new File(
-					classpathRoot,
-					directoryName
-			)
+			String previousOwner = classpathDirectoryOwners.putIfAbsent(
+					directoryName,
+					canonicalPath
+					)
+			if (previousOwner != null && previousOwner != canonicalPath) {
+				throw new GradleException(
+				"Two vineImplementation dependencies resolve to the same runtime " +
+				"classpath directory '${directoryName}': '${previousOwner}' and " +
+				"'${canonicalPath}'."
+				)
+			}
+
+			File classpathDirectory = new File(classpathRoot, directoryName)
 
 			if (manifest != null) {
-				File destination = new File(modsDir, jar.name)
+				validateDependencyJarName(jar, stagedDependencyJars)
 
+				File destination = new File(modsDir, jar.name)
 				Files.copy(
 						jar.toPath(),
 						destination.toPath(),
 						StandardCopyOption.REPLACE_EXISTING
-				)
+						)
 
 				stagedPluginJars.add(jar.name)
-
-				explodeJar(
-						jar,
-						classpathDirectory,
-						true,
-						false
-				)
+				explodeJar(jar, classpathDirectory, true, false)
 
 				logger.lifecycle(
-						"Staged vineImplementation plugin '${jar.name}' " +
-								"into run/mods and the shared runtime classpath"
-				)
+						"Staged vineImplementation plugin '${jar.name}' into run/mods " +
+						"and the shared runtime classpath"
+						)
 			} else {
-				explodeJar(
-						jar,
-						classpathDirectory,
-						false,
-						false
-				)
-
+				explodeJar(jar, classpathDirectory, false, false)
 				logger.lifecycle(
-						"Staged vineImplementation library '${jar.name}' " +
-								"on the shared runtime classpath"
-				)
+						"Staged vineImplementation library '${jar.name}' on the shared " +
+						"runtime classpath"
+						)
 			}
 		}
 
-		if (!stagedPluginJars.isEmpty()) {
-			index.text = stagedPluginJars.join(System.lineSeparator())
-		}
+		writeIndex(modsDir, VINE_IMPLEMENTATION_INDEX, stagedPluginJars)
 	}
 
-	private static void copyDirectory(Path source, Path target) {
-		Files.walk(source).withCloseable { paths ->
-			paths.forEach { path ->
-				Path relative = source.relativize(path)
-				Path destination = target.resolve(relative)
+	private static void cleanupIndexedEntries(File parentDirectory, String indexName) {
+		File index = new File(parentDirectory, indexName)
+		if (!index.exists()) {
+			return
+		}
 
-				if (Files.isDirectory(path)) {
-					Files.createDirectories(destination)
-				} else {
-					if (destination.parent != null) {
-						Files.createDirectories(destination.parent)
-					}
-					Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING)
-				}
+		List<String> entries = index.readLines()
+				.findAll { !it.trim().isEmpty() }
+
+		for (String name : entries) {
+			File stale = new File(parentDirectory, name)
+			if (stale.exists() || Files.exists(stale.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+				deleteRecursively(stale.toPath())
 			}
+		}
+
+		Files.deleteIfExists(index.toPath())
+	}
+
+	private static void writeIndex(File parentDirectory, String indexName, List<String> entries) {
+		File index = new File(parentDirectory, indexName)
+		Files.deleteIfExists(index.toPath())
+
+		if (!entries.isEmpty()) {
+			index.text = entries.unique().sort().join(System.lineSeparator())
 		}
 	}
 
@@ -247,9 +471,15 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 			return
 		}
 
+		if (Files.isSymbolicLink(path) ||
+				Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+			Files.deleteIfExists(path)
+			return
+		}
+
 		Files.walk(path).withCloseable { paths ->
 			paths.sorted(Comparator.reverseOrder())
-					.forEach { Files.deleteIfExists(it) }
+					.forEach { Path entry -> Files.deleteIfExists(entry) }
 		}
 	}
 
@@ -257,15 +487,13 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 		ZipFile zip = new ZipFile(jar)
 
 		try {
-			def entry = zip.getEntry('manifest.json')
-
+			ZipEntry entry = zip.getEntry('manifest.json')
 			if (entry == null) {
 				return null
 			}
 
 			zip.getInputStream(entry).withCloseable { stream ->
-				return new JsonSlurper()
-						.parse(stream) as Map
+				return new JsonSlurper().parse(stream) as Map
 			}
 		} finally {
 			zip.close()
@@ -281,11 +509,9 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 		if (destination.exists()) {
 			deleteRecursively(destination.toPath())
 		}
-
 		destination.mkdirs()
 
-        ZipFile zip = new ZipFile(jar)
-
+		ZipFile zip = new ZipFile(jar)
 		try {
 			Enumeration<? extends ZipEntry> entries = zip.entries()
 
@@ -296,32 +522,27 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 				if (entry.directory) {
 					continue
 				}
-
 				if (skipPluginManifest && entryName == 'manifest.json') {
 					continue
 				}
-
 				if (skipClasses && entryName.endsWith('.class')) {
 					continue
 				}
 
-				// Signature metadata is invalid after exploding a signed JAR.
 				String upperName = entryName.toUpperCase(Locale.ROOT)
 				if (upperName.startsWith('META-INF/') &&
 						(upperName.endsWith('.SF') ||
-								upperName.endsWith('.RSA') ||
-								upperName.endsWith('.DSA'))) {
+						upperName.endsWith('.RSA') ||
+						upperName.endsWith('.DSA'))) {
 					continue
 				}
 
-				Path target = destination.toPath()
-						.resolve(entryName)
-						.normalize()
+				Path target = destination.toPath().resolve(entryName).normalize()
+				Path normalizedDestination = destination.toPath().normalize()
 
-				if (!target.startsWith(destination.toPath().normalize())) {
+				if (!target.startsWith(normalizedDestination)) {
 					throw new GradleException(
-							"Refusing to extract unsafe path '${entryName}' " +
-									"from ${jar}"
+					"Refusing to extract unsafe path '${entryName}' from ${jar}"
 					)
 				}
 
@@ -330,11 +551,7 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 				}
 
 				zip.getInputStream(entry).withCloseable { input ->
-					Files.copy(
-							input,
-							target,
-							StandardCopyOption.REPLACE_EXISTING
-					)
+					Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING)
 				}
 			}
 		} finally {
@@ -344,5 +561,32 @@ abstract class StageAllModAssetsTask extends DefaultTask {
 
 	private static String safeDirectoryName(String value) {
 		return value.replaceAll(/[^A-Za-z0-9._-]/, '_')
+	}
+
+	private static boolean isWindows() {
+		return System.getProperty('os.name')
+				.toLowerCase(Locale.ROOT)
+				.contains('windows')
+	}
+
+	private static void validateDependencyJarName(
+			File jar,
+			Map<String, String> stagedDependencyJars
+	) {
+		String canonicalPath = jar.canonicalPath
+		String existingPath = stagedDependencyJars.get(jar.name)
+
+		if (existingPath == null) {
+			stagedDependencyJars.put(jar.name, canonicalPath)
+			return
+		}
+
+		if (existingPath != canonicalPath) {
+			throw new GradleException(
+			"Two dependency plugins resolve to the same staged filename " +
+			"'${jar.name}': '${existingPath}' and '${canonicalPath}'. " +
+			"Only one file can be placed at run/mods/${jar.name}."
+			)
+		}
 	}
 }
