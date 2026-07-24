@@ -280,8 +280,13 @@ Code: ${userCode}
 						"Resolved Hytale Assets.zip from hytaleHomeOverride: " +
 						"${overriddenAssets.absolutePath}"
 						)
-				return overriddenAssets
+			} else {
+				logger.info(
+						"No Assets.zip found under hytaleHomeOverride: ${override}"
+						)
 			}
+
+			return overriddenAssets
 		}
 
 		def userHome = new File(System.getProperty('user.home'))
