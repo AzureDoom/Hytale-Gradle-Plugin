@@ -389,14 +389,53 @@ Code: ${userCode}
 
 			Exception remoteFailure = null
 			try {
-				def assetLookupUrl = "${account}/game-assets/builds/${patch}/${version}.zip"
+				def remotePatchlines = patch == 'prerelease'
+						? ['prerelease', 'pre-release']
+						: [patch]
 
-				logger.lifecycle("Looking up Hytale asset bundle...")
-				logger.info("Asset lookup URL: ${assetLookupUrl}")
+				HttpResponse<String> assetLookupResp = null
+				String assetLookupUrl = null
+				Exception lastLookupFailure = null
 
-				def assetLookupResp = getJson(client, assetLookupUrl, activeTokens.access_token as String)
-				if (assetLookupResp.statusCode() < 200 || assetLookupResp.statusCode() >= 300) {
-					throw new GradleException("Asset bundle lookup failed with HTTP ${assetLookupResp.statusCode()} from ${assetLookupUrl}")
+				for (String remotePatchline : remotePatchlines) {
+					assetLookupUrl = "${account}/game-assets/builds/${remotePatchline}/${version}.zip"
+
+					logger.lifecycle("Trying Hytale asset lookup URL: ${assetLookupUrl}")
+
+					try {
+						def response = getJson(
+								client,
+								assetLookupUrl,
+								activeTokens.access_token as String
+								)
+
+						if (response.statusCode() >= 200 && response.statusCode() < 300) {
+							assetLookupResp = response
+							break
+						}
+
+						logger.lifecycle(
+								"Asset lookup returned HTTP ${response.statusCode()} " +
+								"for remote patchline '${remotePatchline}'"
+								)
+
+						lastLookupFailure = new GradleException(
+								"Asset bundle lookup failed with HTTP ${response.statusCode()} " +
+								"from ${assetLookupUrl}"
+								)
+					} catch (Exception e) {
+						lastLookupFailure = e
+						logger.lifecycle(
+								"Asset lookup failed for remote patchline " +
+								"'${remotePatchline}': ${e.message}"
+								)
+					}
+				}
+
+				if (assetLookupResp == null) {
+					throw lastLookupFailure ?: new GradleException(
+					"Asset lookup failed for patchline aliases ${remotePatchlines}"
+					)
 				}
 
 				def assetLookup = json.parseText(assetLookupResp.body())
