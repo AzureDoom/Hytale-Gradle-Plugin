@@ -265,37 +265,64 @@ Code: ${userCode}
 	}
 
 	protected File resolveLocalAssetsZip(String patchline) {
-		def candidates = []
-		def override = hytaleHomeOverride.present ? hytaleHomeOverride.get()?.trim() : null
-		def branch = (patchline ?: '').trim()
-
-		def addInstallCandidates = { File homeDir ->
-			if (homeDir == null) return
-				candidates << homeDir
-			candidates << new File(homeDir, 'Assets.zip')
-			candidates << new File(homeDir, "install/${branch}/package/game/latest/Assets.zip")
-			candidates << new File(homeDir, "install/${branch}/game/latest/Assets.zip")
-			candidates << new File(homeDir, "install/${branch}/latest/Assets.zip")
-			candidates << new File(homeDir, "${branch}/package/game/latest/Assets.zip")
-			candidates << new File(homeDir, "${branch}/game/latest/Assets.zip")
-		}
+		def override = hytaleHomeOverride.present
+				? hytaleHomeOverride.get()?.trim()
+				: null
 
 		if (override) {
-			addInstallCandidates(new File(override))
-		} else {
-			def userHome = System.getProperty('user.home')
-			def osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
-			if (osName.contains('win')) {
-				addInstallCandidates(new File("${userHome}/AppData/Roaming/Hytale"))
-			} else if (osName.contains('mac') || osName.contains('darwin')) {
-				addInstallCandidates(new File("${userHome}/Library/Application Support/Hytale"))
-			} else if (osName.contains('nux') || osName.contains('nix')) {
-				addInstallCandidates(new File("${userHome}/.var/app/com.hypixel.HytaleLauncher/data/Hytale"))
-				addInstallCandidates(new File("${userHome}/.local/share/Hytale"))
+			def overriddenAssets = HytaleAssetsResolver.findAssetsZip(
+					new File(override),
+					patchline
+					)
+
+			if (overriddenAssets != null) {
+				logger.lifecycle(
+						"Resolved Hytale Assets.zip from hytaleHomeOverride: " +
+						"${overriddenAssets.absolutePath}"
+						)
+				return overriddenAssets
 			}
 		}
 
-		candidates.find { it.exists() && it.isFile() && it.length() > 0 } as File
+		def userHome = new File(System.getProperty('user.home'))
+		def osName = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+
+		def possibleHomes = []
+
+		if (osName.contains('win')) {
+			possibleHomes << new File(userHome, 'AppData/Roaming/Hytale')
+		} else if (osName.contains('mac') || osName.contains('darwin')) {
+			possibleHomes << new File(userHome, 'Library/Application Support/Hytale')
+		} else if (osName.contains('linux') ||
+				osName.contains('nux') ||
+				osName.contains('nix')) {
+			possibleHomes << new File(
+					userHome,
+					'.var/app/com.hypixel.HytaleLauncher/data/Hytale'
+					)
+			possibleHomes << new File(
+					userHome,
+					'.local/share/Hytale'
+					)
+		}
+
+		logger.info("Searching Hytale installation roots: ${possibleHomes*.absolutePath}")
+
+		for (File possibleHome : possibleHomes) {
+			def localAssets = HytaleAssetsResolver.findAssetsZip(
+					possibleHome,
+					patchline
+					)
+
+			if (localAssets != null) {
+				logger.lifecycle(
+						"Resolved local Hytale Assets.zip: ${localAssets.absolutePath}"
+						)
+				return localAssets
+			}
+		}
+
+		return null
 	}
 
 	@TaskAction
