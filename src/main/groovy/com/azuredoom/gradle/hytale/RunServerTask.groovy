@@ -138,7 +138,13 @@ abstract class RunServerTask extends JavaExec {
 		List<String> resolvedArgs = [
 			"--assets=${resolvedAssetsZip.absolutePath}"
 		]
-		resolvedArgs.addAll(serverArgs.getOrElse([]))
+
+		for (String argument : serverArgs.getOrElse([])) {
+			if (argument != null && !argument.trim().isEmpty()) {
+				resolvedArgs.addAll(splitCommandLine(argument))
+			}
+		}
+
 		return resolvedArgs
 	}
 
@@ -167,5 +173,47 @@ abstract class RunServerTask extends JavaExec {
 		standardInput = System.in
 
 		super.exec()
+	}
+
+	private static List<String> splitCommandLine(String input) {
+		List<String> result = []
+		StringBuilder current = new StringBuilder()
+		boolean inSingleQuotes = false
+		boolean inDoubleQuotes = false
+		boolean escaped = false
+
+		for (char ch : input.toCharArray()) {
+			if (escaped) {
+				current.append(ch)
+				escaped = false
+			} else if (ch == '\\' && !inSingleQuotes) {
+				escaped = true
+			} else if (ch == '\'' && !inDoubleQuotes) {
+				inSingleQuotes = !inSingleQuotes
+			} else if (ch == '"' && !inSingleQuotes) {
+				inDoubleQuotes = !inDoubleQuotes
+			} else if (Character.isWhitespace(ch) && !inSingleQuotes && !inDoubleQuotes) {
+				if (current.length() > 0) {
+					result.add(current.toString())
+					current.setLength(0)
+				}
+			} else {
+				current.append(ch)
+			}
+		}
+
+		if (escaped) {
+			current.append('\\')
+		}
+
+		if (inSingleQuotes || inDoubleQuotes) {
+			throw new GradleException("Unclosed quote in server argument: ${input}")
+		}
+
+		if (current.length() > 0) {
+			result.add(current.toString())
+		}
+
+		return result
 	}
 }
