@@ -29,7 +29,7 @@ This Gradle plugin assumes you already have a project and focuses on Hytale-spec
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.45'
+    id 'com.azuredoom.hytale-tools' version '1.0.46'
 }
 
 hytaleTools {
@@ -149,7 +149,7 @@ include("common", "modA", "modB")
 ```gradle
 // root build.gradle
 plugins {
-    id 'com.azuredoom.hytale-workspace' version '1.0.45'
+    id 'com.azuredoom.hytale-workspace' version '1.0.46'
 }
 
 // If you are getting an issue with Task 'prepareKotlinBuildScriptModel' not found in project ':modX'. 
@@ -1175,7 +1175,7 @@ pluginManagement {
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.45'
+    id 'com.azuredoom.hytale-tools' version '1.0.46'
 }
 ```
 
