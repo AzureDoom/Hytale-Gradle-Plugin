@@ -114,7 +114,7 @@ final class HytaleExtensionDefaults {
 				value.equalsIgnoreCase('prerelease')
 
 		return prerelease
-				? 'https://prerelease.server.docs.hytale.com/'
-				: 'https://release.server.docs.hytale.com/'
+				? 'https://pre-release.docs.hytale.com/api/'
+				: 'https://docs.hytale.com/'
 	}
 }
