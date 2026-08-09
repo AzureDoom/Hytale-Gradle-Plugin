@@ -70,7 +70,7 @@ final class HytaleExtensionDefaults {
 			'--allow-op',
 			'--disable-sentry'
 		])
-		ext.serverJvmArgs.convention([])
+		ext.serverJvmArgs.convention(['-Xms4G', '-Xmx4G'])
 		ext.preRunTask.convention('')
 
 		ext.debugEnabled.convention(

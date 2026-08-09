@@ -146,6 +146,7 @@ final class HytaleWorkspaceTaskRegistrar {
 				t.fallbackAssetsZip.set(project.layout.file(assetsZipFileProvider))
 
 				t.mainClass.set('com.hypixel.hytale.Main')
+				t.jvmArgs(hostExt.serverJvmArgs.get())
 				t.jvmArgs('--enable-native-access=ALL-UNNAMED')
 				t.modularity.inferModulePath.set(true)
 
