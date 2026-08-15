@@ -18,8 +18,8 @@ final class HytaleIdeSourceConfigurer {
 	static TaskProvider<? extends Task> register(
 			Project project,
 			HytaleExtension ext,
-			def generatedSourcesMavenRepoDir,
-			def generatedSourcesIvyRepoDir,
+			def mavenRepoDirProvider,
+			def ivyRepoDirProvider,
 			Configuration vineflowerTool,
 			NamedDomainObjectProvider<Configuration> vineServerJar,
 			NamedDomainObjectProvider<Configuration> vineDependencyJars,
@@ -54,9 +54,6 @@ final class HytaleIdeSourceConfigurer {
 			project.gradle.gradleUserHomeDir
 		})
 
-		def mavenRepoDirForDecompile = generatedSourcesMavenRepoDir
-		def ivyRepoDirForDecompile = generatedSourcesIvyRepoDir
-
 		project.tasks.register('decompileServerJar', DecompileServerJarTask) {
 			group = null
 			description = 'Decompile only com/hypixel/hytale from the Hytale Server jar into build/vineflower/hytale-server/'
@@ -70,8 +67,8 @@ final class HytaleIdeSourceConfigurer {
 			patchline.set(ext.patchline)
 			serverVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
 			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
-			generatedSourcesMavenRepoDir.set(mavenRepoDirForDecompile)
-			generatedSourcesIvyRepoDir.set(ivyRepoDirForDecompile)
+			generatedSourcesMavenRepoDir.set(mavenRepoDirProvider)
+			generatedSourcesIvyRepoDir.set(ivyRepoDirProvider)
 
 			onlyIf("global decompile cache is stale or local output is missing") { t ->
 				DecompileServerJarTask task = t as DecompileServerJarTask
@@ -207,8 +204,8 @@ final class HytaleIdeSourceConfigurer {
 					binaryJar.set(project.layout.file(artifactProvider.map { it.file }))
 					sourcesJar.set(serverSourcesJar.flatMap { it.archiveFile })
 
-					mavenRepoDir.set(generatedSourcesMavenRepoDir)
-					ivyRepoDir.set(generatedSourcesIvyRepoDir)
+					mavenRepoDir.set(mavenRepoDirProvider)
+					ivyRepoDir.set(ivyRepoDirProvider)
 				}
 
 		def seenDependencyTaskKeys = [] as Set<String>
@@ -225,8 +222,8 @@ final class HytaleIdeSourceConfigurer {
 					declaredDep,
 					vineflowerJarFile,
 					vineDependencyJars,
-					generatedSourcesMavenRepoDir,
-					generatedSourcesIvyRepoDir,
+					mavenRepoDirProvider,
+					ivyRepoDirProvider,
 					installDependencySourcesToRepo,
 					ext,
 					gradleUserHomeDirProvider
@@ -270,8 +267,8 @@ final class HytaleIdeSourceConfigurer {
 			ExternalModuleDependency declaredDep,
 			Provider<?> vineflowerJarFile,
 			NamedDomainObjectProvider<Configuration> vineDependencyJars,
-			def generatedSourcesMavenRepoDir,
-			def generatedSourcesIvyRepoDir,
+			def mavenRepoDirProvider,
+			def ivyRepoDirProvider,
 			def installDependencySourcesToRepo,
 			HytaleExtension ext,
 			def gradleUserHomeDirProvider
@@ -282,9 +279,6 @@ final class HytaleIdeSourceConfigurer {
 
 		def safeName = "${depGroup}__${depModule}__${depVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
 		def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
-
-		def mavenRepoDirForDecompile = generatedSourcesMavenRepoDir
-		def ivyRepoDirForDecompile = generatedSourcesIvyRepoDir
 
 		def resolvedBinaryJarConfiguration = HytaleDependencySupport.detachedNonTransitiveConfiguration(
 				project,
@@ -312,8 +306,8 @@ final class HytaleIdeSourceConfigurer {
 			artifactId.set(depModule)
 			artifactVersion.set(depVersion)
 			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
-			generatedSourcesMavenRepoDir.set(mavenRepoDirForDecompile)
-			generatedSourcesIvyRepoDir.set(ivyRepoDirForDecompile)
+			generatedSourcesMavenRepoDir.set(mavenRepoDirProvider)
+			generatedSourcesIvyRepoDir.set(ivyRepoDirProvider)
 
 			onlyIf("global decompile cache is stale or local output is missing") { t ->
 				DecompileDependencyJarTask task = t as DecompileDependencyJarTask
@@ -355,8 +349,8 @@ final class HytaleIdeSourceConfigurer {
 					binaryJar.set(resolvedBinaryJar)
 					sourcesJar.set(sourcesJarTask.flatMap { it.archiveFile })
 
-					mavenRepoDir.set(generatedSourcesMavenRepoDir)
-					ivyRepoDir.set(generatedSourcesIvyRepoDir)
+					mavenRepoDir.set(mavenRepoDirProvider)
+					ivyRepoDir.set(ivyRepoDirProvider)
 				}
 
 		installDependencySourcesToRepo.configure {

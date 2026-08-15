@@ -106,8 +106,12 @@ final class HytaleExtensionDefaults {
 		ext.injectServerJavadocsIntoSources.convention(true)
 
 		ext.generatedSourcesRepoDirectory.convention(
+				project.layout.dir(
 				project.providers.gradleProperty('hytools.generatedSources.repoDirectory')
-				.map { project.file(it) }
+				.map {
+					project.file(it)
+				}
+				)
 				)
 	}
 

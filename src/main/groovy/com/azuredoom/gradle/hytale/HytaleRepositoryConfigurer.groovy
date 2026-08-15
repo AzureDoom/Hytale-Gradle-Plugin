@@ -39,10 +39,8 @@ final class HytaleRepositoryConfigurer {
 			}
 		}
 
-		project.afterEvaluate {
-			generatedSourcesMavenRepo.url = generatedSourcesMavenRepoDir.get().asFile.toURI()
-			generatedSourcesIvyRepo.url = generatedSourcesIvyRepoDir.get().asFile.toURI()
-		}
+		generatedSourcesMavenRepo.url = { generatedSourcesMavenRepoDir.get().asFile.toURI() }
+		generatedSourcesIvyRepo.url = { generatedSourcesIvyRepoDir.get().asFile.toURI() }
 
 		addHytaleServerRepos(project, patchlineProvider)
 
