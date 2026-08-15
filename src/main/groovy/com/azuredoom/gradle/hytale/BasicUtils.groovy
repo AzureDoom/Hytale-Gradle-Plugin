@@ -39,9 +39,9 @@ class BasicUtils {
 		return launcher.get().executablePath.asFile.absolutePath
 	}
 
-	static List<String> vineflowerExternalArgs(Collection<File> classpathFiles, File inputJar) {
+	static List<String> vineflowerExternalArgs(Collection<File> classpathFiles, File inputJar, File... generatedSourcesRepoDirs) {
 		return classpathFiles
-				.findAll { File file -> isExternalJar(file, inputJar) }
+				.findAll { File file -> isExternalJar(file, inputJar, generatedSourcesRepoDirs as List<File>) }
 				.collect { File file -> ('-e=' + file.absolutePath).toString() } as List<String>
 	}
 
@@ -198,15 +198,17 @@ class BasicUtils {
 		}
 	}
 
-	private static boolean isExternalJar(File file, File inputJar) {
+	private static boolean isExternalJar(File file, File inputJar, List<File> generatedSourcesRepoDirs) {
 		return file.name.endsWith('.jar') &&
 				file != inputJar &&
-				!isGeneratedSourcesJar(file)
+				!isGeneratedSourcesJar(file, generatedSourcesRepoDirs)
 	}
 
-	private static boolean isGeneratedSourcesJar(File file) {
-		return file.absolutePath.contains("${File.separator}build${File.separator}generated-sources-m2${File.separator}") ||
-				file.absolutePath.contains("${File.separator}build${File.separator}generated-sources-ivy${File.separator}")
+	private static boolean isGeneratedSourcesJar(File file, List<File> generatedSourcesRepoDirs) {
+		String filePath = file.absolutePath
+		return generatedSourcesRepoDirs.any { File repoDir ->
+			repoDir != null && filePath.startsWith(repoDir.absolutePath + File.separator)
+		}
 	}
 
 	private static Path relativizeOrAbsolute(Path parent, Path source) {

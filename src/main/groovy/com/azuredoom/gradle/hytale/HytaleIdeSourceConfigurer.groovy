@@ -54,6 +54,9 @@ final class HytaleIdeSourceConfigurer {
 			project.gradle.gradleUserHomeDir
 		})
 
+		def mavenRepoDirForDecompile = generatedSourcesMavenRepoDir
+		def ivyRepoDirForDecompile = generatedSourcesIvyRepoDir
+
 		project.tasks.register('decompileServerJar', DecompileServerJarTask) {
 			group = null
 			description = 'Decompile only com/hypixel/hytale from the Hytale Server jar into build/vineflower/hytale-server/'
@@ -67,6 +70,8 @@ final class HytaleIdeSourceConfigurer {
 			patchline.set(ext.patchline)
 			serverVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
 			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+			generatedSourcesMavenRepoDir.set(mavenRepoDirForDecompile)
+			generatedSourcesIvyRepoDir.set(ivyRepoDirForDecompile)
 
 			onlyIf("global decompile cache is stale or local output is missing") { t ->
 				DecompileServerJarTask task = t as DecompileServerJarTask
@@ -278,6 +283,9 @@ final class HytaleIdeSourceConfigurer {
 		def safeName = "${depGroup}__${depModule}__${depVersion}".replaceAll('[^A-Za-z0-9_.-]', '_')
 		def perArtifactDir = project.layout.buildDirectory.dir("vineflower/dependencies/${safeName}")
 
+		def mavenRepoDirForDecompile = generatedSourcesMavenRepoDir
+		def ivyRepoDirForDecompile = generatedSourcesIvyRepoDir
+
 		def resolvedBinaryJarConfiguration = HytaleDependencySupport.detachedNonTransitiveConfiguration(
 				project,
 				declaredDep
@@ -304,6 +312,8 @@ final class HytaleIdeSourceConfigurer {
 			artifactId.set(depModule)
 			artifactVersion.set(depVersion)
 			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+			generatedSourcesMavenRepoDir.set(mavenRepoDirForDecompile)
+			generatedSourcesIvyRepoDir.set(ivyRepoDirForDecompile)
 
 			onlyIf("global decompile cache is stale or local output is missing") { t ->
 				DecompileDependencyJarTask task = t as DecompileDependencyJarTask

@@ -17,8 +17,16 @@ class HytalePlugin implements Plugin<Project> {
 		def ext = project.extensions.create('hytaleTools', HytaleExtension)
 		HytaleExtensionDefaults.apply(project, ext)
 
-		def generatedSourcesMavenRepoDir = project.layout.buildDirectory.dir('generated-sources-m2')
-		def generatedSourcesIvyRepoDir = project.layout.buildDirectory.dir('generated-sources-ivy')
+		def defaultGeneratedSourcesMavenRepoDir = project.layout.buildDirectory.dir('generated-sources-m2')
+		def defaultGeneratedSourcesIvyRepoDir = project.layout.buildDirectory.dir('generated-sources-ivy')
+
+		def generatedSourcesMavenRepoDir = ext.generatedSourcesRepoDirectory
+				.map { it.dir('m2') }
+				.orElse(defaultGeneratedSourcesMavenRepoDir)
+		def generatedSourcesIvyRepoDir = ext.generatedSourcesRepoDirectory
+				.map { it.dir('ivy') }
+				.orElse(defaultGeneratedSourcesIvyRepoDir)
+
 		def archiveOperations = project.services.get(ArchiveOperations)
 
 		HytaleRepositoryConfigurer.configure(
@@ -124,6 +132,7 @@ class HytalePlugin implements Plugin<Project> {
 				assetsZipFileProvider,
 				tokenFileProvider,
 				generatedSourcesMavenRepoDir,
+				generatedSourcesIvyRepoDir,
 				vineServerJar,
 				vineImplementation,
 				vineCompileOnly,

@@ -21,6 +21,7 @@ final class HytaleCoreTaskRegistrar {
 			Provider<File> assetsZipFileProvider,
 			Provider<File> tokenFileProvider,
 			def generatedSourcesMavenRepoDir,
+			def generatedSourcesIvyRepoDir,
 			NamedDomainObjectProvider<Configuration> vineServerJar,
 			NamedDomainObjectProvider<Configuration> vineImplementation,
 			NamedDomainObjectProvider<Configuration> vineCompileOnly,
@@ -29,19 +30,66 @@ final class HytaleCoreTaskRegistrar {
 			Provider<String> resolvedServerVersionProvider
 	) {
 
+		def sharesGeneratedSourcesRepoProvider = project.provider { ext.generatedSourcesRepoDirectory.isPresent() }
+
 		project.tasks.register('cleanHytaleGenerated', Delete) {
 			group = 'hytale'
 			description = 'Deletes local generated Hytale sources, IDE binaries, and temporary generation outputs.'
 
 			delete(
 					project.layout.buildDirectory.dir('vineflower'),
-					project.layout.buildDirectory.dir('generated-sources-m2'),
-					project.layout.buildDirectory.dir('generated-sources-ivy'),
 					project.layout.buildDirectory.dir('generated-sources-jars'),
 					project.layout.buildDirectory.dir('generated-ide-binaries'),
 					project.layout.buildDirectory.dir('tmp/vineflower-server'),
 					project.layout.buildDirectory.dir('tmp/vineflower-deps')
 					)
+
+			delete(project.provider {
+				sharesGeneratedSourcesRepoProvider.get() ? [] : [
+					generatedSourcesMavenRepoDir,
+					generatedSourcesIvyRepoDir
+				]
+			})
+		}
+
+		project.tasks.register('cleanSharedHytaleGeneratedSourcesRepo', Delete) {
+			group = 'hytale'
+			description = 'Deletes the shared generated-sources Maven/Ivy repos configured via generatedSourcesRepoDirectory. ' +
+					'This may affect other projects sharing the same directory.'
+
+			onlyIf("generatedSourcesRepoDirectory is configured for this project") {
+				sharesGeneratedSourcesRepoProvider.get()
+			}
+
+			delete(
+					generatedSourcesMavenRepoDir,
+					generatedSourcesIvyRepoDir
+					)
+
+			doFirst {
+				if (!sharesGeneratedSourcesRepoProvider.get()) {
+					return
+				}
+
+				String confirmation = project.providers.gradleProperty('confirmCleanSharedHytaleGeneratedSourcesRepo').orNull
+				if (confirmation?.equalsIgnoreCase('true')) {
+					return
+				}
+
+				Console console = System.console()
+				if (console != null) {
+					String response = console.readLine(
+							"cleanSharedHytaleGeneratedSourcesRepo deletes ${generatedSourcesMavenRepoDir.get().asFile} " +
+							'and its Ivy counterpart, which may be shared with other projects. ' +
+							'Type "clean shared hytale sources" to continue: '
+							)
+					if (response == 'clean shared hytale sources') {
+						return
+					}
+				}
+
+				throw new GradleException('Refusing to clean the shared generated-sources repo without confirmation. Re-run with -PconfirmCleanSharedHytaleGeneratedSourcesRepo=true to confirm.')
+			}
 		}
 
 		project.tasks.register('cleanHytaleAssetsCache', Delete) {

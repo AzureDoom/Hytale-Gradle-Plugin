@@ -23,14 +23,12 @@ final class HytaleRepositoryConfigurer {
 			HytaleExtension ext) {
 		project.repositories.mavenCentral()
 
-		project.repositories.maven { MavenArtifactRepository repo ->
+		def generatedSourcesMavenRepo = project.repositories.maven { MavenArtifactRepository repo ->
 			repo.name = 'Generated Decompiled Sources'
-			repo.url = generatedSourcesMavenRepoDir.get().asFile.toURI()
 		}
 
-		project.repositories.ivy { IvyArtifactRepository repo ->
+		def generatedSourcesIvyRepo = project.repositories.ivy { IvyArtifactRepository repo ->
 			repo.name = 'Generated Decompiled Sources Ivy'
-			repo.url = generatedSourcesIvyRepoDir.get().asFile.toURI()
 			repo.patternLayout { layout ->
 				layout.ivy('[organisation]/[module]/[revision]/ivy-[revision].xml')
 				layout.artifact('[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]')
@@ -39,6 +37,11 @@ final class HytaleRepositoryConfigurer {
 				sources.ivyDescriptor()
 				sources.artifact()
 			}
+		}
+
+		project.afterEvaluate {
+			generatedSourcesMavenRepo.url = generatedSourcesMavenRepoDir.get().asFile.toURI()
+			generatedSourcesIvyRepo.url = generatedSourcesIvyRepoDir.get().asFile.toURI()
 		}
 
 		addHytaleServerRepos(project, patchlineProvider)

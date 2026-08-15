@@ -30,6 +30,7 @@ class HytaleWorkspacePlugin implements Plugin<Project> {
 				childExt.manifestGroup.convention(workspaceExt.manifestGroup)
 				childExt.hytaleVersion.convention(workspaceExt.hytaleVersion)
 				childExt.patchline.convention(workspaceExt.patchline)
+				childExt.generatedSourcesRepoDirectory.convention(workspaceExt.generatedSourcesRepoDirectory)
 			}
 		}
 

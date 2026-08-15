@@ -56,6 +56,12 @@ abstract class DecompileServerJarTask extends DefaultTask {
 	@Internal
 	abstract DirectoryProperty getGradleUserHomeDirectory()
 
+	@Internal
+	abstract DirectoryProperty getGeneratedSourcesMavenRepoDir()
+
+	@Internal
+	abstract DirectoryProperty getGeneratedSourcesIvyRepoDir()
+
 	@Inject
 	abstract JavaToolchainService getJavaToolchainService()
 
@@ -93,7 +99,12 @@ abstract class DecompileServerJarTask extends DefaultTask {
 			BasicUtils.javaExecutableFor(javaToolchainService, javaVersion.get()),
 			'-jar',
 			vineflowerJar.get().asFile.absolutePath,
-			*BasicUtils.vineflowerExternalArgs(decompileClasspath.files, server),
+			*BasicUtils.vineflowerExternalArgs(
+			decompileClasspath.files,
+			server,
+			generatedSourcesMavenRepoDir.get().asFile,
+			generatedSourcesIvyRepoDir.get().asFile
+			),
 			filteredJar.absolutePath,
 			outDir.absolutePath
 		]

@@ -139,6 +139,8 @@ abstract class HytaleExtension {
 	abstract Property<String> getServerJavadocsUrl()
 	abstract Property<Boolean> getInjectServerJavadocsIntoSources()
 
+	abstract DirectoryProperty getGeneratedSourcesRepoDirectory()
+
 	void javaVersion(int v) {
 		getJavaVersion().set(v)
 	}
@@ -319,5 +321,9 @@ abstract class HytaleExtension {
 
 	void injectServerJavadocsIntoSources(boolean v) {
 		getInjectServerJavadocsIntoSources().set(v)
+	}
+
+	void generatedSourcesRepoDirectory(Object v) {
+		getGeneratedSourcesRepoDirectory().set(v)
 	}
 }
