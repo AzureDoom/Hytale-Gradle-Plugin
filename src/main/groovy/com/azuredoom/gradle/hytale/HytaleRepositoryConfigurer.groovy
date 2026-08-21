@@ -51,7 +51,14 @@ final class HytaleRepositoryConfigurer {
 			addMavenRepo(project, 'PlaceholderAPI', 'https://repo.helpch.at/releases/')
 		}
 		if (!ext.disableCurseMaven.get()) {
-			addMavenRepo(project, 'CurseMaven', 'https://cursemaven.com')
+			project.repositories.maven { MavenArtifactRepository repo ->
+				repo.name = 'CurseMaven'
+				repo.url = project.uri('https://cursemaven.com')
+
+				content {
+					includeGroup('curse.maven')
+				}
+			}
 		}
 		if (!ext.disableAzureDoomMaven.get()) {
 			addMavenRepo(project, 'AzureDoom Maven', 'https://maven.azuredoom.com/mods')
