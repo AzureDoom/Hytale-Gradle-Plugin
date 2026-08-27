@@ -124,6 +124,6 @@ final class HytaleExtensionDefaults {
 
 		return prerelease
 				? 'https://pre-release.docs.hytale.com/api/'
-				: 'https://docs.hytale.com/'
+				: 'https://docs.hytale.com/api/'
 	}
 }
