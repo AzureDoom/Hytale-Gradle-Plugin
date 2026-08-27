@@ -13,7 +13,7 @@ Need a new project? Start with the [template generator](https://template.azuredo
 ```gradle
 plugins {
     id 'java'
-    id 'com.azuredoom.hytale-tools' version '1.0.49'
+    id 'com.azuredoom.hytale-tools' version '1.0.50'
 }
 
 hytaleTools {
