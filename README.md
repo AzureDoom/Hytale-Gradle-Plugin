@@ -53,15 +53,15 @@ For debugging and hot swap:
 
 ## Common tasks
 
-| Task | Purpose |
-|---|---|
-| `setupHytaleDev` | Prepare assets and IDE sources |
-| `runServer` | Run one mod locally |
-| `runAllMods` | Run all workspace mods together |
-| `prepareDecompiledSourcesForIde` | Generate IDE source attachments |
-| `updatePluginManifest` | Regenerate `manifest.json` |
-| `hytaleDoctor` | Diagnose project, asset, and dependency issues |
-| `hytaleJvmDoctor` | Diagnose debug and hot-swap support |
+| Task                             | Purpose                                        |
+|----------------------------------|------------------------------------------------|
+| `setupHytaleDev`                 | Prepare assets and IDE sources                 |
+| `runServer`                      | Run one mod locally                            |
+| `runAllMods`                     | Run all workspace mods together                |
+| `prepareDecompiledSourcesForIde` | Generate IDE source attachments                |
+| `updatePluginManifest`           | Regenerate `manifest.json`                     |
+| `hytaleDoctor`                   | Diagnose project, asset, and dependency issues |
+| `hytaleJvmDoctor`                | Diagnose debug and hot-swap support            |
 
 ## Documentation
 
