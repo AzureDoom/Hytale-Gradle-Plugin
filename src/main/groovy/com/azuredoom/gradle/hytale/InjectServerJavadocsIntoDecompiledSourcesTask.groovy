@@ -46,6 +46,12 @@ abstract class InjectServerJavadocsIntoDecompiledSourcesTask extends DefaultTask
 				"caches/hytale-javadocs/${patchline.get()}-${serverVersion.get()}.injected"
 				)
 
+		if (HytaleServerSources.readSourceKind(sourceDir) == HytaleServerSources.KIND_OFFICIAL) {
+			logger.lifecycle("InjectServerJavadocs: skipping — using official server sources for {}-{}",
+					patchline.get(), serverVersion.get())
+			return
+		}
+
 		if (injectionStampFile.exists()) {
 			logger.lifecycle(
 					"InjectServerJavadocs: skipping — already injected for {}-{} (stamp: {})",

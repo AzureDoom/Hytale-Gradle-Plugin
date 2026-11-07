@@ -53,6 +53,15 @@ abstract class DecompileServerJarTask extends DefaultTask {
 	@Input
 	abstract Property<String> getPatchline()
 
+	@Input
+	abstract Property<Boolean> getPreferOfficialSources()
+
+	@Input
+	abstract Property<String> getOfficialSourcesRepositoryUrl()
+
+	@Internal
+	abstract Property<Boolean> getOffline()
+
 	@Internal
 	abstract DirectoryProperty getGradleUserHomeDirectory()
 
@@ -70,6 +79,103 @@ abstract class DecompileServerJarTask extends DefaultTask {
 		def outDir  = outputDirectory.get().asFile
 		def tempDir = tempDirectoryRoot.get().asFile
 
+		if (shouldTryOfficialSources() && useOfficialSources(outDir, tempDir)) {
+			return
+		}
+
+		decompileWithVineflower(outDir, tempDir)
+	}
+
+	boolean shouldTryOfficialSources() {
+		return preferOfficialSources.getOrElse(true) &&
+				HytaleServerSources.officialSourcesExpected(serverVersion.get())
+	}
+
+	boolean hasCurrentLocalOutput() {
+		File outDir = outputDirectory.get().asFile
+		if (!HytaleServerSources.containsJavaSources(outDir)) {
+			return false
+		}
+
+		String kind = HytaleServerSources.readSourceKind(outDir) ?: HytaleServerSources.KIND_DECOMPILED
+		boolean decompiledCached = new File(resolveGlobalCacheDir(), '.complete').exists()
+
+		if (shouldTryOfficialSources()) {
+			if (new File(resolveOfficialSourcesCacheDir(), '.complete').exists()) {
+				return kind == HytaleServerSources.KIND_OFFICIAL
+			}
+			boolean wontRetry = offline.getOrElse(false) ||
+					HytaleServerSources.isMissingMarkerFresh(resolveOfficialSourcesMissingMarker())
+			return wontRetry && kind == HytaleServerSources.KIND_DECOMPILED && decompiledCached
+		}
+
+		return kind == HytaleServerSources.KIND_DECOMPILED && decompiledCached
+	}
+
+	private boolean useOfficialSources(File outDir, File tempDir) {
+		String version = serverVersion.get()
+		File cacheDir  = resolveOfficialSourcesCacheDir()
+		File stampFile = new File(cacheDir, '.complete')
+
+		if (stampFile.exists()) {
+			logger.lifecycle("ServerSources: global cache hit for official {}-{} sources, copying cached sources",
+					patchline.get(), version)
+			BasicUtils.recreateDirectories(outDir, tempDir)
+			copyDirectory(cacheDir, outDir)
+			HytaleServerSources.writeSourceKind(outDir, HytaleServerSources.KIND_OFFICIAL)
+			return true
+		}
+
+		if (offline.getOrElse(false)) {
+			logger.lifecycle("ServerSources: offline and no cached official sources for {}-{}, decompiling instead",
+					patchline.get(), version)
+			return false
+		}
+
+		File missingMarker = resolveOfficialSourcesMissingMarker()
+		if (HytaleServerSources.isMissingMarkerFresh(missingMarker)) {
+			logger.info("ServerSources: official sources for {}-{} were missing recently, decompiling instead",
+					patchline.get(), version)
+			return false
+		}
+
+		String url = HytaleServerSources.sourcesJarUrl(officialSourcesRepositoryUrl.get(), version)
+		File downloadDir = resolveOfficialSourcesDownloadDir()
+		File jar = new File(downloadDir, "${HytaleVersionResolver.SERVER_MODULE}-${version}-sources.jar")
+
+		File downloaded
+		try {
+			logger.lifecycle("ServerSources: fetching official sources {}", url)
+			downloaded = HytaleServerSources.downloadSourcesJar(url, jar, logger)
+		} catch (IOException e) {
+			logger.warn("ServerSources: could not fetch official sources from {} ({}); decompiling instead",
+					url, e.message)
+			return false
+		}
+
+		if (downloaded == null || !HytaleServerSources.isUsableSourcesJar(downloaded)) {
+			logger.lifecycle("ServerSources: no usable official sources jar at {}; decompiling instead", url)
+			jar.delete()
+			try {
+				missingMarker.parentFile?.mkdirs()
+				BasicUtils.atomicWrite(missingMarker, url)
+			} catch (Exception e) {
+				logger.warn("ServerSources: failed to record missing sources (non-fatal): {}", e.message)
+			}
+			return false
+		}
+
+		missingMarker.delete()
+		BasicUtils.recreateDirectories(outDir, tempDir)
+		HytaleServerSources.extractSourcesJar(downloaded, outDir)
+		HytaleServerSources.writeSourceKind(outDir, HytaleServerSources.KIND_OFFICIAL)
+		logger.lifecycle("Using official Hytale server sources ${downloaded.name} -> ${outDir}")
+
+		populateGlobalCache(outDir, cacheDir, stampFile)
+		return true
+	}
+
+	private void decompileWithVineflower(File outDir, File tempDir) {
 		File globalCacheDir = resolveGlobalCacheDir()
 		File stampFile      = new File(globalCacheDir, '.complete')
 
@@ -78,6 +184,7 @@ abstract class DecompileServerJarTask extends DefaultTask {
 					patchline.get(), serverVersion.get())
 			BasicUtils.recreateDirectories(outDir, tempDir)
 			copyDirectory(globalCacheDir, outDir)
+			HytaleServerSources.writeSourceKind(outDir, HytaleServerSources.KIND_DECOMPILED)
 			return
 		}
 
@@ -114,6 +221,7 @@ abstract class DecompileServerJarTask extends DefaultTask {
 		logger.lifecycle("Decompiled com/hypixel/hytale only from ${server.name} -> ${outDir}")
 
 		populateGlobalCache(outDir, globalCacheDir, stampFile)
+		HytaleServerSources.writeSourceKind(outDir, HytaleServerSources.KIND_DECOMPILED)
 	}
 
 	File resolveGlobalCacheDir() {
@@ -123,14 +231,29 @@ abstract class DecompileServerJarTask extends DefaultTask {
 				)
 	}
 
+	File resolveOfficialSourcesDownloadDir() {
+		return new File(
+				gradleUserHomeDirectory.get().asFile,
+				"caches/hytale-sources/${patchline.get()}-${serverVersion.get()}"
+				)
+	}
+
+	File resolveOfficialSourcesCacheDir() {
+		return new File(resolveOfficialSourcesDownloadDir(), 'server')
+	}
+
+	File resolveOfficialSourcesMissingMarker() {
+		return new File(resolveOfficialSourcesDownloadDir(), '.missing')
+	}
+
 	private void populateGlobalCache(File sourceDir, File cacheDir, File stampFile) {
 		try {
 			cacheDir.mkdirs()
 			copyDirectory(sourceDir, cacheDir)
 			BasicUtils.atomicWrite(stampFile, "${patchline.get()}-${serverVersion.get()}")
-			logger.lifecycle("DecompileServerJar: cached decompiled sources to {}", cacheDir)
+			logger.lifecycle("ServerSources: cached server sources to {}", cacheDir)
 		} catch (Exception e) {
-			logger.warn("DecompileServerJar: failed to write global cache (non-fatal): {}", e.message)
+			logger.warn("ServerSources: failed to write global cache (non-fatal): {}", e.message)
 		}
 	}
 

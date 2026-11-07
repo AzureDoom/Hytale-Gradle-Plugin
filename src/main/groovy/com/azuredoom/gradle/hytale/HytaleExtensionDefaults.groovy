@@ -104,6 +104,9 @@ final class HytaleExtensionDefaults {
 				}
 				)
 		ext.injectServerJavadocsIntoSources.convention(true)
+		ext.preferOfficialServerSources.convention(
+				project.providers.gradleProperty('hytools.sources.preferOfficial').map { it.toBoolean() }.orElse(true)
+				)
 
 		ext.generatedSourcesRepoDirectory.convention(
 				project.layout.dir(

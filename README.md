@@ -45,8 +45,8 @@ For debugging and hot swap:
 - Authenticated Hytale asset resolution
 - Local Hytale server launch tasks
 - Runtime plugin and library staging
-- Decompiled source attachment for IDEs
-- Hosted Hytale Javadocs in generated sources
+- Server source attachment for IDEs: the official sources jar for Hytale 0.8.0-pre.3 and newer, Vineflower decompilation for older versions
+- Hosted Hytale Javadocs in decompiled sources
 - Multi-project workspace support
 - VS Code run, task, and debug configuration
 - Diagnostics and cleanup tasks

@@ -56,7 +56,9 @@ final class HytaleIdeSourceConfigurer {
 
 		project.tasks.register('decompileServerJar', DecompileServerJarTask) {
 			group = null
-			description = 'Decompile only com/hypixel/hytale from the Hytale Server jar into build/vineflower/hytale-server/'
+			description = 'Prepares Hytale Server sources in build/vineflower/hytale-server/: uses the official sources jar ' +
+					"when the server version publishes one (${HytaleServerSources.FIRST_OFFICIAL_SOURCES_VERSION}+), " +
+					'otherwise decompiles com/hypixel/hytale with Vineflower.'
 
 			serverJar.set(serverJarFile)
 			vineflowerJar.set(vineflowerJarFile)
@@ -69,14 +71,12 @@ final class HytaleIdeSourceConfigurer {
 			gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
 			generatedSourcesMavenRepoDir.set(mavenRepoDirProvider)
 			generatedSourcesIvyRepoDir.set(ivyRepoDirProvider)
+			preferOfficialSources.set(ext.preferOfficialServerSources)
+			officialSourcesRepositoryUrl.set(ext.patchline.map { HytaleServerSources.repositoryUrlForPatchline(it) })
+			offline.set(project.gradle.startParameter.offline)
 
-			onlyIf("global decompile cache is stale or local output is missing") { t ->
-				DecompileServerJarTask task = t as DecompileServerJarTask
-				File stampFile = new File(task.resolveGlobalCacheDir(), '.complete')
-				File outDir    = task.outputDirectory.get().asFile
-				boolean cached    = stampFile.exists()
-				boolean populated = outDir.exists() && outDir.list({ d, n -> n.endsWith('.java') } as FilenameFilter)
-				!(cached && populated)
+			onlyIf("server sources cache is stale or local output is missing") { t ->
+				!(t as DecompileServerJarTask).hasCurrentLocalOutput()
 			}
 		}
 
@@ -95,6 +95,11 @@ final class HytaleIdeSourceConfigurer {
 					patchline.set(ext.patchline)
 					serverVersion.set(resolvedServerVersionProvider.orElse(ext.hytaleVersion))
 					gradleUserHomeDirectory.set(gradleUserHomeDirProvider)
+
+					onlyIf("server sources are decompiled (official sources are used as-is)") { t ->
+						InjectServerJavadocsIntoDecompiledSourcesTask task = t as InjectServerJavadocsIntoDecompiledSourcesTask
+						HytaleServerSources.readSourceKind(task.sourceDirectory.get().asFile) != HytaleServerSources.KIND_OFFICIAL
+					}
 
 					onlyIf("javadoc injection stamp not yet written for this version") { t ->
 						InjectServerJavadocsIntoDecompiledSourcesTask task = t as InjectServerJavadocsIntoDecompiledSourcesTask
@@ -156,7 +161,7 @@ final class HytaleIdeSourceConfigurer {
 
 		def serverSourcesJar = project.tasks.register('serverDecompiledSourcesJar', Jar) {
 			group = null
-			description = 'Packages decompiled Hytale server sources as a sources jar.'
+			description = 'Packages the Hytale server sources (official or decompiled) as a sources jar.'
 
 			dependsOn(injectServerJavadocsIntoDecompiledSources)
 
@@ -165,7 +170,9 @@ final class HytaleIdeSourceConfigurer {
 			archiveClassifier.set('sources')
 
 			destinationDirectory.set(project.layout.buildDirectory.dir('generated-sources-jars/server'))
-			from(decompiledServerDir)
+			from(decompiledServerDir) {
+				exclude(HytaleServerSources.SOURCE_KIND_MARKER)
+			}
 		}
 
 		def installServerSourcesToRepo = project.tasks.register(
